@@ -19,8 +19,24 @@ rules:
     category: money
     severity: FAIL
     type: regex
-    pattern: "(?:\\d{1,3}(?:,\\d{3})+|\\d+)(?:\\.\\d+)?\\s*(?:円|万円|億円|千円)"
+    pattern: "(?:税込|税別)?\\s*(?:\\d{1,3}(?:,\\d{3})+|\\d+)(?:\\.\\d+)?\\s*(?:円|万円|億円|千円)(?:\\s*(?:税込|税別))?"
     recommendation: "RAG_OK投入前に具体的な金額情報をマスクしてください。"
+    redaction: label
+
+  - rule_id: rate_keyword
+    category: money
+    severity: FAIL
+    type: regex
+    pattern: "(?:(?:料率|利率|手数料率).{0,10})?\\d+(?:\\.\\d+)?\\s*(?:%|％|パーセント)"
+    recommendation: "RAG_OK投入前に料率情報をマスクしてください。"
+    redaction: label
+
+  - rule_id: unit_price_keyword
+    category: money
+    severity: FAIL
+    type: regex
+    pattern: "(?:(?:坪単価|平米単価|㎡単価|m2単価|m²単価)\\s*(?:[:：=]\\s*)?(?:\\d{1,3}(?:,\\d{3})+|\\d+)?(?:\\.\\d+)?\\s*(?:円|万円|億円|千円)?|(?:\\d{1,3}(?:,\\d{3})+|\\d+)(?:\\.\\d+)?\\s*(?:円|万円|億円|千円)\\s*/\\s*(?:坪|㎡|m2|m²))"
+    recommendation: "RAG_OK投入前に坪単価・平米単価情報をマスクしてください。"
     redaction: label
 
   - rule_id: budget_keyword

@@ -69,6 +69,35 @@ def test_matched_text_is_safely_redacted() -> None:
     assert "[REDACTED_AMOUNT]" in rendered
 
 
+def test_phase_a_money_rate_and_unit_price_rules_are_detected(tmp_path: Path) -> None:
+    source = tmp_path / "phase_a_dummy.md"
+    source.write_text(
+        "\n".join(
+            [
+                "# Phase_A_Dummy",
+                "金額は 税込 1,234.5万円、税別 2億円、3,000千円です。",
+                "料率は 手数料率 2.75パーセント、利率 1.5％ です。",
+                "単価は 坪単価 120.5万円、㎡単価 36,000円、45万円/坪 です。",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    before = source.read_text(encoding="utf-8")
+
+    result = check_path(source)
+    rendered = json.dumps(result["findings"], ensure_ascii=False)
+    rule_ids = {finding["rule_id"] for finding in result["findings"]}
+
+    assert result["status"] == "FAIL"
+    assert {"amount", "percentage_rate", "unit_price"} <= rule_ids
+    assert "[REDACTED_AMOUNT]" in rendered
+    assert "[REDACTED_RATE]" in rendered
+    for sensitive_value in ["1,234.5万円", "2.75パーセント", "120.5万円", "36,000円", "45万円/坪"]:
+        assert sensitive_value not in rendered
+    assert source.read_text(encoding="utf-8") == before
+
+
 def test_input_file_is_not_modified(tmp_path: Path) -> None:
     source = FIXTURES / "fail" / "root.md"
     before = source.read_text(encoding="utf-8")
