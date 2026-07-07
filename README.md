@@ -12,12 +12,24 @@ python -m pip install -e .
 
 実行時の依存は標準ライブラリのみです。`config/*.yaml` は将来拡張用のサンプルで、MVPランタイムでは読み込みません。
 
+Windowsでは、editable install後に `ragguard` コマンドが配置されるPython `Scripts` ディレクトリが `PATH` に入っていない場合があります。その場合は `python -m ragguard ...` で実行するか、利用しているPython環境の `Scripts` ディレクトリを `PATH` に追加してください。
+
 ## CLI実行例
 
 ```powershell
 python -m ragguard check-mask --input "tests/fixtures/safe" --output "outputs/test_safe"
 ragguard check-mask --input "tests/fixtures/fail" --output "outputs/test_fail" --verbose
 ```
+
+`ragguard` コマンドが見つからない場合は、同じ処理を以下の形式で実行できます。
+
+```powershell
+python -m ragguard check-mask --input "tests/fixtures/fail" --output "outputs/test_fail" --verbose
+```
+
+## CI
+
+GitHub Actionsの `Tests` workflowで、`main` へのpushおよび `main` 向けpull requestごとに `python -m pytest` を実行します。検出ルールやドキュメントを変更する場合も、PRではpytestが通る状態を維持してください。
 
 ## 判定
 
