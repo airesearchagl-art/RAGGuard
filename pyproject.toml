@@ -11,7 +11,9 @@ requires-python = ">=3.10"
 authors = [
   { name = "RAGGuard Maintainers" }
 ]
-dependencies = []
+dependencies = [
+  "PyYAML>=6.0",
+]
 
 [project.scripts]
 ragguard = "ragguard.cli:main"

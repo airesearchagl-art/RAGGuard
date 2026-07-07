@@ -51,8 +51,14 @@ python -m ragguard check-mask --input "tests/fixtures/fail" --output "outputs/te
 
 ## v0.2予定: 設定ファイル
 
-現行MVPでは、`config/rules.yaml` と `config/mask_patterns.yaml` は将来拡張用のサンプルです。CLI実行時には読み込まれないため、現時点の挙動は内蔵ルールのみで決まります。
+v0.2では、`--config config/rules.yaml` によるルール読込に対応しています。YAML読込には `PyYAML` を使い、設定ファイルはローカルファイルとして扱います。外部APIやクラウドサービスは使いません。
 
-v0.2では、`--config config/rules.yaml` によるルール読込を検討します。config未指定時は内蔵ルールを使い、config指定時は内蔵ルールにユーザー定義ルールを追加する方針です。
+```powershell
+python -m ragguard check-mask --input "tests/fixtures/fail" --output "outputs/test_fail_config" --config "config/rules.yaml"
+```
 
-この予定は設計段階であり、現時点ではCLIオプション、判定仕様、exit code、レポート形式は変わりません。
+config未指定時は内蔵ルールのみを使います。config指定時は `mode: extend_builtin` のみ対応し、内蔵ルールにYAML定義ルールを追加します。
+
+YAML不備、未対応mode、未対応version、必須キー不足、重複 `rule_id`、不正な正規表現などはCLIエラーとして終了コード `3` になります。既存のPASS / WARNING / FAILの終了コードとレポート形式は変わりません。
+
+configやfixtureには、実資料・実案件名・実会社名・実個人名を含めないでください。

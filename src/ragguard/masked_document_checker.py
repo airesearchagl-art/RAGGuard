@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-from ragguard.detectors import RULES, redact_match
+from ragguard.detectors import RULES, Rule, redact_match
 from ragguard.utils import collect_markdown_files, display_path
 
 
@@ -18,7 +18,7 @@ class Finding:
     recommendation: str
 
 
-def check_path(input_path: Path) -> dict:
+def check_path(input_path: Path, rules: tuple[Rule, ...] = RULES) -> dict:
     markdown_files = collect_markdown_files(input_path)
     base = input_path if input_path.is_dir() else input_path.parent
     findings: list[Finding] = []
@@ -26,7 +26,7 @@ def check_path(input_path: Path) -> dict:
     for markdown_file in markdown_files:
         text = markdown_file.read_text(encoding="utf-8")
         for line_number, line in enumerate(text.splitlines(), start=1):
-            for rule in RULES:
+            for rule in rules:
                 for match in rule.pattern.finditer(line):
                     findings.append(
                         Finding(
