@@ -55,7 +55,7 @@ RULES: tuple[Rule, ...] = (
         "amount",
         "financial_info",
         "FAIL",
-        re.compile(r"(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?\s*(?:円|万円|億円|千円)"),
+        re.compile(r"(?:税込|税別)?\s*(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?\s*(?:円|万円|億円|千円)(?:\s*(?:税込|税別))?"),
         DEFAULT_RECOMMENDATION,
         "amount",
     ),
@@ -63,9 +63,19 @@ RULES: tuple[Rule, ...] = (
         "percentage_rate",
         "financial_info",
         "FAIL",
-        re.compile(r"\d+(?:\.\d+)?\s*(?:%|％|パーセント)"),
+        re.compile(r"(?:(?:料率|利率|手数料率).{0,10})?\d+(?:\.\d+)?\s*(?:%|％|パーセント)"),
         DEFAULT_RECOMMENDATION,
         "percentage",
+    ),
+    Rule(
+        "unit_price",
+        "financial_info",
+        "FAIL",
+        re.compile(
+            r"(?:(?:坪単価|平米単価|㎡単価|m2単価|m²単価)\s*(?:[:：=]\s*)?(?:\d{1,3}(?:,\d{3})+|\d+)?(?:\.\d+)?\s*(?:円|万円|億円|千円)?|(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?\s*(?:円|万円|億円|千円)\s*/\s*(?:坪|㎡|m2|m²))"
+        ),
+        DEFAULT_RECOMMENDATION,
+        "amount",
     ),
     Rule(
         "payment_terms",
