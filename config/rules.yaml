@@ -72,7 +72,14 @@ rules:
     type: keyword
     keywords:
       - "支払条件"
+      - "手付"
       - "違約金"
+      - "解約条項"
+      - "特約"
+      - "秘密保持"
+      - "NDA"
+      - "優先交渉"
+      - "専属専任"
       - "責任範囲"
       - "契約条件"
       - "免責"
@@ -81,11 +88,20 @@ rules:
 
   - rule_id: internal_context_keyword
     category: internal
-    severity: WARNING
+    severity: FAIL
     type: keyword
     keywords:
+      - "社内限り"
+      - "内部資料"
+      - "非公開"
+      - "未公開"
+      - "稟議"
+      - "決裁"
+      - "承認前"
+      - "ドラフト"
+      - "取扱注意"
       - "人事"
       - "異動"
       - "組織再編"
-    recommendation: "内部情報の可能性があるため、文脈を確認してください。"
+    recommendation: "RAG_OK投入前に内部情報の可能性がある記述を確認し、必要に応じてマスクしてください。"
     redaction: label
