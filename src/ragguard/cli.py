@@ -4,6 +4,8 @@ import argparse
 import sys
 from pathlib import Path
 
+from ragguard.config_loader import ConfigError, load_rules_from_config
+from ragguard.detectors import RULES
 from ragguard.masked_document_checker import check_path, exit_code_for_status
 from ragguard.report import write_reports
 
@@ -25,6 +27,10 @@ def build_parser() -> argparse.ArgumentParser:
     check_mask.add_argument("--input", required=True, help="Markdown file or folder to check.")
     check_mask.add_argument("--output", required=True, help="Output folder for reports.")
     check_mask.add_argument(
+        "--config",
+        help="Optional YAML rules config. v0.2 supports mode: extend_builtin only.",
+    )
+    check_mask.add_argument(
         "--format",
         choices=["both"],
         default="both",
@@ -40,8 +46,14 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "check-mask":
         try:
-            result = check_path(Path(args.input))
+            rules = RULES
+            if args.config:
+                rules = RULES + load_rules_from_config(Path(args.config), RULES)
+            result = check_path(Path(args.input), rules)
             json_path, markdown_path = write_reports(result, Path(args.output))
+        except ConfigError as exc:
+            print(f"ragguard: config error: {exc}", file=sys.stderr)
+            return 3
         except Exception as exc:
             print(f"ragguard: error: {exc}", file=sys.stderr)
             return 3

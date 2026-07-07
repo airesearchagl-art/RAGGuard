@@ -135,6 +135,16 @@ RULES: tuple[Rule, ...] = (
 
 
 def redact_match(value: str, redaction: str) -> str:
+    if redaction == "partial":
+        if "@" in value:
+            return redact_match(value, "email")
+        if re.search(r"\d", value):
+            return redact_match(value, "phone")
+        return "[REDACTED_VALUE]"
+    if redaction == "label":
+        return "[REDACTED_VALUE]"
+    if redaction == "keyword":
+        return "[REDACTED_KEYWORD]"
     if redaction == "email":
         local, _, domain = value.partition("@")
         return f"{local[:1]}***@{domain[:1]}***"

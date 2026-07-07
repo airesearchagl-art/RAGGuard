@@ -7,7 +7,7 @@ version: 1
 mode: extend_builtin
 
 rules:
-  - rule_id: email_address
+  - rule_id: email_address_custom
     category: personal_info
     severity: FAIL
     type: regex
