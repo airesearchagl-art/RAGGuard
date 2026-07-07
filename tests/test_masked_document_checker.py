@@ -98,6 +98,34 @@ def test_phase_a_money_rate_and_unit_price_rules_are_detected(tmp_path: Path) ->
     assert source.read_text(encoding="utf-8") == before
 
 
+def test_phase_b_address_candidate_rules_are_detected(tmp_path: Path) -> None:
+    source = tmp_path / "phase_b_dummy.md"
+    source.write_text(
+        "\n".join(
+            [
+                "# Phase_B_Dummy",
+                "郵便番号は 123-4567 です。",
+                "所在地は サンプル県サンプル市1丁目2番地3号 です。",
+                "物件所在地は サンプル建物A棟 です。",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    before = source.read_text(encoding="utf-8")
+
+    result = check_path(source)
+    rendered = json.dumps(result["findings"], ensure_ascii=False)
+    rule_ids = {finding["rule_id"] for finding in result["findings"]}
+
+    assert result["status"] == "FAIL"
+    assert {"address_postal_code", "address_like", "address_context"} <= rule_ids
+    assert "[REDACTED_ADDRESS]" in rendered
+    for sensitive_value in ["123-4567", "サンプル県サンプル市1丁目2番地3号", "サンプル建物A棟"]:
+        assert sensitive_value not in rendered
+    assert source.read_text(encoding="utf-8") == before
+
+
 def test_input_file_is_not_modified(tmp_path: Path) -> None:
     source = FIXTURES / "fail" / "root.md"
     before = source.read_text(encoding="utf-8")

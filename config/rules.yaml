@@ -39,6 +39,22 @@ rules:
     recommendation: "RAG_OK投入前に坪単価・平米単価情報をマスクしてください。"
     redaction: label
 
+  - rule_id: address_postal_code_custom
+    category: address_candidate
+    severity: FAIL
+    type: regex
+    pattern: "\\b\\d{3}-\\d{4}\\b"
+    recommendation: "RAG_OK投入前に郵便番号や住所候補をマスクしてください。"
+    redaction: label
+
+  - rule_id: address_context_custom
+    category: address_candidate
+    severity: FAIL
+    type: regex
+    pattern: "(?:住所|所在地|現地|物件所在地).{0,30}(?:\\d+丁目|\\d+番地|\\d+号|.{1,20}(?:ビル|建物|棟))"
+    recommendation: "RAG_OK投入前に住所候補の記述を確認し、必要に応じてマスクしてください。"
+    redaction: label
+
   - rule_id: budget_keyword
     category: money
     severity: WARNING
