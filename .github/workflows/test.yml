@@ -29,3 +29,15 @@ jobs:
 
       - name: Run tests
         run: python -m pytest
+
+      - name: Check CLI with config
+        run: |
+          python -m ragguard check-mask --help
+          set +e
+          python -m ragguard check-mask --input tests/fixtures/fail --output outputs/ci_fail_config --config config/rules.yaml
+          status=$?
+          set -e
+          if [ "$status" -ne 2 ]; then
+            echo "Expected exit code 2 for fail fixture with --config, got $status"
+            exit 1
+          fi

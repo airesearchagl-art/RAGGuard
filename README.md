@@ -35,9 +35,18 @@ python -m ragguard check-mask --input "tests/fixtures/fail" --output "outputs/te
 
 `--config` 未指定時は内蔵ルールのみを使います。`--config` 指定時は `mode: extend_builtin` のみ対応し、内蔵ルールにYAML定義ルールを追加します。YAML不備、未対応mode、重複 `rule_id`、不正な正規表現などはCLIエラーとして終了コード `3` になります。
 
+運用確認では、内蔵ルールのみの実行と `--config` 付き実行を分けて確認できます。
+
+```powershell
+python -m ragguard check-mask --input "tests/fixtures/fail" --output "outputs/test_fail_builtin"
+python -m ragguard check-mask --input "tests/fixtures/fail" --output "outputs/test_fail_config" --config "config/rules.yaml"
+```
+
+どちらもFAIL検出時の終了コードは `2` です。configファイルには実資料、実案件名、実会社名、実個人名を入れないでください。
+
 ## CI
 
-GitHub Actionsの `Tests` workflowで、`main` へのpushおよび `main` 向けpull requestごとに `python -m pytest` を実行します。検出ルールやドキュメントを変更する場合も、PRではpytestが通る状態を維持してください。
+GitHub Actionsの `Tests` workflowで、`main` へのpushおよび `main` 向けpull requestごとに `python -m pytest` と `--config config/rules.yaml` 付きCLI実行を確認します。検出ルールやドキュメントを変更する場合も、PRではpytestとconfig付きCLI確認が通る状態を維持してください。
 
 ## 判定
 
