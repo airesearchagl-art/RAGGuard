@@ -126,6 +126,34 @@ def test_phase_b_address_candidate_rules_are_detected(tmp_path: Path) -> None:
     assert source.read_text(encoding="utf-8") == before
 
 
+def test_phase_c_contract_and_internal_keywords_are_detected(tmp_path: Path) -> None:
+    source = tmp_path / "phase_c_dummy.md"
+    source.write_text(
+        "\n".join(
+            [
+                "# Phase_C_Dummy",
+                "契約メモ: 契約条件、特約、解約条項、違約金、秘密保持、NDAを確認します。",
+                "交渉メモ: 優先交渉、専属専任、手付、支払条件を確認します。",
+                "内部メモ: 社内限り、内部資料、非公開、未公開、稟議、決裁、承認前、ドラフト、取扱注意です。",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    before = source.read_text(encoding="utf-8")
+
+    result = check_path(source)
+    rendered = json.dumps(result["findings"], ensure_ascii=False)
+    rule_ids = {finding["rule_id"] for finding in result["findings"]}
+
+    assert result["status"] == "FAIL"
+    assert {"contract_terms", "payment_terms", "internal_sensitive"} <= rule_ids
+    assert "[REDACTED_KEYWORD]" in rendered
+    for sensitive_value in ["解約条項", "優先交渉", "社内限り", "内部資料", "取扱注意"]:
+        assert sensitive_value not in rendered
+    assert source.read_text(encoding="utf-8") == before
+
+
 def test_input_file_is_not_modified(tmp_path: Path) -> None:
     source = FIXTURES / "fail" / "root.md"
     before = source.read_text(encoding="utf-8")
