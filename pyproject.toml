@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ragguard"
+version = "0.1.0"
+description = "Local checks for masked Markdown documents before RAG ingestion."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+  { name = "RAGGuard Maintainers" }
+]
+dependencies = []
+
+[project.scripts]
+ragguard = "ragguard.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
