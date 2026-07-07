@@ -1,0 +1,11 @@
+# Future extension sample. The MVP uses built-in standard-library rules.
+patterns:
+  - id: email_address
+    severity: FAIL
+    category: personal_info
+  - id: phone_number
+    severity: FAIL
+    category: personal_info
+  - id: amount
+    severity: FAIL
+    category: financial_info

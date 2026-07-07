@@ -1,0 +1,14 @@
+# Future extension sample. This file is not loaded by the MVP runtime.
+rules:
+  fail_keywords:
+    - 支払条件
+    - 違約金
+    - 責任範囲
+    - 契約条件
+    - 未公表
+    - クレーム
+  warning_keywords:
+    - 予算
+    - 契約
+    - 見積
+    - 概算
