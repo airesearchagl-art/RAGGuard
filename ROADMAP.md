@@ -1,5 +1,14 @@
 # RAGGuard Roadmap
 
+## Masked Document Checker v0.3候補
+
+- 金額・単価・料率検出の強化
+- 住所候補検出の強化
+- 契約条件 / 内部情報キーワード拡張
+- 重複finding抑制
+- 追加pytest
+- 実資料を使わない安全fixture方針の維持
+
 ## 1. Masked Document Checker
 
 Markdownファイルまたはフォルダを対象に、個人情報・金額情報・契約情報・内部事情を検出し、JSON + Markdownレポートを出力する。今回のMVP実装範囲。
