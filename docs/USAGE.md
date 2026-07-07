@@ -48,3 +48,11 @@ python -m ragguard check-mask --input "tests/fixtures/fail" --output "outputs/te
 ```
 
 期待される終了コードは、safeが `0`、warningが `1`、failが `2` です。WARNING / FAIL の `1` / `2` は検査結果として正常な終了コードです。
+
+## v0.2予定: 設定ファイル
+
+現行MVPでは、`config/rules.yaml` と `config/mask_patterns.yaml` は将来拡張用のサンプルです。CLI実行時には読み込まれないため、現時点の挙動は内蔵ルールのみで決まります。
+
+v0.2では、`--config config/rules.yaml` によるルール読込を検討します。config未指定時は内蔵ルールを使い、config指定時は内蔵ルールにユーザー定義ルールを追加する方針です。
+
+この予定は設計段階であり、現時点ではCLIオプション、判定仕様、exit code、レポート形式は変わりません。

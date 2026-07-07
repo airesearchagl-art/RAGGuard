@@ -1,11 +1,19 @@
-# Future extension sample. The MVP uses built-in standard-library rules.
-patterns:
-  - id: email_address
-    severity: FAIL
-    category: personal_info
-  - id: phone_number
-    severity: FAIL
-    category: personal_info
-  - id: amount
-    severity: FAIL
-    category: financial_info
+# Future extension sample. This file is not loaded by the MVP runtime.
+version: 1
+
+# Mask tokens represent already-masked placeholders that may appear in
+# Markdown prepared for RAG ingestion. They are examples only; no runtime
+# behavior depends on this file in the current MVP.
+mask_tokens:
+  - "[PERSON]"
+  - "[COMPANY]"
+  - "[PROJECT]"
+  - "[AMOUNT]"
+  - "[ADDRESS]"
+  - "[PHONE]"
+  - "[EMAIL]"
+
+redaction_modes:
+  partial: "Keep only a minimal prefix/suffix when safe, such as masked email or phone text."
+  label: "Replace the matched value with a generic label such as [REDACTED_AMOUNT]."
+  keyword: "Do not repeat the matched keyword in reports; use a generic keyword label."
