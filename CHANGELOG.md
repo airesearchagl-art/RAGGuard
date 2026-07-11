@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Designed RAG Benchmark Harness v0.4.
+- Planned synthetic corpus and synthetic query set inputs.
+- Planned JSON / Markdown benchmark reports.
+- Planned local metrics such as hit@k, expected source match, expected keyword coverage, no-result handling, and unsafe / unknown answer handling.
+- Kept v0.4 design free of real documents, external API evaluation, cloud services, and LLM-as-a-judge.
+
 ## v0.3
 
 Masked Document Checker v0.3 completed the Phase A-D improvements.

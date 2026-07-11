@@ -1,5 +1,17 @@
 # Usage
 
+## v0.4 RAG Benchmark Harness設計メモ
+
+v0.4では、RAG Benchmark Harnessを追加する方針です。これはLocal RAG本線を直接操作せず、synthetic corpusとsynthetic query setを使ってRAG品質を外部から確認する補助ツールです。
+
+想定CLI:
+
+```powershell
+python -m ragguard benchmark --corpus "path\to\synthetic_corpus" --queries "queries.jsonl" --output "outputs\benchmark"
+```
+
+v0.4では実資料、実案件名、実会社名、実個人名を使いません。評価はexpected source、expected keyword、expected answer hint、no-result query handlingを中心に行い、LLM評価や外部API評価は使わない方針です。
+
 ## v0.3 運用メモ
 
 v0.3時点では、`python -m ragguard check-mask ...` を推奨実行方法とします。`--config config/rules.yaml` を指定すると、内蔵ルールにYAML定義ルールを追加して確認できます。

@@ -1,5 +1,101 @@
 # Design Notes
 
+## RAG Benchmark Harness v0.4 設計
+
+v0.4では、RAG Benchmark Harnessを設計します。この機能はLocal RAG本線を直接操作せず、RAG品質を外部から検証する補助ツールとして扱います。最初の実装対象は、実資料を使わないsynthetic corpusとsynthetic query setのみです。
+
+### 目的
+
+- RAG検索結果が期待するsynthetic sourceに到達できるかを確認する
+- 回答または検索結果に期待キーワードが含まれるかを確認する
+- no-result queryやunknown扱いが必要なqueryを評価対象に含める
+- 外部API、クラウドサービス、LLM-as-a-judgeを使わず、ローカルで再現できる評価に限定する
+
+### CLI案
+
+実装時のCLI案は以下です。v0.4設計PRでは実装しません。
+
+```powershell
+python -m ragguard benchmark --corpus "path\to\synthetic_corpus" --queries "queries.jsonl" --output "outputs\benchmark"
+```
+
+将来オプション候補:
+
+- `--top-k 5`: hit@k判定に使う検索件数
+- `--format both`: JSON / Markdown両方のreport出力
+- `--strict`: WARNINGをFAIL相当に扱う運用モード
+
+### 入力形式案
+
+`--corpus` はsynthetic Markdownまたはtext corpusのディレクトリを想定します。実資料、実案件名、実会社名、実個人名は入れません。
+
+`--queries` はJSON Linesを想定します。
+
+```jsonl
+{"query_id":"q001","question":"Sample policy text is stored where?","expected_sources":["policy_sample.md"],"expected_keywords":["Sample Policy"],"expected_answer_hints":["fictional policy"],"expect_result":true}
+{"query_id":"q002","question":"Unknown sample item exists?","expected_sources":[],"expected_keywords":[],"expected_answer_hints":[],"expect_result":false}
+```
+
+主なフィールド:
+
+- `query_id`: queryの安定ID
+- `question`: synthetic question
+- `expected_sources`: 期待するsource file名または相対path
+- `expected_keywords`: 検索結果または回答に含まれるべき語
+- `expected_answer_hints`: 回答の方向性を示す短いhint
+- `expect_result`: no-result queryを明示するboolean
+
+### 出力形式案
+
+既存方針に合わせ、JSON reportとMarkdown reportを出力します。
+
+JSON report候補:
+
+- `status`
+- `checked_query_count`
+- `summary`
+- `results`
+- `config`
+
+per-query result候補:
+
+- `query_id`
+- `status`: `PASS` / `WARNING` / `FAIL`
+- `hit`
+- `matched_sources`
+- `missing_sources`
+- `matched_keywords`
+- `missing_keywords`
+- `notes`
+
+Markdown reportは、summaryを先頭に置き、queryごとのPASS / WARNING / FAILを短く確認できる形にします。
+
+### 評価指標案
+
+- `hit@k`: 期待sourceがtop-k内に含まれるか
+- expected source match: `expected_sources`との一致
+- expected keyword coverage: `expected_keywords`の充足率
+- no-result query handling: `expect_result: false`のqueryで不要なhitが出ないか
+- unsafe / unknown answer handling: unknown扱いが必要なqueryで断定しすぎないか
+
+v0.4ではLLM評価や外部API評価は使いません。回答の自然言語品質ではなく、source / keyword / hintに基づく機械的な確認を優先します。
+
+### exit code方針案
+
+Masked Document Checkerと揃え、以下の考え方にします。
+
+- `PASS` / exit `0`: 全queryが期待条件を満たす
+- `WARNING` / exit `1`: 一部queryに確認対象があるが重大な欠落ではない
+- `FAIL` / exit `2`: 期待source未hit、必須keyword不足、no-result queryの誤hitなど
+- CLI error / exit `3`: 入力path不備、JSONL不備、必須キー不足など
+
+### v0.4実装フェーズ案
+
+- Phase A: synthetic benchmark fixture設計
+- Phase B: benchmark CLI skeleton
+- Phase C: JSON / Markdown report生成
+- Phase D: CI / docs整理
+
 ## Masked Document Checker v0.3 完了整理
 
 v0.3では、Phase A-Dとして検出範囲とレポートの扱いやすさを段階的に強化しました。Phase Aで金額・料率・坪単価 / 平米単価、Phase Bで住所候補、Phase Cで契約条件 / 内部情報キーワード、Phase Dで重複finding抑制とMarkdown summary改善を追加しました。
