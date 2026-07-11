@@ -1,5 +1,22 @@
 # RAGGuard Roadmap
 
+## Planned: RAG Benchmark Harness v0.4
+
+RAG Benchmark Harnessは、Local RAG本線を直接操作せず、RAG品質を外部から検証する補助ツールとして設計します。v0.4では実資料を使わず、synthetic corpusとsynthetic query setだけで動くbenchmark harnessを目指します。
+
+- Phase A: synthetic benchmark fixture設計
+- Phase B: benchmark CLI skeleton
+- Phase C: JSON / Markdown report生成
+- Phase D: CI / docs整理
+
+設計上の優先事項:
+
+- 実資料、実案件名、実会社名、実個人名を使わない
+- expected source / expected keyword / expected answer hintを使う
+- hit@k、expected source match、expected keyword coverageをローカル評価する
+- no-result query、unsafe / unknown answerを扱う
+- v0.4ではLLM評価、外部API評価、クラウド評価を使わない
+
 ## Completed: Masked Document Checker v0.3
 
 - Phase A: 金額・料率・坪単価 / 平米単価検出の強化
