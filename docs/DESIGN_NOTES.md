@@ -1,5 +1,11 @@
 # Design Notes
 
+## Masked Document Checker v0.3 完了整理
+
+v0.3では、Phase A-Dとして検出範囲とレポートの扱いやすさを段階的に強化しました。Phase Aで金額・料率・坪単価 / 平米単価、Phase Bで住所候補、Phase Cで契約条件 / 内部情報キーワード、Phase Dで重複finding抑制とMarkdown summary改善を追加しました。
+
+既存のexit code、JSONレポート既存キー、Markdownレポートの基本情報、`matched_text` 伏せ字方針は維持します。入力ファイルは変更せず、実資料や実案件由来のfixtureは使いません。
+
 ## Masked Document Checker v0.3 ルール拡張設計
 
 v0.3では、v0.2で整備した `--config` / `mode: extend_builtin` の基盤を前提に、見逃しを減らす方向で検出ルールを拡張します。誤検知は一定許容し、RAG_OK投入前の人間レビューに回す安全側の判定を優先します。
