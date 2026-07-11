@@ -7,6 +7,8 @@
 - Planned JSON / Markdown benchmark reports.
 - Planned local metrics such as hit@k, expected source match, expected keyword coverage, no-result handling, and unsafe / unknown answer handling.
 - Kept v0.4 design free of real documents, external API evaluation, cloud services, and LLM-as-a-judge.
+- Designed synthetic benchmark fixture structure for corpus Markdown files and JSONL query sets.
+- Planned benchmark fixture locations without adding fixture files: `tests/fixtures/benchmark/corpus/` and `tests/fixtures/benchmark/queries.jsonl`.
 
 ## v0.3
 
