@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from ragguard.cli import main
+from ragguard.detectors import Rule
 from ragguard.masked_document_checker import check_path, exit_code_for_status
+from ragguard.report import render_markdown_report
 
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -152,6 +155,88 @@ def test_phase_c_contract_and_internal_keywords_are_detected(tmp_path: Path) -> 
     for sensitive_value in ["解約条項", "優先交渉", "社内限り", "内部資料", "取扱注意"]:
         assert sensitive_value not in rendered
     assert source.read_text(encoding="utf-8") == before
+
+
+def test_duplicate_findings_are_suppressed(tmp_path: Path) -> None:
+    source = tmp_path / "dedupe_dummy.md"
+    source.write_text("token ABC-1234\n", encoding="utf-8")
+    duplicate_rule = Rule(
+        "duplicate_token",
+        "internal_info",
+        "FAIL",
+        re.compile(r"ABC-[0-9]{4}"),
+        "Confirm dummy token.",
+        "label",
+    )
+
+    result = check_path(source, rules=(duplicate_rule, duplicate_rule))
+
+    assert result["finding_count"] == 1
+    assert len(result["findings"]) == 1
+    assert result["findings"][0]["matched_text"] == "[REDACTED_VALUE]"
+
+
+def test_distinct_rule_ids_are_preserved_after_dedupe(tmp_path: Path) -> None:
+    source = tmp_path / "distinct_dummy.md"
+    source.write_text("token ABC-1234\n", encoding="utf-8")
+    rules = (
+        Rule("token_a", "internal_info", "FAIL", re.compile(r"ABC-[0-9]{4}"), "Confirm A.", "label"),
+        Rule("token_b", "internal_info", "FAIL", re.compile(r"ABC-[0-9]{4}"), "Confirm B.", "label"),
+    )
+
+    result = check_path(source, rules=rules)
+    rule_ids = [finding["rule_id"] for finding in result["findings"]]
+
+    assert result["finding_count"] == 2
+    assert rule_ids == ["token_a", "token_b"]
+
+
+def test_distinct_lines_are_preserved_after_dedupe(tmp_path: Path) -> None:
+    source = tmp_path / "line_dummy.md"
+    source.write_text("token ABC-1234\ntoken ABC-1234\n", encoding="utf-8")
+    rule = Rule("token_line", "internal_info", "FAIL", re.compile(r"ABC-[0-9]{4}"), "Confirm token.", "label")
+
+    result = check_path(source, rules=(rule,))
+    lines = [finding["line"] for finding in result["findings"]]
+
+    assert result["finding_count"] == 2
+    assert lines == [1, 2]
+
+
+def test_finding_output_order_is_stable(tmp_path: Path) -> None:
+    source = tmp_path / "order_dummy.md"
+    source.write_text("alpha beta\n", encoding="utf-8")
+    rules = (
+        Rule("warning_rule", "internal_info", "WARNING", re.compile(r"beta"), "Confirm warning.", "keyword"),
+        Rule("fail_b_rule", "internal_info", "FAIL", re.compile(r"beta"), "Confirm fail b.", "keyword"),
+        Rule("fail_a_rule", "internal_info", "FAIL", re.compile(r"alpha"), "Confirm fail a.", "keyword"),
+    )
+
+    result = check_path(source, rules=rules)
+    ordered = [(finding["line"], finding["severity"], finding["rule_id"]) for finding in result["findings"]]
+
+    assert ordered == [
+        (1, "FAIL", "fail_a_rule"),
+        (1, "FAIL", "fail_b_rule"),
+        (1, "WARNING", "warning_rule"),
+    ]
+
+
+def test_markdown_report_contains_readable_summary_and_redacted_text(tmp_path: Path) -> None:
+    source = tmp_path / "summary_dummy.md"
+    source.write_text("token ABC-1234\n", encoding="utf-8")
+    rule = Rule("token_summary", "internal_info", "FAIL", re.compile(r"ABC-[0-9]{4}"), "Confirm token.", "label")
+
+    result = check_path(source, rules=(rule,))
+    markdown = render_markdown_report(result)
+
+    assert "## Summary" in markdown
+    assert "- Status: FAIL" in markdown
+    assert "- Findings: 1" in markdown
+    assert "- FAIL: 1" in markdown
+    assert "### Finding 1" in markdown
+    assert "ABC-1234" not in markdown
+    assert "[REDACTED_VALUE]" in markdown
 
 
 def test_input_file_is_not_modified(tmp_path: Path) -> None:

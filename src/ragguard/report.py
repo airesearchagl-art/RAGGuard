@@ -34,6 +34,15 @@ def render_markdown_report(result: dict) -> str:
         "",
         status,
         "",
+        "## Summary",
+        "",
+        f"- Status: {status}",
+        f"- Checked files: {result.get('checked_file_count', len(checked_files))}",
+        f"- Findings: {result.get('finding_count', len(findings))}",
+        f"- FAIL: {summary.get('fail', 0)}",
+        f"- WARNING: {summary.get('warning', 0)}",
+        f"- PASS: {summary.get('pass', 0)}",
+        "",
         "## Checked Files",
         "",
     ]
@@ -44,9 +53,11 @@ def render_markdown_report(result: dict) -> str:
 
     lines.extend(["", "## Findings", ""])
     if findings:
-        for finding in findings:
+        for index, finding in enumerate(findings, start=1):
             lines.extend(
                 [
+                    f"### Finding {index}",
+                    "",
                     f"- file: {finding['file']}",
                     f"  line: {finding['line']}",
                     f"  category: {finding['category']}",
@@ -54,6 +65,7 @@ def render_markdown_report(result: dict) -> str:
                     f"  rule_id: {finding['rule_id']}",
                     f"  matched_text: {finding['matched_text']}",
                     f"  recommendation: {finding['recommendation']}",
+                    "",
                 ]
             )
     else:
@@ -61,12 +73,6 @@ def render_markdown_report(result: dict) -> str:
 
     lines.extend(
         [
-            "",
-            "## Summary",
-            "",
-            f"- PASS: {summary.get('pass', 0)}",
-            f"- WARNING: {summary.get('warning', 0)}",
-            f"- FAIL: {summary.get('fail', 0)}",
             "",
             "## Next Action",
             "",

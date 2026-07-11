@@ -18,6 +18,9 @@ class Finding:
     recommendation: str
 
 
+SEVERITY_ORDER = {"FAIL": 0, "WARNING": 1}
+
+
 def check_path(input_path: Path, rules: tuple[Rule, ...] = RULES) -> dict:
     markdown_files = collect_markdown_files(input_path)
     base = input_path if input_path.is_dir() else input_path.parent
@@ -40,6 +43,7 @@ def check_path(input_path: Path, rules: tuple[Rule, ...] = RULES) -> dict:
                         )
                     )
 
+    findings = sort_findings(dedupe_findings(findings))
     fail_count = sum(1 for finding in findings if finding.severity == "FAIL")
     warning_count = sum(1 for finding in findings if finding.severity == "WARNING")
     status = "FAIL" if fail_count else "WARNING" if warning_count else "PASS"
@@ -56,6 +60,31 @@ def check_path(input_path: Path, rules: tuple[Rule, ...] = RULES) -> dict:
             "fail": fail_count,
         },
     }
+
+
+def dedupe_findings(findings: list[Finding]) -> list[Finding]:
+    deduped: list[Finding] = []
+    seen: set[tuple[str, int, str, str]] = set()
+    for finding in findings:
+        key = (finding.file, finding.line, finding.rule_id, finding.matched_text)
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(finding)
+    return deduped
+
+
+def sort_findings(findings: list[Finding]) -> list[Finding]:
+    return sorted(
+        findings,
+        key=lambda finding: (
+            finding.file,
+            finding.line,
+            SEVERITY_ORDER.get(finding.severity, 99),
+            finding.rule_id,
+            finding.matched_text,
+        ),
+    )
 
 
 def exit_code_for_status(status: str) -> int:
