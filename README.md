@@ -2,6 +2,19 @@
 
 [![Tests](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml)
 
+## Masked Document Checker v0.3
+
+現時点のRAGGuardは、RAG投入前のマスク済みMarkdownをローカルで確認する `check-mask` CLIを提供します。
+
+- `--config config/rules.yaml` によるローカルYAMLルール追加
+- 金額 / 料率 / 坪単価 / 平米単価らしき表現の検出
+- 郵便番号、所在地、住所候補らしき表現の検出
+- 契約条件 / 内部情報キーワードの検出
+- 同一file / line / rule_id / 伏せ字後matched_textの重複finding抑制
+- Markdownレポート上部のsummary表示
+- JSON / Markdownレポート出力
+- `matched_text` の伏せ字化
+
 RAGGuardは、RAG投入前のマスク済みMarkdown資料に、個人情報・金額情報・契約情報・内部事情が残っていないかをローカルで確認するためのPython CLIです。
 
 初回MVPの対象は **Masked Document Checker** のみです。GUI、Dashboard、Citation Verifier、RAG Benchmark Harnessは今回の範囲外です。

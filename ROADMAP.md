@@ -1,5 +1,15 @@
 # RAGGuard Roadmap
 
+## Completed: Masked Document Checker v0.3
+
+- Phase A: 金額・料率・坪単価 / 平米単価検出の強化
+- Phase B: 住所候補検出の強化
+- Phase C: 契約条件 / 内部情報キーワード拡張
+- Phase D: 重複finding抑制とMarkdown report summary改善
+- `--config config/rules.yaml` による `extend_builtin` 方式のルール追加
+- 既存JSON / Markdownレポート構造と `matched_text` 伏せ字方針の維持
+- 実資料を使わない安全fixture方針の維持
+
 ## Masked Document Checker v0.3候補
 
 - 金額・単価・料率検出の強化

@@ -1,5 +1,13 @@
 # Usage
 
+## v0.3 運用メモ
+
+v0.3時点では、`python -m ragguard check-mask ...` を推奨実行方法とします。`--config config/rules.yaml` を指定すると、内蔵ルールにYAML定義ルールを追加して確認できます。
+
+主な確認対象は、金額 / 料率 / 単価、住所候補、契約条件、内部情報キーワードです。Markdownレポートではsummaryでstatus、finding数、FAIL / WARNING件数を先に確認できます。
+
+fixtureやconfig YAMLには、実資料、実案件名、実会社名、実個人名を入れないでください。`FAIL` はRAG_OK投入前の修正対象、`WARNING` は文脈確認対象です。
+
 ## ルール拡張時の運用方針
 
 今後 `config/rules.yaml` や内蔵ルールを拡張する場合も、config YAMLには実案件名、実会社名、実個人名を入れません。fixtureは架空データのみを使い、実資料や実案件由来の文面は追加しません。
