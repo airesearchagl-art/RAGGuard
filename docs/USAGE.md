@@ -1,9 +1,9 @@
 # Usage
 
-## Planned v0.5 synthetic retrieval usage notes
+## v0.5 Phase A synthetic retrieval usage notes
 
-v0.5 is planned to add retrieval and scoring for the benchmark CLI, but only against synthetic
-benchmark fixtures. It does not plan to connect to production Local RAG, Hermes, LM Studio,
+v0.5 Phase A adds retrieval for the benchmark CLI, but only against synthetic benchmark fixtures.
+It does not connect to production Local RAG, Hermes, LM Studio,
 embedding services, vector databases, LLM evaluation, cloud services, or external APIs.
 
 The existing v0.4 command shape remains the starting point:
@@ -12,13 +12,17 @@ The existing v0.4 command shape remains the starting point:
 python -m ragguard benchmark --corpus "tests/fixtures/benchmark/corpus" --queries "tests/fixtures/benchmark/queries.jsonl" --output "outputs/test_benchmark"
 ```
 
-Planned v0.5 behavior:
+Phase A behavior:
 
 - load the synthetic corpus through a retrieval adapter
 - run deterministic keyword / token overlap retrieval
 - produce ranked results with `rank`, `document_id`, `score`, `matched_keywords`, `title`, and `source_path`
-- evaluate hit@k, expected source match, expected keyword coverage, no-result expected, and unsafe-or-unknown expected cases
+- include ranked results in `benchmark_report.json` and `benchmark_report.md`
 - avoid replaying long document content in reports
+- keep `evaluation_status` as `not_evaluated`
+
+Scoring for hit@k, expected source match, expected keyword coverage, no-result expected, and
+unsafe-or-unknown expected cases remains future work.
 
 Planned benchmark exit codes:
 
