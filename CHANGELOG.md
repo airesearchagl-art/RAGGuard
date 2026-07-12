@@ -9,6 +9,8 @@
 - Kept v0.4 design free of real documents, external API evaluation, cloud services, and LLM-as-a-judge.
 - Designed synthetic benchmark fixture structure for corpus Markdown files and JSONL query sets.
 - Planned benchmark fixture locations without adding fixture files: `tests/fixtures/benchmark/corpus/` and `tests/fixtures/benchmark/queries.jsonl`.
+- Added RAG Benchmark Harness Phase B CLI skeleton for synthetic corpus / query validation.
+- Added placeholder JSON / Markdown benchmark reports without connecting to real RAG systems or external evaluators.
 
 ## v0.3
 
