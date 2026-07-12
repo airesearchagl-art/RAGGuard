@@ -15,7 +15,7 @@
 - JSON / Markdownレポート出力
 - `matched_text` の伏せ字化
 
-## Planned: RAG Benchmark Harness v0.4
+## RAG Benchmark Harness v0.4
 
 v0.4では、Local RAG本線を直接操作せず、RAG品質を外部から検証する補助ツールとしてRAG Benchmark Harnessを設計します。初期版は実資料を使わず、synthetic corpusとsynthetic query setだけを対象にします。
 
@@ -38,6 +38,15 @@ python -m ragguard benchmark --corpus "tests/fixtures/benchmark/corpus" --querie
 Phase Cでは、`benchmark_report.json` と `benchmark_report.md` の構造を拡充します。queryごとの `per_query_results`、`warnings`、`errors`、`metadata` を出力しますが、検索・評価はまだ行わず、`evaluation_status` は `not_evaluated` として扱います。
 
 Phase Dでは、GitHub Actions `Tests` workflowでbenchmark CLIも確認します。`python -m ragguard benchmark --help` とsynthetic fixtureを使ったreport生成をCIで実行し、pytest、`check-mask`、`benchmark` の最小動作を同じPRゲートで確認します。
+
+v0.4時点でできること:
+
+- `benchmark` CLIでsynthetic corpus / queries JSONLを読み込む
+- corpusとqueryの必須項目をvalidationする
+- valid inputでplaceholder JSON / Markdown reportを生成する
+- queryごとの `per_query_results` を `not_evaluated` として出力する
+- GitHub Actionsでbenchmark CLI helpとsynthetic fixture実行を確認する
+- 実RAG接続、検索評価、LLM評価、外部API利用はまだ行わない
 
 RAGGuardは、RAG投入前のマスク済みMarkdown資料に、個人情報・金額情報・契約情報・内部事情が残っていないかをローカルで確認するためのPython CLIです。
 
