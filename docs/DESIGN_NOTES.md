@@ -196,6 +196,19 @@ Phase Cでは、実RAG接続や検索評価を追加せず、benchmark report sk
 
 Markdown reportは `Summary`、`Inputs`、`Per-query Results`、`Warnings`、`Errors` の順で、人間が入力件数と未評価状態を確認しやすい構成にします。valid inputはexit code `0`、validation error / CLI errorはexit code `3` の方針を維持します。
 
+### Phase D CI / docs整理
+
+Phase Dでは、Phase A-Cで整備したbenchmark fixture、CLI skeleton、report skeletonをCIとdocsに接続します。GitHub Actions `Tests` workflowで `python -m ragguard benchmark --help` とsynthetic fixtureによるreport生成を確認し、既存のpytest、`check-mask --help`、`check-mask --config` 確認は維持します。
+
+v0.4の現状は以下です。
+
+- Phase A: synthetic corpus / queries JSONLのfixture構造を設計
+- Phase B: `benchmark` CLI skeleton、input validation、placeholder report生成を追加
+- Phase C: JSON / Markdown benchmark report skeletonを拡充
+- Phase D: benchmark CLIをCI確認対象に追加し、README / USAGE / DESIGN_NOTES / CHANGELOGを整理
+
+Phase Dでも、実RAG接続、検索評価、LLM評価、外部API利用は行いません。fixtureは架空データのみを使い、実資料、実案件名、実会社名、実個人名は追加しません。
+
 ## Masked Document Checker v0.3 完了整理
 
 v0.3では、Phase A-Dとして検出範囲とレポートの扱いやすさを段階的に強化しました。Phase Aで金額・料率・坪単価 / 平米単価、Phase Bで住所候補、Phase Cで契約条件 / 内部情報キーワード、Phase Dで重複finding抑制とMarkdown summary改善を追加しました。
