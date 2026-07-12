@@ -12,6 +12,22 @@ python -m ragguard benchmark --corpus "path\to\synthetic_corpus" --queries "quer
 
 v0.4では実資料、実案件名、実会社名、実個人名を使いません。評価はexpected source、expected keyword、expected answer hint、no-result query handlingを中心に行い、LLM評価や外部API評価は使わない方針です。
 
+### synthetic benchmark fixture案
+
+将来のv0.4実装では、benchmark用fixtureを以下のように配置する想定です。この設計段階ではファイルはまだ作成しません。
+
+```text
+tests/fixtures/benchmark/
+  corpus/
+    sample-policy-001.md
+    sample-faq-001.md
+  queries.jsonl
+```
+
+corpusは架空Markdown文書のみを使い、各文書に `document_id`、`title`、`tags`、`expected_searchable_facts` を持たせる方針です。query setはJSON Lines形式とし、`query_id`、`question`、`expected_source_ids`、`expected_keywords`、`expected_answer_hint`、`no_result_expected`、`unsafe_or_unknown_expected` を基本項目にします。
+
+benchmark fixtureにも、実資料、実案件名、実会社名、実個人名は入れません。`C:\AI_Restricted` と `C:\AI_Local_RAG` 配下の実資料も使いません。
+
 ## v0.3 運用メモ
 
 v0.3時点では、`python -m ragguard check-mask ...` を推奨実行方法とします。`--config config/rules.yaml` を指定すると、内蔵ルールにYAML定義ルールを追加して確認できます。

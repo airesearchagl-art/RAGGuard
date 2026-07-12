@@ -27,6 +27,8 @@ python -m ragguard benchmark --corpus "path\to\synthetic_corpus" --queries "quer
 
 v0.4設計では、外部API、クラウドサービス、LLM評価は使わず、expected source / expected keyword / expected answer hintに基づくローカル評価を優先します。
 
+Phase Aでは、`tests/fixtures/benchmark/corpus/` と `tests/fixtures/benchmark/queries.jsonl` を将来の配置案とし、架空Markdown文書とJSON Lines query setの形式を設計します。この段階ではfixtureファイルは追加しません。
+
 RAGGuardは、RAG投入前のマスク済みMarkdown資料に、個人情報・金額情報・契約情報・内部事情が残っていないかをローカルで確認するためのPython CLIです。
 
 初回MVPの対象は **Masked Document Checker** のみです。GUI、Dashboard、Citation Verifier、RAG Benchmark Harnessは今回の範囲外です。

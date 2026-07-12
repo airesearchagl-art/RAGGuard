@@ -96,6 +96,90 @@ Masked Document Checkerと揃え、以下の考え方にします。
 - Phase C: JSON / Markdown report生成
 - Phase D: CI / docs整理
 
+## RAG Benchmark Harness v0.4 Phase A: synthetic benchmark fixture設計
+
+Phase Aでは、Benchmark Harnessの実装に入る前に、synthetic corpusとsynthetic query setの形を固定します。ここで扱うデータはすべて架空データに限定し、実資料、実案件名、実会社名、実個人名は使いません。`C:\AI_Restricted` や `C:\AI_Local_RAG` 配下の実資料も参照しません。
+
+### synthetic corpus構造案
+
+配置案は将来の実装時に `tests/fixtures/benchmark/corpus/` とします。ただし、この設計PRではfixtureファイルを作成しません。
+
+corpus文書はMarkdownを想定し、各文書の先頭にYAML front matter相当のmetadataを置く方針です。本文も架空の説明文のみを使います。
+
+```markdown
+---
+document_id: sample-policy-001
+title: Sample Policy Document
+tags:
+  - policy
+  - synthetic
+expected_searchable_facts:
+  - "Sample policy documents are stored in the sample archive."
+  - "Synthetic policies use placeholder department names."
+---
+
+# Sample Policy Document
+
+This fictional document describes a synthetic policy for benchmark testing.
+```
+
+主な項目:
+
+- `document_id`: query側から参照する安定ID。ファイル名変更に強くするため、source filenameとは分けます。
+- `title`: reportで人間が確認しやすい短いタイトル。
+- `tags`: corpusの分類や将来の絞り込み確認に使う任意のラベル。
+- `content`: Markdown本文。架空の文章のみを入れます。
+- `expected_searchable_facts`: RAG検索で拾えるべき事実を短文で列挙します。評価時の期待値整理に使います。
+
+### synthetic query set構造案
+
+配置案は将来の実装時に `tests/fixtures/benchmark/queries.jsonl` とします。ただし、この設計PRではJSONLファイルを作成しません。
+
+1行1queryのJSON Linesを想定します。
+
+```jsonl
+{"query_id":"q001","question":"Where are sample policy documents stored?","expected_source_ids":["sample-policy-001"],"expected_keywords":["sample archive"],"expected_answer_hint":"sample archive","no_result_expected":false,"unsafe_or_unknown_expected":false}
+{"query_id":"q002","question":"What is the private address of the sample owner?","expected_source_ids":[],"expected_keywords":[],"expected_answer_hint":"","no_result_expected":true,"unsafe_or_unknown_expected":true}
+```
+
+主な項目:
+
+- `query_id`: queryの安定ID。reportとtestで参照します。
+- `question`: synthetic corpusに対する架空の質問。
+- `expected_source_ids`: hitすべき `document_id` の配列。
+- `expected_keywords`: answerまたはretrieved textに含まれるべき短い語句。
+- `expected_answer_hint`: 完全一致ではなく、人間と機械が期待回答を確認するための短いhint。
+- `no_result_expected`: corpus内に答えがないことを期待するqueryかどうか。
+- `unsafe_or_unknown_expected`: 不明・回答不可・安全側の回答を期待するqueryかどうか。
+
+### fixture配置案
+
+将来のPhase B以降で実ファイルを追加する場合の配置案は以下です。
+
+```text
+tests/fixtures/benchmark/
+  corpus/
+    sample-policy-001.md
+    sample-faq-001.md
+  queries.jsonl
+```
+
+corpusとqueriesは、RAG Benchmark HarnessのCLI skeleton実装後に最小件数から追加します。Phase A設計PRでは、実装コード、tests、fixture追加は行いません。
+
+### 禁止データ方針
+
+- 実資料をbenchmark fixtureに使いません。
+- 実案件名、実会社名、実個人名をcorpusやqueryに入れません。
+- `C:\AI_Restricted` は読みません。
+- `C:\AI_Local_RAG` 配下の実資料は読みません。
+- 外部API、クラウドサービス、LLM評価は使いません。
+
+### Phase B以降の実装順
+
+- Phase B: `benchmark` CLI skeletonを追加し、synthetic corpus / queriesの読み込みだけを確認します。
+- Phase C: JSON / Markdown benchmark reportを生成します。
+- Phase D: CI / docsを整理し、fixtureとCLIの最小運用例を固定します。
+
 ## Masked Document Checker v0.3 完了整理
 
 v0.3では、Phase A-Dとして検出範囲とレポートの扱いやすさを段階的に強化しました。Phase Aで金額・料率・坪単価 / 平米単価、Phase Bで住所候補、Phase Cで契約条件 / 内部情報キーワード、Phase Dで重複finding抑制とMarkdown summary改善を追加しました。
