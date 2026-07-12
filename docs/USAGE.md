@@ -28,6 +28,16 @@ corpusは架空Markdown文書のみを使い、各文書に `document_id`、`tit
 
 benchmark fixtureにも、実資料、実案件名、実会社名、実個人名は入れません。`C:\AI_Restricted` と `C:\AI_Local_RAG` 配下の実資料も使いません。
 
+### Phase B CLI skeleton
+
+Phase Bでは、synthetic corpusとqueries JSONLを読み込み、必須項目のvalidation結果をplaceholder reportとして出力します。実RAG接続、検索評価、LLM評価、外部API利用はまだ行いません。
+
+```powershell
+python -m ragguard benchmark --corpus "tests/fixtures/benchmark/corpus" --queries "tests/fixtures/benchmark/queries.jsonl" --output "outputs/test_benchmark_cli"
+```
+
+成功時は `benchmark_report.json` と `benchmark_report.md` を出力し、exit code `0` を返します。corpusまたはqueriesの必須項目不足、JSONL不備、存在しない `expected_source_ids` などはCLI errorとしてexit code `3` を返します。
+
 ## v0.3 運用メモ
 
 v0.3時点では、`python -m ragguard check-mask ...` を推奨実行方法とします。`--config config/rules.yaml` を指定すると、内蔵ルールにYAML定義ルールを追加して確認できます。

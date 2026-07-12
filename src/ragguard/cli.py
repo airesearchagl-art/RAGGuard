@@ -4,6 +4,7 @@ import argparse
 import sys
 from pathlib import Path
 
+from ragguard.benchmark import BenchmarkError, run_benchmark
 from ragguard.config_loader import ConfigError, load_rules_from_config
 from ragguard.detectors import RULES
 from ragguard.masked_document_checker import check_path, exit_code_for_status
@@ -37,6 +38,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="Report format. MVP always writes JSON and Markdown.",
     )
     check_mask.add_argument("--verbose", action="store_true", help="Print report paths.")
+
+    benchmark = subparsers.add_parser(
+        "benchmark",
+        help="Validate synthetic RAG benchmark corpus and queries.",
+    )
+    benchmark.add_argument("--corpus", required=True, help="Synthetic benchmark corpus folder.")
+    benchmark.add_argument("--queries", required=True, help="Synthetic benchmark queries JSONL file.")
+    benchmark.add_argument("--output", required=True, help="Output folder for benchmark reports.")
+    benchmark.add_argument("--verbose", action="store_true", help="Print report paths.")
     return parser
 
 
@@ -63,6 +73,26 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Markdown report: {markdown_path}")
             print(f"Status: {result['status']}")
         return exit_code_for_status(result["status"])
+
+    if args.command == "benchmark":
+        try:
+            result, json_path, markdown_path = run_benchmark(
+                Path(args.corpus),
+                Path(args.queries),
+                Path(args.output),
+            )
+        except BenchmarkError as exc:
+            print(f"ragguard: benchmark error: {exc}", file=sys.stderr)
+            return 3
+        except Exception as exc:
+            print(f"ragguard: error: {exc}", file=sys.stderr)
+            return 3
+
+        if args.verbose:
+            print(f"JSON report: {json_path}")
+            print(f"Markdown report: {markdown_path}")
+            print(f"Status: {result['status']}")
+        return 0
 
     parser.error(f"Unknown command: {args.command}")
     return 3
