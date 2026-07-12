@@ -1,5 +1,35 @@
 # Usage
 
+## Planned v0.5 synthetic retrieval usage notes
+
+v0.5 is planned to add retrieval and scoring for the benchmark CLI, but only against synthetic
+benchmark fixtures. It does not plan to connect to production Local RAG, Hermes, LM Studio,
+embedding services, vector databases, LLM evaluation, cloud services, or external APIs.
+
+The existing v0.4 command shape remains the starting point:
+
+```powershell
+python -m ragguard benchmark --corpus "tests/fixtures/benchmark/corpus" --queries "tests/fixtures/benchmark/queries.jsonl" --output "outputs/test_benchmark"
+```
+
+Planned v0.5 behavior:
+
+- load the synthetic corpus through a retrieval adapter
+- run deterministic keyword / token overlap retrieval
+- produce ranked results with `rank`, `document_id`, `score`, `matched_keywords`, `title`, and `source_path`
+- evaluate hit@k, expected source match, expected keyword coverage, no-result expected, and unsafe-or-unknown expected cases
+- avoid replaying long document content in reports
+
+Planned benchmark exit codes:
+
+- PASS: `0`
+- WARNING: `1`
+- FAIL: `2`
+- CLI / validation error: `3`
+
+The `check-mask` command keeps its existing behavior and exit codes. Benchmark fixtures must remain
+synthetic and must not include real documents, real project names, real company names, or real person names.
+
 ## v0.4 RAG Benchmark Harness設計メモ
 
 v0.4では、RAG Benchmark Harnessを追加する方針です。これはLocal RAG本線を直接操作せず、synthetic corpusとsynthetic query setを使ってRAG品質を外部から確認する補助ツールです。

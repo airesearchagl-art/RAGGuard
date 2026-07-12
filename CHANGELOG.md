@@ -2,7 +2,9 @@
 
 ## Unreleased
 
-- No unreleased changes.
+- Designed RAG Benchmark Harness v0.5 synthetic-only retrieval and scoring direction.
+- Planned a retrieval adapter boundary, deterministic keyword / token overlap search, ranked result structure, local evaluation metrics, and benchmark exit code policy.
+- Kept the design free of real RAG connections, Hermes, LM Studio, embeddings, vector databases, LLM evaluation, external APIs, cloud services, and real documents.
 
 ## v0.4
 

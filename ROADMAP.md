@@ -1,5 +1,26 @@
 # RAGGuard Roadmap
 
+## Planned: RAG Benchmark Harness v0.5 synthetic retrieval
+
+v0.5 will add a synthetic-only retrieval and scoring design before any production RAG integration.
+The benchmark harness remains loosely coupled from Local RAG and will not connect to Hermes, LM Studio,
+real documents, embedding services, vector databases, LLM evaluators, cloud services, or external APIs.
+
+### Phase plan
+
+- Phase A: retrieval adapter / deterministic keyword search
+- Phase B: hit@k / expected source match
+- Phase C: expected keyword coverage / no-result / unsafe-or-unknown evaluation
+- Phase D: report / CI / docs cleanup
+
+### Design constraints
+
+- Use synthetic fixtures only.
+- Do not use real documents, real project names, real company names, or real person names.
+- Keep the retrieval adapter separate from benchmark evaluation.
+- Keep any future real RAG integration behind an adapter boundary and design it separately after v0.5.
+- Preserve existing `check-mask` behavior and exit codes.
+
 ## Completed: RAG Benchmark Harness v0.4
 
 RAG Benchmark Harnessは、Local RAG本線を直接操作せず、RAG品質を外部から検証する補助ツールとして整備しました。v0.4では実資料を使わず、synthetic corpusとsynthetic query setだけで動くbenchmark CLI skeletonを追加しました。
