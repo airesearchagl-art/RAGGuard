@@ -2,23 +2,26 @@
 
 [![Tests](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml)
 
-## RAG Benchmark Harness v0.5 Phase A synthetic retrieval
+## RAG Benchmark Harness v0.5 Phase B synthetic retrieval scoring
 
-v0.5 is the first synthetic-only retrieval step for the benchmark harness.
+v0.5 adds synthetic-only retrieval and local benchmark scoring for the benchmark harness.
 It remains local and detached from production Local RAG, Hermes, LM Studio, vector databases,
 embedding services, LLM evaluation, cloud services, and external APIs.
 
-Phase A scope:
+Phase A-B scope:
 
 - retrieval adapter boundary for corpus loading, query input, and ranked result output
 - deterministic keyword / token overlap search using the Python standard library
 - ranked results with `rank`, `document_id`, `score`, `matched_keywords`, `title`, and `source_path`
 - ranked results included in benchmark JSON and Markdown reports
+- hit@k evaluation with default top-k `5`
+- expected source match evaluation against the top-k ranked results
+- summary metrics for evaluated query count, hit@k count/rate, and source match count/rate
 - no long corpus content replay in JSON or Markdown reports
-- scoring is still pending, so `evaluation_status` remains `not_evaluated`
 
-Future v0.5 phases will add hit@k, expected source match, expected keyword coverage, no-result expected,
-and unsafe-or-unknown expected scoring.
+Phase B marks queries as `pass`, `warning`, or `fail` when `expected_source_ids` can be evaluated.
+No-result, unsafe-or-unknown, and expected keyword coverage scoring remain future work and stay
+`not_evaluated`.
 
 The existing `check-mask` behavior, exit codes, and report structures are not part of this v0.5 design change.
 

@@ -6,6 +6,9 @@
 - Planned a retrieval adapter boundary, deterministic keyword / token overlap search, ranked result structure, local evaluation metrics, and benchmark exit code policy.
 - Added the v0.5 Phase A synthetic retrieval adapter and deterministic keyword / token overlap retrieval.
 - Added ranked retrieval results to benchmark JSON and Markdown reports while keeping `evaluation_status` as `not_evaluated`.
+- Added v0.5 Phase B hit@k and expected source match evaluation from synthetic ranked results.
+- Added `hit_at_k`, `source_match`, `matched_expected_source_ids`, and source-match summary rates to benchmark reports.
+- Kept expected keyword coverage, no-result, and unsafe-or-unknown evaluation for later phases.
 - Kept the design free of real RAG connections, Hermes, LM Studio, embeddings, vector databases, LLM evaluation, external APIs, cloud services, and real documents.
 
 ## v0.4

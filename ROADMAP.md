@@ -9,7 +9,7 @@ real documents, embedding services, vector databases, LLM evaluators, cloud serv
 ### Phase plan
 
 - Phase A: retrieval adapter / deterministic keyword search - completed
-- Phase B: hit@k / expected source match
+- Phase B: hit@k / expected source match - completed
 - Phase C: expected keyword coverage / no-result / unsafe-or-unknown evaluation
 - Phase D: report / CI / docs cleanup
 
