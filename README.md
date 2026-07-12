@@ -2,13 +2,13 @@
 
 [![Tests](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml)
 
-## RAG Benchmark Harness v0.5 Phase C synthetic retrieval scoring
+## RAG Benchmark Harness v0.5 Phase D synthetic retrieval scoring
 
 v0.5 adds synthetic-only retrieval and local benchmark scoring for the benchmark harness.
 It remains local and detached from production Local RAG, Hermes, LM Studio, vector databases,
 embedding services, LLM evaluation, cloud services, and external APIs.
 
-Phase A-C scope:
+Phase A-D scope:
 
 - retrieval adapter boundary for corpus loading, query input, and ranked result output
 - deterministic keyword / token overlap search using the Python standard library
@@ -20,6 +20,8 @@ Phase A-C scope:
 - no-result expected evaluation
 - unsafe-or-unknown expected evaluation without LLM judgment
 - summary metrics for evaluated query count, hit@k, source match, keyword coverage, no-result, and unsafe-or-unknown expectations
+- stable JSON and Markdown report fields for the v0.5 benchmark metrics
+- CI checks for benchmark PASS / WARNING / FAIL / CLI error exit codes
 - no long corpus content replay in JSON or Markdown reports
 
 Phase C marks synthetic queries as `pass`, `warning`, or `fail` from local deterministic retrieval only.
@@ -127,6 +129,9 @@ Benchmark Harnessについても、CIで以下を確認します。
 python -m ragguard benchmark --help
 python -m ragguard benchmark --corpus tests/fixtures/benchmark/corpus --queries tests/fixtures/benchmark/queries.jsonl --output outputs/ci_benchmark_report
 ```
+
+The same workflow also checks benchmark exit code behavior for PASS `0`, WARNING `1`, FAIL `2`,
+and CLI error `3` cases with synthetic query files.
 
 ## 判定
 

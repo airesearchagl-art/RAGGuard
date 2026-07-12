@@ -2,7 +2,7 @@
 
 ## RAG Benchmark Harness v0.5 synthetic retrieval design
 
-Phase A-C implementation status:
+Phase A-D implementation status:
 
 - Added a synthetic-only retrieval adapter.
 - Added deterministic keyword / token overlap retrieval.
@@ -14,6 +14,8 @@ Phase A-C implementation status:
 - Added no-result expected evaluation.
 - Added unsafe-or-unknown expected evaluation without LLM judgment.
 - Added summary counts and rates for evaluated queries, hit@k, source match, keyword coverage, no-result, and unsafe-or-unknown expectations.
+- Stabilized the v0.5 JSON / Markdown report fields for benchmark metrics.
+- Added CI checks for benchmark PASS / WARNING / FAIL / CLI error exit codes.
 - Kept the implementation disconnected from real RAG systems, Hermes, LM Studio, embeddings, vector databases, LLM evaluation, cloud services, and external APIs.
 
 v0.5 is a design step for synthetic-only retrieval and scoring. It must not connect to production
@@ -104,6 +106,7 @@ This does not change `check-mask` behavior or exit codes.
 - Phase A: retrieval adapter / deterministic keyword search
 - Phase B: hit@k / expected source match - implemented
 - Phase C: keyword coverage / no-result / unsafe-or-unknown evaluation - implemented
+- Phase D: report / CI / docs cleanup - implemented
 - Phase D: report / CI / docs cleanup
 
 ### Safety constraints
