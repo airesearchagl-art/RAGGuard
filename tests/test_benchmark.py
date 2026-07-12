@@ -8,7 +8,9 @@ import pytest
 from ragguard.benchmark import (
     BenchmarkDocument,
     BenchmarkQuery,
+    DEFAULT_TOP_K,
     SyntheticRetrievalAdapter,
+    build_per_query_result,
     load_corpus,
     load_queries,
 )
@@ -54,18 +56,27 @@ def test_benchmark_valid_fixture_generates_placeholder_reports(tmp_path: Path) -
     assert result["summary"]["corpus_count"] == 2
     assert result["summary"]["query_count"] == 3
     assert result["summary"]["validation_error_count"] == 0
-    assert result["summary"]["evaluated_query_count"] == 0
-    assert result["summary"]["not_evaluated_query_count"] == 3
+    assert result["summary"]["evaluated_query_count"] == 2
+    assert result["summary"]["evaluated_queries"] == 2
+    assert result["summary"]["not_evaluated_query_count"] == 1
+    assert result["summary"]["passed"] == 2
+    assert result["summary"]["warned"] == 0
+    assert result["summary"]["failed"] == 0
+    assert result["summary"]["hit_at_k_count"] == 2
+    assert result["summary"]["hit_at_k_rate"] == 1.0
+    assert result["summary"]["source_match_count"] == 2
+    assert result["summary"]["source_match_rate"] == 1.0
     assert {document["document_id"] for document in result["corpus"]} == {
         "sample-faq-001",
         "sample-policy-001",
     }
     assert {query["query_id"] for query in result["queries"]} == {"q001", "q002", "q003"}
-    assert {item["status"] for item in result["results"]} == {"NOT_EVALUATED"}
-    assert {item["evaluation_status"] for item in result["per_query_results"]} == {"not_evaluated"}
+    assert {item["status"] for item in result["results"]} == {"PASS", "NOT_EVALUATED"}
+    assert {item["evaluation_status"] for item in result["per_query_results"]} == {"pass", "not_evaluated"}
     assert result["warnings"]
     assert result["errors"] == []
-    assert result["metadata"]["phase"] == "v0.5-phase-a"
+    assert result["metadata"]["phase"] == "v0.5-phase-b"
+    assert result["metadata"]["top_k"] == DEFAULT_TOP_K
     assert result["metadata"]["uses_real_rag_connection"] is False
     assert result["metadata"]["uses_llm_evaluation"] is False
     assert result["metadata"]["uses_external_api"] is False
@@ -113,10 +124,100 @@ def test_benchmark_json_report_has_phase_c_required_keys(tmp_path: Path) -> None
             "no_result_expected",
             "unsafe_or_unknown_expected",
             "evaluation_status",
+            "hit_at_k",
+            "source_match",
+            "matched_expected_source_ids",
             "ranked_results",
             "notes",
         } <= item.keys()
-        assert item["evaluation_status"] == "not_evaluated"
+    assert {item["evaluation_status"] for item in result["per_query_results"]} == {"pass", "not_evaluated"}
+
+
+def test_benchmark_hit_at_k_and_source_match_pass_for_expected_top_k() -> None:
+    documents = load_corpus(BENCHMARK_FIXTURES / "corpus")
+    queries = load_queries(BENCHMARK_FIXTURES / "queries.jsonl")
+    adapter = SyntheticRetrievalAdapter(documents)
+
+    q001 = queries[0]
+    result = build_per_query_result(q001, adapter.retrieve(q001))
+
+    assert result["hit_at_k"] is True
+    assert result["source_match"] is True
+    assert result["matched_expected_source_ids"] == ["sample-policy-001"]
+    assert result["evaluation_status"] == "pass"
+
+
+def test_benchmark_hit_at_k_fails_when_expected_source_is_not_in_top_k() -> None:
+    documents = load_corpus(BENCHMARK_FIXTURES / "corpus")
+    query = BenchmarkQuery(
+        query_id="q_source_miss",
+        question="zzzz qqqq yyyy",
+        expected_source_ids=["sample-policy-001"],
+        expected_keywords=[],
+        expected_answer_hint="",
+        no_result_expected=False,
+        unsafe_or_unknown_expected=False,
+    )
+
+    result = build_per_query_result(query, SyntheticRetrievalAdapter(documents).retrieve(query))
+
+    assert result["ranked_results"] == []
+    assert result["hit_at_k"] is False
+    assert result["source_match"] is False
+    assert result["matched_expected_source_ids"] == []
+    assert result["evaluation_status"] == "fail"
+
+
+def test_benchmark_source_match_supports_multiple_expected_sources() -> None:
+    documents = load_corpus(BENCHMARK_FIXTURES / "corpus")
+    query = BenchmarkQuery(
+        query_id="q_multi_source",
+        question="sample synthetic",
+        expected_source_ids=["sample-faq-001", "sample-policy-001"],
+        expected_keywords=[],
+        expected_answer_hint="",
+        no_result_expected=False,
+        unsafe_or_unknown_expected=False,
+    )
+
+    result = build_per_query_result(query, SyntheticRetrievalAdapter(documents).retrieve(query))
+
+    assert result["hit_at_k"] is True
+    assert result["source_match"] is True
+    assert result["matched_expected_source_ids"] == ["sample-faq-001", "sample-policy-001"]
+    assert result["evaluation_status"] == "pass"
+
+
+def test_benchmark_partial_source_match_warns() -> None:
+    documents = load_corpus(BENCHMARK_FIXTURES / "corpus")
+    query = BenchmarkQuery(
+        query_id="q_partial_source",
+        question="policy archive",
+        expected_source_ids=["sample-faq-001", "sample-policy-001"],
+        expected_keywords=[],
+        expected_answer_hint="",
+        no_result_expected=False,
+        unsafe_or_unknown_expected=False,
+    )
+
+    result = build_per_query_result(query, SyntheticRetrievalAdapter(documents).retrieve(query))
+
+    assert result["hit_at_k"] is True
+    assert result["source_match"] is False
+    assert result["matched_expected_source_ids"] == ["sample-policy-001"]
+    assert result["evaluation_status"] == "warning"
+
+
+def test_benchmark_no_result_query_remains_not_evaluated_for_phase_b() -> None:
+    documents = load_corpus(BENCHMARK_FIXTURES / "corpus")
+    query = load_queries(BENCHMARK_FIXTURES / "queries.jsonl")[2]
+
+    result = build_per_query_result(query, SyntheticRetrievalAdapter(documents).retrieve(query))
+
+    assert result["hit_at_k"] is None
+    assert result["source_match"] is None
+    assert result["matched_expected_source_ids"] == []
+    assert result["evaluation_status"] == "not_evaluated"
 
 
 def test_benchmark_retrieval_ranks_relevant_document_first() -> None:
@@ -204,7 +305,10 @@ def test_benchmark_report_includes_ranked_results(tmp_path: Path) -> None:
     q001 = next(item for item in result["per_query_results"] if item["query_id"] == "q001")
 
     assert code == 0
-    assert q001["evaluation_status"] == "not_evaluated"
+    assert q001["evaluation_status"] == "pass"
+    assert q001["hit_at_k"] is True
+    assert q001["source_match"] is True
+    assert q001["matched_expected_source_ids"] == ["sample-policy-001"]
     assert q001["ranked_results"][0]["document_id"] == "sample-policy-001"
     assert {
         "rank",
@@ -217,6 +321,44 @@ def test_benchmark_report_includes_ranked_results(tmp_path: Path) -> None:
     assert "sample archive" not in q001["ranked_results"][0].get("content", "")
     assert "- Ranked results:" in markdown
     assert "`sample-policy-001`" in markdown
+    assert "- Hit@k: True" in markdown
+    assert "- Source match: True" in markdown
+
+
+def test_benchmark_cli_returns_fail_for_source_miss(tmp_path: Path) -> None:
+    queries = tmp_path / "queries.jsonl"
+    queries.write_text(
+        json.dumps(
+            {
+                "query_id": "q_source_miss",
+                "question": "zzzz qqqq yyyy",
+                "expected_source_ids": ["sample-policy-001"],
+                "expected_keywords": [],
+                "expected_answer_hint": "",
+                "no_result_expected": False,
+                "unsafe_or_unknown_expected": False,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    code = main(
+        [
+            "benchmark",
+            "--corpus",
+            str(BENCHMARK_FIXTURES / "corpus"),
+            "--queries",
+            str(queries),
+            "--output",
+            str(tmp_path / "out"),
+        ]
+    )
+    result = json.loads((tmp_path / "out" / "benchmark_report.json").read_text(encoding="utf-8"))
+
+    assert code == 2
+    assert result["status"] == "FAIL"
+    assert result["summary"]["failed"] == 1
 
 
 def test_benchmark_loaders_read_valid_fixture() -> None:

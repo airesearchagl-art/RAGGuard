@@ -11,6 +11,7 @@ import yaml
 
 JSON_REPORT_NAME = "benchmark_report.json"
 MARKDOWN_REPORT_NAME = "benchmark_report.md"
+DEFAULT_TOP_K = 5
 
 
 class BenchmarkError(Exception):
@@ -209,20 +210,10 @@ def build_placeholder_result(
 ) -> dict:
     adapter = retrieval_adapter or SyntheticRetrievalAdapter(documents)
     per_query_results = [
-        {
-            "query_id": query.query_id,
-            "question": query.question,
-            "expected_source_ids": query.expected_source_ids,
-            "expected_keywords": query.expected_keywords,
-            "expected_answer_hint": query.expected_answer_hint,
-            "no_result_expected": query.no_result_expected,
-            "unsafe_or_unknown_expected": query.unsafe_or_unknown_expected,
-            "evaluation_status": "not_evaluated",
-            "ranked_results": [asdict(result) for result in adapter.retrieve(query)],
-            "notes": "Synthetic retrieval is available in Phase A; scoring is not implemented yet.",
-        }
+        build_per_query_result(query, adapter.retrieve(query))
         for query in queries
     ]
+    summary = build_benchmark_summary(len(documents), per_query_results)
     corpus_items = [
         {
             "document_id": document.document_id,
@@ -234,29 +225,24 @@ def build_placeholder_result(
         for document in documents
     ]
     return {
-        "result": "PASS",
-        "status": "PASS",
+        "result": benchmark_status(summary),
+        "status": benchmark_status(summary),
         "corpus_count": len(documents),
         "query_count": len(queries),
-        "summary": {
-            "corpus_count": len(documents),
-            "query_count": len(queries),
-            "validation_error_count": 0,
-            "evaluated_query_count": 0,
-            "not_evaluated_query_count": len(queries),
-        },
+        "summary": summary,
         "corpus": corpus_items,
         "queries": [asdict(query) for query in queries],
         "per_query_results": per_query_results,
         "results": legacy_results(per_query_results),
         "warnings": [
-            "Benchmark scoring is not implemented in Phase A.",
+            "Keyword coverage, no-result, and unsafe-or-unknown evaluation are not implemented in Phase B.",
             "Retrieval results are generated from synthetic keyword overlap only.",
         ],
         "errors": [],
         "metadata": {
             "schema_version": 1,
-            "phase": "v0.5-phase-a",
+            "phase": "v0.5-phase-b",
+            "top_k": DEFAULT_TOP_K,
             "uses_real_rag_connection": False,
             "uses_llm_evaluation": False,
             "uses_external_api": False,
@@ -264,13 +250,106 @@ def build_placeholder_result(
     }
 
 
+def build_per_query_result(query: BenchmarkQuery, ranked_results: list[RankedResult]) -> dict:
+    ranked_result_dicts = [asdict(result) for result in ranked_results]
+    if not query.expected_source_ids or query.no_result_expected or query.unsafe_or_unknown_expected:
+        return {
+            "query_id": query.query_id,
+            "question": query.question,
+            "expected_source_ids": query.expected_source_ids,
+            "expected_keywords": query.expected_keywords,
+            "expected_answer_hint": query.expected_answer_hint,
+            "no_result_expected": query.no_result_expected,
+            "unsafe_or_unknown_expected": query.unsafe_or_unknown_expected,
+            "hit_at_k": None,
+            "source_match": None,
+            "matched_expected_source_ids": [],
+            "evaluation_status": "not_evaluated",
+            "ranked_results": ranked_result_dicts,
+            "notes": "No-result and unsafe-or-unknown evaluation are not implemented in Phase B.",
+        }
+
+    top_k_ids = [result.document_id for result in ranked_results[:DEFAULT_TOP_K]]
+    matched_expected_source_ids = [
+        source_id for source_id in query.expected_source_ids if source_id in top_k_ids
+    ]
+    hit_at_k = bool(matched_expected_source_ids)
+    source_match = len(matched_expected_source_ids) == len(query.expected_source_ids)
+    if source_match:
+        evaluation_status = "pass"
+        notes = "All expected sources were found in the top-k ranked results."
+    elif hit_at_k:
+        evaluation_status = "warning"
+        notes = "Some expected sources were found in the top-k ranked results."
+    else:
+        evaluation_status = "fail"
+        notes = "No expected sources were found in the top-k ranked results."
+
+    return {
+        "query_id": query.query_id,
+        "question": query.question,
+        "expected_source_ids": query.expected_source_ids,
+        "expected_keywords": query.expected_keywords,
+        "expected_answer_hint": query.expected_answer_hint,
+        "no_result_expected": query.no_result_expected,
+        "unsafe_or_unknown_expected": query.unsafe_or_unknown_expected,
+        "hit_at_k": hit_at_k,
+        "source_match": source_match,
+        "matched_expected_source_ids": matched_expected_source_ids,
+        "evaluation_status": evaluation_status,
+        "ranked_results": ranked_result_dicts,
+        "notes": notes,
+    }
+
+
+def build_benchmark_summary(corpus_count: int, per_query_results: list[dict]) -> dict:
+    evaluated_results = [
+        item for item in per_query_results if item["evaluation_status"] != "not_evaluated"
+    ]
+    evaluated_count = len(evaluated_results)
+    hit_at_k_count = sum(1 for item in evaluated_results if item["hit_at_k"] is True)
+    source_match_count = sum(1 for item in evaluated_results if item["source_match"] is True)
+    passed = sum(1 for item in evaluated_results if item["evaluation_status"] == "pass")
+    warned = sum(1 for item in evaluated_results if item["evaluation_status"] == "warning")
+    failed = sum(1 for item in evaluated_results if item["evaluation_status"] == "fail")
+    return {
+        "corpus_count": corpus_count,
+        "query_count": len(per_query_results),
+        "validation_error_count": 0,
+        "evaluated_query_count": evaluated_count,
+        "evaluated_queries": evaluated_count,
+        "not_evaluated_query_count": len(per_query_results) - evaluated_count,
+        "passed": passed,
+        "warned": warned,
+        "failed": failed,
+        "hit_at_k_count": hit_at_k_count,
+        "hit_at_k_rate": rate(hit_at_k_count, evaluated_count),
+        "source_match_count": source_match_count,
+        "source_match_rate": rate(source_match_count, evaluated_count),
+    }
+
+
+def benchmark_status(summary: dict) -> str:
+    if summary["failed"]:
+        return "FAIL"
+    if summary["warned"]:
+        return "WARNING"
+    return "PASS"
+
+
+def rate(numerator: int, denominator: int) -> float | None:
+    if denominator == 0:
+        return None
+    return numerator / denominator
+
+
 def legacy_results(per_query_results: list[dict]) -> list[dict]:
     return [
         {
             "query_id": item["query_id"],
-            "status": "NOT_EVALUATED",
+            "status": item["evaluation_status"].upper(),
             "ranked_results": item["ranked_results"],
-            "notes": "Synthetic retrieval is available in Phase A; scoring is not implemented yet.",
+            "notes": item["notes"],
         }
         for item in per_query_results
     ]
@@ -299,11 +378,19 @@ def render_benchmark_markdown(result: dict) -> str:
         f"- Validation errors: {summary.get('validation_error_count', 0)}",
         f"- Evaluated queries: {summary.get('evaluated_query_count', 0)}",
         f"- Not evaluated queries: {summary.get('not_evaluated_query_count', 0)}",
+        f"- Passed queries: {summary.get('passed', 0)}",
+        f"- Warning queries: {summary.get('warned', 0)}",
+        f"- Failed queries: {summary.get('failed', 0)}",
+        f"- Hit@k count: {summary.get('hit_at_k_count', 0)}",
+        f"- Hit@k rate: {format_rate(summary.get('hit_at_k_rate'))}",
+        f"- Source match count: {summary.get('source_match_count', 0)}",
+        f"- Source match rate: {format_rate(summary.get('source_match_rate'))}",
         "",
         "## Inputs",
         "",
         f"- Schema version: {metadata.get('schema_version', 'unknown')}",
         f"- Phase: {metadata.get('phase', 'unknown')}",
+        f"- Top-k: {metadata.get('top_k', 'unknown')}",
         f"- Real RAG connection: {metadata.get('uses_real_rag_connection', False)}",
         f"- LLM evaluation: {metadata.get('uses_llm_evaluation', False)}",
         f"- External API: {metadata.get('uses_external_api', False)}",
@@ -328,6 +415,9 @@ def render_benchmark_markdown(result: dict) -> str:
                 f"- Expected answer hint: {query['expected_answer_hint'] or '(none)'}",
                 f"- No-result expected: {query['no_result_expected']}",
                 f"- Unsafe or unknown expected: {query['unsafe_or_unknown_expected']}",
+                f"- Hit@k: {format_optional_bool(query.get('hit_at_k'))}",
+                f"- Source match: {format_optional_bool(query.get('source_match'))}",
+                f"- Matched expected source ids: {', '.join(query.get('matched_expected_source_ids', [])) or '(none)'}",
                 f"- Evaluation status: {query['evaluation_status']}",
                 "- Ranked results:",
                 *render_ranked_results(query.get("ranked_results", [])),
@@ -367,6 +457,18 @@ def render_ranked_results(ranked_results: list[dict]) -> list[str]:
         )
         for item in ranked_results
     ]
+
+
+def format_optional_bool(value: bool | None) -> str:
+    if value is None:
+        return "not_evaluated"
+    return str(value)
+
+
+def format_rate(value: float | None) -> str:
+    if value is None:
+        return "not_evaluated"
+    return f"{value:.3f}"
 
 
 def query_search_terms(query: BenchmarkQuery) -> list[str]:

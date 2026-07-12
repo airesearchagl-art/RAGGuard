@@ -92,7 +92,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"JSON report: {json_path}")
             print(f"Markdown report: {markdown_path}")
             print(f"Status: {result['status']}")
-        return 0
+        return exit_code_for_status(result["status"])
 
     parser.error(f"Unknown command: {args.command}")
     return 3
