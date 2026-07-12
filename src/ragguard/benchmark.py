@@ -235,13 +235,13 @@ def build_placeholder_result(
         "per_query_results": per_query_results,
         "results": legacy_results(per_query_results),
         "warnings": [
-            "Keyword coverage, no-result, and unsafe-or-unknown evaluation are not implemented in Phase B.",
             "Retrieval results are generated from synthetic keyword overlap only.",
+            "LLM answer quality and external RAG behavior are not evaluated.",
         ],
         "errors": [],
         "metadata": {
             "schema_version": 1,
-            "phase": "v0.5-phase-b",
+            "phase": "v0.5-phase-c",
             "top_k": DEFAULT_TOP_K,
             "uses_real_rag_connection": False,
             "uses_llm_evaluation": False,
@@ -252,7 +252,25 @@ def build_placeholder_result(
 
 def build_per_query_result(query: BenchmarkQuery, ranked_results: list[RankedResult]) -> dict:
     ranked_result_dicts = [asdict(result) for result in ranked_results]
-    if not query.expected_source_ids or query.no_result_expected or query.unsafe_or_unknown_expected:
+    top_k_results = ranked_results[:DEFAULT_TOP_K]
+    top_k_ids = [result.document_id for result in top_k_results]
+    matched_expected_source_ids = [
+        source_id for source_id in query.expected_source_ids if source_id in top_k_ids
+    ]
+    hit_at_k = bool(matched_expected_source_ids) if query.expected_source_ids else None
+    source_match = (
+        len(matched_expected_source_ids) == len(query.expected_source_ids)
+        if query.expected_source_ids
+        else None
+    )
+    matched_keywords, missing_keywords = evaluate_expected_keywords(query.expected_keywords, top_k_results)
+    keyword_coverage_rate = rate(len(matched_keywords), len(query.expected_keywords))
+    no_result_pass = (not ranked_results) if query.no_result_expected else None
+    unsafe_or_unknown_pass = (not ranked_results) if query.unsafe_or_unknown_expected else None
+
+    if query.no_result_expected or query.unsafe_or_unknown_expected:
+        evaluation_status = status_for_special_expectations(no_result_pass, unsafe_or_unknown_pass)
+        notes = notes_for_special_expectations(no_result_pass, unsafe_or_unknown_pass)
         return {
             "query_id": query.query_id,
             "question": query.question,
@@ -261,26 +279,25 @@ def build_per_query_result(query: BenchmarkQuery, ranked_results: list[RankedRes
             "expected_answer_hint": query.expected_answer_hint,
             "no_result_expected": query.no_result_expected,
             "unsafe_or_unknown_expected": query.unsafe_or_unknown_expected,
-            "hit_at_k": None,
-            "source_match": None,
-            "matched_expected_source_ids": [],
-            "evaluation_status": "not_evaluated",
+            "hit_at_k": hit_at_k,
+            "source_match": source_match,
+            "matched_expected_source_ids": matched_expected_source_ids,
+            "matched_keywords": matched_keywords,
+            "missing_keywords": missing_keywords,
+            "keyword_coverage_rate": keyword_coverage_rate,
+            "no_result_pass": no_result_pass,
+            "unsafe_or_unknown_pass": unsafe_or_unknown_pass,
+            "evaluation_status": evaluation_status,
             "ranked_results": ranked_result_dicts,
-            "notes": "No-result and unsafe-or-unknown evaluation are not implemented in Phase B.",
+            "notes": notes,
         }
 
-    top_k_ids = [result.document_id for result in ranked_results[:DEFAULT_TOP_K]]
-    matched_expected_source_ids = [
-        source_id for source_id in query.expected_source_ids if source_id in top_k_ids
-    ]
-    hit_at_k = bool(matched_expected_source_ids)
-    source_match = len(matched_expected_source_ids) == len(query.expected_source_ids)
-    if source_match:
+    if source_match and not missing_keywords:
         evaluation_status = "pass"
-        notes = "All expected sources were found in the top-k ranked results."
+        notes = "All expected sources and expected keywords were found in the top-k ranked results."
     elif hit_at_k:
         evaluation_status = "warning"
-        notes = "Some expected sources were found in the top-k ranked results."
+        notes = "Some expected sources or keywords need review in the top-k ranked results."
     else:
         evaluation_status = "fail"
         notes = "No expected sources were found in the top-k ranked results."
@@ -296,10 +313,61 @@ def build_per_query_result(query: BenchmarkQuery, ranked_results: list[RankedRes
         "hit_at_k": hit_at_k,
         "source_match": source_match,
         "matched_expected_source_ids": matched_expected_source_ids,
+        "matched_keywords": matched_keywords,
+        "missing_keywords": missing_keywords,
+        "keyword_coverage_rate": keyword_coverage_rate,
+        "no_result_pass": no_result_pass,
+        "unsafe_or_unknown_pass": unsafe_or_unknown_pass,
         "evaluation_status": evaluation_status,
         "ranked_results": ranked_result_dicts,
         "notes": notes,
     }
+
+
+def evaluate_expected_keywords(
+    expected_keywords: list[str],
+    ranked_results: list[RankedResult],
+) -> tuple[list[str], list[str]]:
+    if not expected_keywords:
+        return [], []
+
+    top_k_terms = {
+        keyword
+        for result in ranked_results[:DEFAULT_TOP_K]
+        for keyword in result.matched_keywords
+    }
+    matched: list[str] = []
+    missing: list[str] = []
+    for expected_keyword in expected_keywords:
+        expected_terms = tokenize(expected_keyword)
+        if expected_terms and all(term in top_k_terms for term in expected_terms):
+            matched.append(expected_keyword)
+        else:
+            missing.append(expected_keyword)
+    return matched, missing
+
+
+def status_for_special_expectations(no_result_pass: bool | None, unsafe_or_unknown_pass: bool | None) -> str:
+    if no_result_pass is False:
+        return "fail"
+    if unsafe_or_unknown_pass is False:
+        return "warning"
+    return "pass"
+
+
+def notes_for_special_expectations(no_result_pass: bool | None, unsafe_or_unknown_pass: bool | None) -> str:
+    notes: list[str] = []
+    if no_result_pass is True:
+        notes.append("No-result expectation passed because no synthetic retrieval result was returned.")
+    elif no_result_pass is False:
+        notes.append("No-result expectation failed because synthetic retrieval returned at least one result.")
+
+    if unsafe_or_unknown_pass is True:
+        notes.append("Unsafe-or-unknown expectation passed without synthetic retrieval results.")
+    elif unsafe_or_unknown_pass is False:
+        notes.append("Unsafe-or-unknown expectation needs review because synthetic retrieval returned results.")
+
+    return " ".join(notes) if notes else "Synthetic benchmark evaluation completed."
 
 
 def build_benchmark_summary(corpus_count: int, per_query_results: list[dict]) -> dict:
@@ -307,8 +375,25 @@ def build_benchmark_summary(corpus_count: int, per_query_results: list[dict]) ->
         item for item in per_query_results if item["evaluation_status"] != "not_evaluated"
     ]
     evaluated_count = len(evaluated_results)
-    hit_at_k_count = sum(1 for item in evaluated_results if item["hit_at_k"] is True)
-    source_match_count = sum(1 for item in evaluated_results if item["source_match"] is True)
+    source_results = [
+        item for item in evaluated_results if item["hit_at_k"] is not None
+    ]
+    hit_at_k_count = sum(1 for item in source_results if item["hit_at_k"] is True)
+    source_match_count = sum(1 for item in source_results if item["source_match"] is True)
+    keyword_results = [
+        item for item in evaluated_results if item["keyword_coverage_rate"] is not None
+    ]
+    no_result_results = [
+        item for item in evaluated_results if item["no_result_pass"] is not None
+    ]
+    unsafe_or_unknown_results = [
+        item for item in evaluated_results if item["unsafe_or_unknown_pass"] is not None
+    ]
+    keyword_coverage_sum = sum(item["keyword_coverage_rate"] for item in keyword_results)
+    no_result_pass_count = sum(1 for item in no_result_results if item["no_result_pass"] is True)
+    unsafe_or_unknown_pass_count = sum(
+        1 for item in unsafe_or_unknown_results if item["unsafe_or_unknown_pass"] is True
+    )
     passed = sum(1 for item in evaluated_results if item["evaluation_status"] == "pass")
     warned = sum(1 for item in evaluated_results if item["evaluation_status"] == "warning")
     failed = sum(1 for item in evaluated_results if item["evaluation_status"] == "fail")
@@ -323,9 +408,19 @@ def build_benchmark_summary(corpus_count: int, per_query_results: list[dict]) ->
         "warned": warned,
         "failed": failed,
         "hit_at_k_count": hit_at_k_count,
-        "hit_at_k_rate": rate(hit_at_k_count, evaluated_count),
+        "hit_at_k_rate": rate(hit_at_k_count, len(source_results)),
+        "hit_at_k_evaluated_query_count": len(source_results),
         "source_match_count": source_match_count,
-        "source_match_rate": rate(source_match_count, evaluated_count),
+        "source_match_rate": rate(source_match_count, len(source_results)),
+        "source_match_evaluated_query_count": len(source_results),
+        "keyword_coverage_rate": rate_float(keyword_coverage_sum, len(keyword_results)),
+        "keyword_evaluated_query_count": len(keyword_results),
+        "no_result_pass_count": no_result_pass_count,
+        "no_result_pass_rate": rate(no_result_pass_count, len(no_result_results)),
+        "no_result_evaluated_query_count": len(no_result_results),
+        "unsafe_or_unknown_pass_count": unsafe_or_unknown_pass_count,
+        "unsafe_or_unknown_pass_rate": rate(unsafe_or_unknown_pass_count, len(unsafe_or_unknown_results)),
+        "unsafe_or_unknown_evaluated_query_count": len(unsafe_or_unknown_results),
     }
 
 
@@ -343,11 +438,20 @@ def rate(numerator: int, denominator: int) -> float | None:
     return numerator / denominator
 
 
+def rate_float(numerator: float, denominator: int) -> float | None:
+    if denominator == 0:
+        return None
+    return numerator / denominator
+
+
 def legacy_results(per_query_results: list[dict]) -> list[dict]:
     return [
         {
             "query_id": item["query_id"],
             "status": item["evaluation_status"].upper(),
+            "matched_sources": item["matched_expected_source_ids"],
+            "matched_keywords": item["matched_keywords"],
+            "missing_keywords": item["missing_keywords"],
             "ranked_results": item["ranked_results"],
             "notes": item["notes"],
         }
@@ -385,6 +489,11 @@ def render_benchmark_markdown(result: dict) -> str:
         f"- Hit@k rate: {format_rate(summary.get('hit_at_k_rate'))}",
         f"- Source match count: {summary.get('source_match_count', 0)}",
         f"- Source match rate: {format_rate(summary.get('source_match_rate'))}",
+        f"- Keyword coverage rate: {format_rate(summary.get('keyword_coverage_rate'))}",
+        f"- No-result pass count: {summary.get('no_result_pass_count', 0)}",
+        f"- No-result pass rate: {format_rate(summary.get('no_result_pass_rate'))}",
+        f"- Unsafe-or-unknown pass count: {summary.get('unsafe_or_unknown_pass_count', 0)}",
+        f"- Unsafe-or-unknown pass rate: {format_rate(summary.get('unsafe_or_unknown_pass_rate'))}",
         "",
         "## Inputs",
         "",
@@ -418,6 +527,11 @@ def render_benchmark_markdown(result: dict) -> str:
                 f"- Hit@k: {format_optional_bool(query.get('hit_at_k'))}",
                 f"- Source match: {format_optional_bool(query.get('source_match'))}",
                 f"- Matched expected source ids: {', '.join(query.get('matched_expected_source_ids', [])) or '(none)'}",
+                f"- Matched keywords: {', '.join(query.get('matched_keywords', [])) or '(none)'}",
+                f"- Missing keywords: {', '.join(query.get('missing_keywords', [])) or '(none)'}",
+                f"- Keyword coverage rate: {format_rate(query.get('keyword_coverage_rate'))}",
+                f"- No-result pass: {format_optional_bool(query.get('no_result_pass'))}",
+                f"- Unsafe-or-unknown pass: {format_optional_bool(query.get('unsafe_or_unknown_pass'))}",
                 f"- Evaluation status: {query['evaluation_status']}",
                 "- Ranked results:",
                 *render_ranked_results(query.get("ranked_results", [])),

@@ -1,8 +1,8 @@
 # Usage
 
-## v0.5 Phase B synthetic retrieval usage notes
+## v0.5 Phase C synthetic retrieval usage notes
 
-v0.5 Phase A-B adds retrieval and source-based scoring for the benchmark CLI, but only against synthetic benchmark fixtures.
+v0.5 Phase A-C adds retrieval and local scoring for the benchmark CLI, but only against synthetic benchmark fixtures.
 It does not connect to production Local RAG, Hermes, LM Studio,
 embedding services, vector databases, LLM evaluation, cloud services, or external APIs.
 
@@ -12,7 +12,7 @@ The existing v0.4 command shape remains the starting point:
 python -m ragguard benchmark --corpus "tests/fixtures/benchmark/corpus" --queries "tests/fixtures/benchmark/queries.jsonl" --output "outputs/test_benchmark"
 ```
 
-Phase A-B behavior:
+Phase A-C behavior:
 
 - load the synthetic corpus through a retrieval adapter
 - run deterministic keyword / token overlap retrieval
@@ -22,10 +22,13 @@ Phase A-B behavior:
 - set `hit_at_k` to true when any `expected_source_ids` entry appears in the top-k results
 - set `source_match` to true only when all `expected_source_ids` entries appear in the top-k results
 - output `matched_expected_source_ids`, per-query `evaluation_status`, and summary rates
+- evaluate `expected_keywords` as keyword phrases covered by top-k matched tokens
+- output `matched_keywords`, `missing_keywords`, and `keyword_coverage_rate`
+- pass no-result queries when no synthetic retrieval results are returned
+- mark unsafe-or-unknown queries as pass when no synthetic retrieval results are returned, or warning when retrieval returns results
 - avoid replaying long document content in reports
 
-Expected keyword coverage, no-result expected, and unsafe-or-unknown expected cases remain future work.
-Those query types are kept as `not_evaluated` in Phase B.
+This is still synthetic scoring only. It does not evaluate answer wording, LLM behavior, or production Local RAG behavior.
 
 Benchmark exit codes:
 

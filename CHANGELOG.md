@@ -8,7 +8,8 @@
 - Added ranked retrieval results to benchmark JSON and Markdown reports while keeping `evaluation_status` as `not_evaluated`.
 - Added v0.5 Phase B hit@k and expected source match evaluation from synthetic ranked results.
 - Added `hit_at_k`, `source_match`, `matched_expected_source_ids`, and source-match summary rates to benchmark reports.
-- Kept expected keyword coverage, no-result, and unsafe-or-unknown evaluation for later phases.
+- Added v0.5 Phase C keyword coverage, no-result, and unsafe-or-unknown expectation evaluation.
+- Added `matched_keywords`, `missing_keywords`, `keyword_coverage_rate`, `no_result_pass`, and `unsafe_or_unknown_pass` to benchmark reports.
 - Kept the design free of real RAG connections, Hermes, LM Studio, embeddings, vector databases, LLM evaluation, external APIs, cloud services, and real documents.
 
 ## v0.4
