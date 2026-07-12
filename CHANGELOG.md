@@ -11,6 +11,8 @@
 - Planned benchmark fixture locations without adding fixture files: `tests/fixtures/benchmark/corpus/` and `tests/fixtures/benchmark/queries.jsonl`.
 - Added RAG Benchmark Harness Phase B CLI skeleton for synthetic corpus / query validation.
 - Added placeholder JSON / Markdown benchmark reports without connecting to real RAG systems or external evaluators.
+- Expanded benchmark report structure with `per_query_results`, `warnings`, `errors`, and `metadata`.
+- Kept benchmark query evaluation as `not_evaluated` without retrieval, LLM evaluation, or external API calls.
 
 ## v0.3
 

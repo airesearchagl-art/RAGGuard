@@ -35,6 +35,8 @@ Phase Bでは、`benchmark` CLI skeletonを追加します。synthetic corpusと
 python -m ragguard benchmark --corpus "tests/fixtures/benchmark/corpus" --queries "tests/fixtures/benchmark/queries.jsonl" --output "outputs/test_benchmark_cli"
 ```
 
+Phase Cでは、`benchmark_report.json` と `benchmark_report.md` の構造を拡充します。queryごとの `per_query_results`、`warnings`、`errors`、`metadata` を出力しますが、検索・評価はまだ行わず、`evaluation_status` は `not_evaluated` として扱います。
+
 RAGGuardは、RAG投入前のマスク済みMarkdown資料に、個人情報・金額情報・契約情報・内部事情が残っていないかをローカルで確認するためのPython CLIです。
 
 初回MVPの対象は **Masked Document Checker** のみです。GUI、Dashboard、Citation Verifier、RAG Benchmark Harnessは今回の範囲外です。

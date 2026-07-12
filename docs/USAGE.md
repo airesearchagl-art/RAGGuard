@@ -38,6 +38,14 @@ python -m ragguard benchmark --corpus "tests/fixtures/benchmark/corpus" --querie
 
 成功時は `benchmark_report.json` と `benchmark_report.md` を出力し、exit code `0` を返します。corpusまたはqueriesの必須項目不足、JSONL不備、存在しない `expected_source_ids` などはCLI errorとしてexit code `3` を返します。
 
+### Phase C report structure
+
+Phase Cでは、benchmark reportの構造を将来の評価実装に備えて拡充します。`benchmark_report.json` には `result`、`summary`、`corpus_count`、`query_count`、`per_query_results`、`warnings`、`errors`、`metadata` を出力します。
+
+`per_query_results` には `query_id`、`question`、`expected_source_ids`、`expected_keywords`、`expected_answer_hint`、`no_result_expected`、`unsafe_or_unknown_expected`、`evaluation_status`、`notes` を含めます。Phase C時点では検索・評価は行わないため、`evaluation_status` は `not_evaluated` です。
+
+Markdown reportは `Summary`、`Inputs`、`Per-query Results`、`Warnings`、`Errors` を確認しやすい順序で出力します。valid inputはexit code `0`、validation errorやCLI errorはexit code `3` の方針を維持します。
+
 ## v0.3 運用メモ
 
 v0.3時点では、`python -m ragguard check-mask ...` を推奨実行方法とします。`--config config/rules.yaml` を指定すると、内蔵ルールにYAML定義ルールを追加して確認できます。
