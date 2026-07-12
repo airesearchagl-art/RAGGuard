@@ -57,6 +57,28 @@ python -m ragguard benchmark --corpus tests/fixtures/benchmark/corpus --queries 
 
 この確認もsynthetic fixtureのみを使います。実RAG接続、検索評価、LLM評価、外部API利用は行いません。
 
+### v0.4時点のbenchmark CLI運用メモ
+
+v0.4時点のbenchmark CLIは、synthetic corpus / queries JSONLの読み込みとvalidation、report skeleton生成までを対象にします。
+
+```powershell
+python -m ragguard benchmark --corpus "tests/fixtures/benchmark/corpus" --queries "tests/fixtures/benchmark/queries.jsonl" --output "outputs/test_benchmark"
+```
+
+入力:
+
+- corpus: `tests/fixtures/benchmark/corpus/` 配下の架空Markdown文書
+- queries: `tests/fixtures/benchmark/queries.jsonl`
+- corpus metadata: `document_id`、`title`、`tags`、`expected_searchable_facts`
+- query fields: `query_id`、`question`、`expected_source_ids`、`expected_keywords`、`expected_answer_hint`、`no_result_expected`、`unsafe_or_unknown_expected`
+
+出力:
+
+- `benchmark_report.json`
+- `benchmark_report.md`
+
+まだ検索・評価は行いません。`per_query_results` の `evaluation_status` は `not_evaluated` です。実資料、実案件名、実会社名、実個人名はbenchmark fixtureに入れません。
+
 ## v0.3 運用メモ
 
 v0.3時点では、`python -m ragguard check-mask ...` を推奨実行方法とします。`--config config/rules.yaml` を指定すると、内蔵ルールにYAML定義ルールを追加して確認できます。

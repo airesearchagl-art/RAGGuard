@@ -1,21 +1,21 @@
 # RAGGuard Roadmap
 
-## Planned: RAG Benchmark Harness v0.4
+## Completed: RAG Benchmark Harness v0.4
 
-RAG Benchmark Harnessは、Local RAG本線を直接操作せず、RAG品質を外部から検証する補助ツールとして設計します。v0.4では実資料を使わず、synthetic corpusとsynthetic query setだけで動くbenchmark harnessを目指します。
+RAG Benchmark Harnessは、Local RAG本線を直接操作せず、RAG品質を外部から検証する補助ツールとして整備しました。v0.4では実資料を使わず、synthetic corpusとsynthetic query setだけで動くbenchmark CLI skeletonを追加しました。
 
-- Phase A: synthetic benchmark fixture設計
-- Phase B: benchmark CLI skeleton
-- Phase C: JSON / Markdown report生成
-- Phase D: CI / docs整理
+- Phase A: synthetic benchmark fixture設計 完了
+- Phase B: benchmark CLI skeleton 完了
+- Phase C: benchmark report skeleton拡充 完了
+- Phase D: CI / docs整理 完了
 
 設計上の優先事項:
 
 - 実資料、実案件名、実会社名、実個人名を使わない
 - expected source / expected keyword / expected answer hintを使う
-- hit@k、expected source match、expected keyword coverageをローカル評価する
+- 将来のhit@k、expected source match、expected keyword coverageに備えたreport skeletonを出力する
 - no-result query、unsafe / unknown answerを扱う
-- v0.4ではLLM評価、外部API評価、クラウド評価を使わない
+- v0.4では実RAG接続、検索評価、LLM評価、外部API評価、クラウド評価を使わない
 
 ### Phase A: synthetic benchmark fixture設計
 
@@ -29,7 +29,14 @@ Phase Aでは、RAG Benchmark Harnessの最初の実装に入る前に、synthet
 - 実資料、実案件名、実会社名、実個人名は使わない
 - `C:\AI_Restricted` と `C:\AI_Local_RAG` 配下の実資料は使わない
 
-Phase B以降は、benchmark CLI skeleton、JSON / Markdown benchmark report、CI / docs整理の順で進めます。
+Phase B-Dで、benchmark CLI skeleton、JSON / Markdown benchmark report skeleton、CI / docs整理まで完了しました。
+
+### v0.4以降の候補
+
+- retrieval / scoringを実装する前に、評価入力とreport schemaの互換性を維持する
+- hit@k、expected source match、expected keyword coverageの実装方針を別PRで設計する
+- 実RAG接続を行う場合も、Local RAG本線を直接変更しない疎結合なadapterとして扱う
+- LLM評価や外部API評価は、明示的な設計と安全方針が固まるまで使わない
 
 ## Completed: Masked Document Checker v0.3
 

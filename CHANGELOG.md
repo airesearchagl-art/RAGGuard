@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- No unreleased changes.
+
+## v0.4
+
 - Designed RAG Benchmark Harness v0.4.
 - Planned synthetic corpus and synthetic query set inputs.
 - Planned JSON / Markdown benchmark reports.
@@ -15,6 +19,16 @@
 - Kept benchmark query evaluation as `not_evaluated` without retrieval, LLM evaluation, or external API calls.
 - Added benchmark CLI checks to the GitHub Actions Tests workflow.
 - Documented the v0.4 Phase A-C benchmark harness status and Phase D CI / docs coverage.
+
+PR summary:
+
+- PR #13: Designed the v0.4 RAG Benchmark Harness direction.
+- PR #14: Designed synthetic benchmark fixture structure.
+- PR #15: Added the benchmark CLI skeleton.
+- PR #16: Expanded the benchmark report skeleton.
+- PR #17: Added benchmark CLI checks to CI and updated docs.
+
+v0.4 remains synthetic-only. It does not connect to real RAG systems, implement retrieval scoring, use LLM evaluation, or call external APIs.
 
 ## v0.3
 

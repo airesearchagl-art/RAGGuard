@@ -209,6 +209,29 @@ v0.4の現状は以下です。
 
 Phase Dでも、実RAG接続、検索評価、LLM評価、外部API利用は行いません。fixtureは架空データのみを使い、実資料、実案件名、実会社名、実個人名は追加しません。
 
+## RAG Benchmark Harness v0.4 完了整理
+
+v0.4では、Local RAG本線とは疎結合な補助ツールとして、RAG Benchmark Harnessの土台を整備しました。対象はsynthetic fixtureのみで、実資料、実案件名、実会社名、実個人名は使いません。
+
+完了範囲:
+
+- Phase A: synthetic corpus / queries JSONLのfixture構造を設計
+- Phase B: `benchmark` CLI skeleton、input validation、placeholder report生成を追加
+- Phase C: JSON / Markdown benchmark report skeletonを拡充
+- Phase D: benchmark CLI確認をGitHub Actions `Tests` workflowに追加し、docsを整理
+
+v0.4では、実RAG接続、検索評価、LLM評価、外部API利用は行いません。`per_query_results` の `evaluation_status` は `not_evaluated` とし、将来の評価実装に備えたreport skeletonとして扱います。
+
+将来のPhase候補:
+
+- benchmark retrieval adapterの設計
+- hit@k、expected source match、expected keyword coverageのローカル評価実装
+- no-result / unsafe-or-unknown queryの評価方針整理
+- report schema互換性を維持したCI拡張
+- Local RAG本線を直接変更しないadapter境界の設計
+
+LLM評価や外部API評価は、別途安全方針を設計するまで導入しません。
+
 ## Masked Document Checker v0.3 完了整理
 
 v0.3では、Phase A-Dとして検出範囲とレポートの扱いやすさを段階的に強化しました。Phase Aで金額・料率・坪単価 / 平米単価、Phase Bで住所候補、Phase Cで契約条件 / 内部情報キーワード、Phase Dで重複finding抑制とMarkdown summary改善を追加しました。
