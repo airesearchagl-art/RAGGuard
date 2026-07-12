@@ -1,5 +1,105 @@
 # Design Notes
 
+## RAG Benchmark Harness v0.5 synthetic retrieval design
+
+v0.5 is a design step for synthetic-only retrieval and scoring. It must not connect to production
+Local RAG, Hermes, LM Studio, real documents, embedding providers, vector databases, LLM evaluation,
+cloud services, external APIs, or external MCP services.
+
+### Retrieval adapter responsibility
+
+The retrieval adapter should be a narrow boundary between benchmark input loading and benchmark
+evaluation. Its responsibilities are:
+
+- load validated synthetic corpus documents
+- accept one benchmark query at a time
+- return deterministic ranked results
+- avoid deciding PASS / WARNING / FAIL by itself
+- avoid writing benchmark reports directly
+
+The benchmark evaluator consumes ranked results and query expectations. This separation keeps future
+retrieval implementations replaceable without changing scoring and reporting contracts.
+
+### Synthetic retrieval method
+
+The v0.5 implementation should start with a simple keyword / token overlap search.
+
+- Use synthetic corpus and synthetic queries only.
+- Prefer Python standard library functionality where possible.
+- Normalize text deterministically before matching.
+- Compare query tokens and expected keywords against document title, tags, expected searchable facts, and content.
+- Do not use embeddings, vector databases, LLM calls, external APIs, cloud services, or production RAG indexes.
+- Tie-breaking must be deterministic, for example by score descending, then `document_id`, then `source_path`.
+
+### Ranked result structure
+
+Each ranked result should include:
+
+- `rank`
+- `document_id`
+- `score`
+- `matched_keywords`
+- `title`
+- `source_path`
+
+Reports should not replay long document content. Short identifiers, titles, matched keyword labels,
+and source paths are enough for the benchmark report.
+
+### Evaluation specification
+
+The evaluator should produce per-query status from ranked results and query expectations.
+
+- `hit@k`: whether at least one expected source appears within the top-k results
+- expected source match: whether expected source IDs are represented in ranked results
+- expected keyword coverage: whether expected keywords are covered by matched keywords or retrieved metadata
+- no-result expected: pass when no relevant result is returned for queries that expect no result
+- unsafe-or-unknown expected: pass or warning when the harness can represent that no confident answer should be produced
+- per-query status: `pass`, `warning`, `fail`, or `not_evaluated`
+
+`not_evaluated` remains valid only for phases or query types where scoring is intentionally not yet implemented.
+
+### Summary metrics
+
+Benchmark summary should be deterministic and machine-readable.
+
+- `total_queries`
+- `evaluated_queries`
+- `passed`
+- `warned`
+- `failed`
+- `hit_at_k`
+- `source_match_rate`
+- `keyword_coverage_rate`
+
+Rates should document their denominator. Queries that remain `not_evaluated` should not silently inflate
+success rates.
+
+### Exit code policy
+
+The benchmark CLI should align with the existing PASS / WARNING / FAIL / CLI error model.
+
+- PASS: exit `0`
+- WARNING: exit `1`
+- FAIL: exit `2`
+- CLI / validation error: exit `3`
+
+This does not change `check-mask` behavior or exit codes.
+
+### v0.5 implementation order
+
+- Phase A: retrieval adapter / deterministic keyword search
+- Phase B: hit@k / expected source match
+- Phase C: keyword coverage / no-result / unsafe-or-unknown evaluation
+- Phase D: report / CI / docs cleanup
+
+### Safety constraints
+
+- Use synthetic fixtures only.
+- Do not add real documents, real project names, real company names, or real person names.
+- Do not read `C:\AI_Restricted`.
+- Do not use real materials under `C:\AI_Local_RAG`.
+- Keep Local RAG integration loosely coupled and design-only until a later version.
+
 ## RAG Benchmark Harness v0.4 設計
 
 v0.4では、RAG Benchmark Harnessを設計します。この機能はLocal RAG本線を直接操作せず、RAG品質を外部から検証する補助ツールとして扱います。最初の実装対象は、実資料を使わないsynthetic corpusとsynthetic query setのみです。

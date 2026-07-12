@@ -2,6 +2,23 @@
 
 [![Tests](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml)
 
+## Planned: RAG Benchmark Harness v0.5 synthetic retrieval
+
+v0.5 is planned as the first synthetic-only retrieval and scoring step for the benchmark harness.
+It remains local and detached from production Local RAG, Hermes, LM Studio, vector databases,
+embedding services, LLM evaluation, cloud services, and external APIs.
+
+Planned scope:
+
+- retrieval adapter boundary for corpus loading, query input, and ranked result output
+- deterministic keyword / token overlap search using the Python standard library where possible
+- ranked results with `rank`, `document_id`, `score`, `matched_keywords`, `title`, and `source_path`
+- no long corpus content replay in JSON or Markdown reports
+- local scoring for hit@k, expected source match, expected keyword coverage, no-result expected, and unsafe-or-unknown expected cases
+- per-query statuses: `pass`, `warning`, `fail`, and `not_evaluated`
+
+The existing `check-mask` behavior, exit codes, and report structures are not part of this v0.5 design change.
+
 ## Masked Document Checker v0.3
 
 現時点のRAGGuardは、RAG投入前のマスク済みMarkdownをローカルで確認する `check-mask` CLIを提供します。
