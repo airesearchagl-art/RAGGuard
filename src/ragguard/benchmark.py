@@ -161,33 +161,65 @@ def validate_query_sources(queries: list[BenchmarkQuery], documents: list[Benchm
 
 
 def build_placeholder_result(documents: list[BenchmarkDocument], queries: list[BenchmarkQuery]) -> dict:
+    per_query_results = [
+        {
+            "query_id": query.query_id,
+            "question": query.question,
+            "expected_source_ids": query.expected_source_ids,
+            "expected_keywords": query.expected_keywords,
+            "expected_answer_hint": query.expected_answer_hint,
+            "no_result_expected": query.no_result_expected,
+            "unsafe_or_unknown_expected": query.unsafe_or_unknown_expected,
+            "evaluation_status": "not_evaluated",
+            "notes": "Benchmark retrieval and scoring are not implemented in Phase C.",
+        }
+        for query in queries
+    ]
+    corpus_items = [
+        {
+            "document_id": document.document_id,
+            "title": document.title,
+            "tags": document.tags,
+            "file": document.file,
+            "expected_searchable_fact_count": len(document.expected_searchable_facts),
+        }
+        for document in documents
+    ]
     return {
+        "result": "PASS",
         "status": "PASS",
+        "corpus_count": len(documents),
+        "query_count": len(queries),
         "summary": {
             "corpus_count": len(documents),
             "query_count": len(queries),
             "validation_error_count": 0,
             "evaluated_query_count": 0,
+            "not_evaluated_query_count": len(queries),
         },
-        "corpus": [
-            {
-                "document_id": document.document_id,
-                "title": document.title,
-                "tags": document.tags,
-                "file": document.file,
-                "expected_searchable_fact_count": len(document.expected_searchable_facts),
-            }
-            for document in documents
-        ],
+        "corpus": corpus_items,
         "queries": [asdict(query) for query in queries],
+        "per_query_results": per_query_results,
         "results": [
             {
                 "query_id": query.query_id,
                 "status": "NOT_EVALUATED",
-                "notes": "Benchmark retrieval and scoring are not implemented in Phase B.",
+                "notes": "Benchmark retrieval and scoring are not implemented in Phase C.",
             }
             for query in queries
         ],
+        "warnings": [
+            "Benchmark retrieval and scoring are not implemented in Phase C.",
+            "Report values are generated from synthetic input validation only.",
+        ],
+        "errors": [],
+        "metadata": {
+            "schema_version": 1,
+            "phase": "v0.4-phase-c",
+            "uses_real_rag_connection": False,
+            "uses_llm_evaluation": False,
+            "uses_external_api": False,
+        },
     }
 
 
@@ -202,28 +234,69 @@ def write_benchmark_reports(result: dict, output_dir: Path) -> tuple[Path, Path]
 
 def render_benchmark_markdown(result: dict) -> str:
     summary = result.get("summary", {})
+    metadata = result.get("metadata", {})
     lines = [
         "# RAG Benchmark Report",
         "",
         "## Summary",
         "",
-        f"- Status: {result.get('status', 'UNKNOWN')}",
-        f"- Corpus documents: {summary.get('corpus_count', 0)}",
-        f"- Queries: {summary.get('query_count', 0)}",
+        f"- Result: {result.get('result', result.get('status', 'UNKNOWN'))}",
+        f"- Corpus documents: {result.get('corpus_count', summary.get('corpus_count', 0))}",
+        f"- Queries: {result.get('query_count', summary.get('query_count', 0))}",
         f"- Validation errors: {summary.get('validation_error_count', 0)}",
         f"- Evaluated queries: {summary.get('evaluated_query_count', 0)}",
+        f"- Not evaluated queries: {summary.get('not_evaluated_query_count', 0)}",
         "",
-        "## Phase",
+        "## Inputs",
         "",
-        "Phase B validates synthetic corpus and query inputs only. Retrieval and scoring are not implemented.",
+        f"- Schema version: {metadata.get('schema_version', 'unknown')}",
+        f"- Phase: {metadata.get('phase', 'unknown')}",
+        f"- Real RAG connection: {metadata.get('uses_real_rag_connection', False)}",
+        f"- LLM evaluation: {metadata.get('uses_llm_evaluation', False)}",
+        f"- External API: {metadata.get('uses_external_api', False)}",
         "",
-        "## Queries",
+        "### Corpus",
         "",
     ]
-    for query in result.get("queries", []):
-        lines.append(f"- `{query['query_id']}`: {query['question']}")
-    if not result.get("queries"):
+    for document in result.get("corpus", []):
+        lines.append(f"- `{document['document_id']}`: {document['title']} ({document['file']})")
+    if not result.get("corpus"):
+        lines.append("- No corpus documents loaded.")
+
+    lines.extend(["", "## Per-query Results", ""])
+    for query in result.get("per_query_results", []):
+        lines.extend(
+            [
+                f"### {query['query_id']}",
+                "",
+                f"- Question: {query['question']}",
+                f"- Expected source ids: {', '.join(query['expected_source_ids']) or '(none)'}",
+                f"- Expected keywords: {', '.join(query['expected_keywords']) or '(none)'}",
+                f"- Expected answer hint: {query['expected_answer_hint'] or '(none)'}",
+                f"- No-result expected: {query['no_result_expected']}",
+                f"- Unsafe or unknown expected: {query['unsafe_or_unknown_expected']}",
+                f"- Evaluation status: {query['evaluation_status']}",
+                f"- Notes: {query['notes']}",
+                "",
+            ]
+        )
+    if not result.get("per_query_results"):
         lines.append("- No queries loaded.")
+
+    lines.extend(["", "## Warnings", ""])
+    warnings = result.get("warnings", [])
+    if warnings:
+        lines.extend(f"- {warning}" for warning in warnings)
+    else:
+        lines.append("- None.")
+
+    lines.extend(["", "## Errors", ""])
+    errors = result.get("errors", [])
+    if errors:
+        lines.extend(f"- {error}" for error in errors)
+    else:
+        lines.append("- None.")
+
     lines.append("")
     return "\n".join(lines)
 

@@ -188,6 +188,14 @@ corpus validationでは、Markdown front matter由来の `document_id`、`title`
 
 Phase Bのreportはplaceholderです。corpus件数、query件数、validation error件数、未評価であることをJSON / Markdownに出力します。実RAG接続、retrieval実行、LLM評価、外部API評価はPhase Bでは行いません。
 
+### Phase C実装範囲
+
+Phase Cでは、実RAG接続や検索評価を追加せず、benchmark report skeletonを将来の評価に使いやすい形へ拡張します。JSON reportは `result`、`summary`、`corpus_count`、`query_count`、`per_query_results`、`warnings`、`errors`、`metadata` を持つ構造にします。
+
+`per_query_results` はqueryごとに `query_id`、`question`、`expected_source_ids`、`expected_keywords`、`expected_answer_hint`、`no_result_expected`、`unsafe_or_unknown_expected`、`evaluation_status`、`notes` を保持します。Phase Cでは評価未実装であることを明示するため、`evaluation_status` は `not_evaluated` とします。
+
+Markdown reportは `Summary`、`Inputs`、`Per-query Results`、`Warnings`、`Errors` の順で、人間が入力件数と未評価状態を確認しやすい構成にします。valid inputはexit code `0`、validation error / CLI errorはexit code `3` の方針を維持します。
+
 ## Masked Document Checker v0.3 完了整理
 
 v0.3では、Phase A-Dとして検出範囲とレポートの扱いやすさを段階的に強化しました。Phase Aで金額・料率・坪単価 / 平米単価、Phase Bで住所候補、Phase Cで契約条件 / 内部情報キーワード、Phase Dで重複finding抑制とMarkdown summary改善を追加しました。
