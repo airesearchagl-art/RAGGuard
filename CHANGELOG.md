@@ -13,6 +13,8 @@
 - Added placeholder JSON / Markdown benchmark reports without connecting to real RAG systems or external evaluators.
 - Expanded benchmark report structure with `per_query_results`, `warnings`, `errors`, and `metadata`.
 - Kept benchmark query evaluation as `not_evaluated` without retrieval, LLM evaluation, or external API calls.
+- Added benchmark CLI checks to the GitHub Actions Tests workflow.
+- Documented the v0.4 Phase A-C benchmark harness status and Phase D CI / docs coverage.
 
 ## v0.3
 

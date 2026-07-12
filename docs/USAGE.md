@@ -46,6 +46,17 @@ Phase Cでは、benchmark reportの構造を将来の評価実装に備えて拡
 
 Markdown reportは `Summary`、`Inputs`、`Per-query Results`、`Warnings`、`Errors` を確認しやすい順序で出力します。valid inputはexit code `0`、validation errorやCLI errorはexit code `3` の方針を維持します。
 
+### Phase D CI / docs
+
+Phase Dでは、GitHub Actions `Tests` workflowでbenchmark CLIの最小動作も確認します。既存のpytest、`check-mask --help`、`check-mask --config` 確認に加えて、以下をCIで実行します。
+
+```powershell
+python -m ragguard benchmark --help
+python -m ragguard benchmark --corpus tests/fixtures/benchmark/corpus --queries tests/fixtures/benchmark/queries.jsonl --output outputs/ci_benchmark_report
+```
+
+この確認もsynthetic fixtureのみを使います。実RAG接続、検索評価、LLM評価、外部API利用は行いません。
+
 ## v0.3 運用メモ
 
 v0.3時点では、`python -m ragguard check-mask ...` を推奨実行方法とします。`--config config/rules.yaml` を指定すると、内蔵ルールにYAML定義ルールを追加して確認できます。

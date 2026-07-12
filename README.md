@@ -37,6 +37,8 @@ python -m ragguard benchmark --corpus "tests/fixtures/benchmark/corpus" --querie
 
 Phase Cでは、`benchmark_report.json` と `benchmark_report.md` の構造を拡充します。queryごとの `per_query_results`、`warnings`、`errors`、`metadata` を出力しますが、検索・評価はまだ行わず、`evaluation_status` は `not_evaluated` として扱います。
 
+Phase Dでは、GitHub Actions `Tests` workflowでbenchmark CLIも確認します。`python -m ragguard benchmark --help` とsynthetic fixtureを使ったreport生成をCIで実行し、pytest、`check-mask`、`benchmark` の最小動作を同じPRゲートで確認します。
+
 RAGGuardは、RAG投入前のマスク済みMarkdown資料に、個人情報・金額情報・契約情報・内部事情が残っていないかをローカルで確認するためのPython CLIです。
 
 初回MVPの対象は **Masked Document Checker** のみです。GUI、Dashboard、Citation Verifier、RAG Benchmark Harnessは今回の範囲外です。
@@ -84,6 +86,13 @@ python -m ragguard check-mask --input "tests/fixtures/fail" --output "outputs/te
 ## CI
 
 GitHub Actionsの `Tests` workflowで、`main` へのpushおよび `main` 向けpull requestごとに `python -m pytest` と `--config config/rules.yaml` 付きCLI実行を確認します。検出ルールやドキュメントを変更する場合も、PRではpytestとconfig付きCLI確認が通る状態を維持してください。
+
+Benchmark Harnessについても、CIで以下を確認します。
+
+```powershell
+python -m ragguard benchmark --help
+python -m ragguard benchmark --corpus tests/fixtures/benchmark/corpus --queries tests/fixtures/benchmark/queries.jsonl --output outputs/ci_benchmark_report
+```
 
 ## 判定
 
