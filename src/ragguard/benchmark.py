@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -37,12 +38,53 @@ class BenchmarkQuery:
     unsafe_or_unknown_expected: bool
 
 
+@dataclass(frozen=True)
+class RankedResult:
+    rank: int
+    document_id: str
+    score: int
+    matched_keywords: list[str]
+    title: str
+    source_path: str
+
+
+class SyntheticRetrievalAdapter:
+    """Deterministic synthetic-only keyword retrieval."""
+
+    def __init__(self, documents: list[BenchmarkDocument]) -> None:
+        self._documents = documents
+
+    def retrieve(self, query: BenchmarkQuery) -> list[RankedResult]:
+        query_terms = query_search_terms(query)
+        scored: list[tuple[int, str, str, BenchmarkDocument, list[str]]] = []
+        for document in self._documents:
+            matched_keywords = matched_document_keywords(query_terms, document)
+            if not matched_keywords:
+                continue
+            score = len(matched_keywords)
+            scored.append((score, document.document_id, document.file, document, matched_keywords))
+
+        scored.sort(key=lambda item: (-item[0], item[1], item[2]))
+        return [
+            RankedResult(
+                rank=index,
+                document_id=document.document_id,
+                score=score,
+                matched_keywords=matched_keywords,
+                title=document.title,
+                source_path=document.file,
+            )
+            for index, (score, _document_id, _file, document, matched_keywords) in enumerate(scored, start=1)
+        ]
+
+
 def run_benchmark(corpus_dir: Path, queries_path: Path, output_dir: Path) -> tuple[dict, Path, Path]:
     documents = load_corpus(corpus_dir)
     queries = load_queries(queries_path)
     validate_query_sources(queries, documents)
 
-    result = build_placeholder_result(documents, queries)
+    retrieval_adapter = SyntheticRetrievalAdapter(documents)
+    result = build_placeholder_result(documents, queries, retrieval_adapter)
     json_path, markdown_path = write_benchmark_reports(result, output_dir)
     return result, json_path, markdown_path
 
@@ -160,7 +202,12 @@ def validate_query_sources(queries: list[BenchmarkQuery], documents: list[Benchm
             raise BenchmarkError(f"Unknown expected_source_ids for query_id {query.query_id}: {', '.join(missing)}")
 
 
-def build_placeholder_result(documents: list[BenchmarkDocument], queries: list[BenchmarkQuery]) -> dict:
+def build_placeholder_result(
+    documents: list[BenchmarkDocument],
+    queries: list[BenchmarkQuery],
+    retrieval_adapter: SyntheticRetrievalAdapter | None = None,
+) -> dict:
+    adapter = retrieval_adapter or SyntheticRetrievalAdapter(documents)
     per_query_results = [
         {
             "query_id": query.query_id,
@@ -171,7 +218,8 @@ def build_placeholder_result(documents: list[BenchmarkDocument], queries: list[B
             "no_result_expected": query.no_result_expected,
             "unsafe_or_unknown_expected": query.unsafe_or_unknown_expected,
             "evaluation_status": "not_evaluated",
-            "notes": "Benchmark retrieval and scoring are not implemented in Phase C.",
+            "ranked_results": [asdict(result) for result in adapter.retrieve(query)],
+            "notes": "Synthetic retrieval is available in Phase A; scoring is not implemented yet.",
         }
         for query in queries
     ]
@@ -200,27 +248,32 @@ def build_placeholder_result(documents: list[BenchmarkDocument], queries: list[B
         "corpus": corpus_items,
         "queries": [asdict(query) for query in queries],
         "per_query_results": per_query_results,
-        "results": [
-            {
-                "query_id": query.query_id,
-                "status": "NOT_EVALUATED",
-                "notes": "Benchmark retrieval and scoring are not implemented in Phase C.",
-            }
-            for query in queries
-        ],
+        "results": legacy_results(per_query_results),
         "warnings": [
-            "Benchmark retrieval and scoring are not implemented in Phase C.",
-            "Report values are generated from synthetic input validation only.",
+            "Benchmark scoring is not implemented in Phase A.",
+            "Retrieval results are generated from synthetic keyword overlap only.",
         ],
         "errors": [],
         "metadata": {
             "schema_version": 1,
-            "phase": "v0.4-phase-c",
+            "phase": "v0.5-phase-a",
             "uses_real_rag_connection": False,
             "uses_llm_evaluation": False,
             "uses_external_api": False,
         },
     }
+
+
+def legacy_results(per_query_results: list[dict]) -> list[dict]:
+    return [
+        {
+            "query_id": item["query_id"],
+            "status": "NOT_EVALUATED",
+            "ranked_results": item["ranked_results"],
+            "notes": "Synthetic retrieval is available in Phase A; scoring is not implemented yet.",
+        }
+        for item in per_query_results
+    ]
 
 
 def write_benchmark_reports(result: dict, output_dir: Path) -> tuple[Path, Path]:
@@ -276,6 +329,8 @@ def render_benchmark_markdown(result: dict) -> str:
                 f"- No-result expected: {query['no_result_expected']}",
                 f"- Unsafe or unknown expected: {query['unsafe_or_unknown_expected']}",
                 f"- Evaluation status: {query['evaluation_status']}",
+                "- Ranked results:",
+                *render_ranked_results(query.get("ranked_results", [])),
                 f"- Notes: {query['notes']}",
                 "",
             ]
@@ -299,6 +354,46 @@ def render_benchmark_markdown(result: dict) -> str:
 
     lines.append("")
     return "\n".join(lines)
+
+
+def render_ranked_results(ranked_results: list[dict]) -> list[str]:
+    if not ranked_results:
+        return ["  - None."]
+    return [
+        (
+            f"  - #{item['rank']} `{item['document_id']}` "
+            f"score={item['score']} matched={', '.join(item['matched_keywords']) or '(none)'} "
+            f"source={item['source_path']}"
+        )
+        for item in ranked_results
+    ]
+
+
+def query_search_terms(query: BenchmarkQuery) -> list[str]:
+    terms = tokenize(query.question)
+    for keyword in query.expected_keywords:
+        terms.extend(tokenize(keyword))
+    if query.expected_answer_hint:
+        terms.extend(tokenize(query.expected_answer_hint))
+    return sorted(set(terms))
+
+
+def matched_document_keywords(query_terms: list[str], document: BenchmarkDocument) -> list[str]:
+    searchable_text = " ".join(
+        [
+            document.document_id,
+            document.title,
+            " ".join(document.tags),
+            " ".join(document.expected_searchable_facts),
+            document.content,
+        ]
+    )
+    document_terms = set(tokenize(searchable_text))
+    return [term for term in query_terms if term in document_terms]
+
+
+def tokenize(text: str) -> list[str]:
+    return [token.lower() for token in re.findall(r"[A-Za-z0-9]+", text)]
 
 
 def require_string(

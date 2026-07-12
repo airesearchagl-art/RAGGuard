@@ -5,7 +5,13 @@ from pathlib import Path
 
 import pytest
 
-from ragguard.benchmark import load_corpus, load_queries
+from ragguard.benchmark import (
+    BenchmarkDocument,
+    BenchmarkQuery,
+    SyntheticRetrievalAdapter,
+    load_corpus,
+    load_queries,
+)
 from ragguard.cli import main
 
 
@@ -59,7 +65,7 @@ def test_benchmark_valid_fixture_generates_placeholder_reports(tmp_path: Path) -
     assert {item["evaluation_status"] for item in result["per_query_results"]} == {"not_evaluated"}
     assert result["warnings"]
     assert result["errors"] == []
-    assert result["metadata"]["phase"] == "v0.4-phase-c"
+    assert result["metadata"]["phase"] == "v0.5-phase-a"
     assert result["metadata"]["uses_real_rag_connection"] is False
     assert result["metadata"]["uses_llm_evaluation"] is False
     assert result["metadata"]["uses_external_api"] is False
@@ -107,9 +113,110 @@ def test_benchmark_json_report_has_phase_c_required_keys(tmp_path: Path) -> None
             "no_result_expected",
             "unsafe_or_unknown_expected",
             "evaluation_status",
+            "ranked_results",
             "notes",
         } <= item.keys()
         assert item["evaluation_status"] == "not_evaluated"
+
+
+def test_benchmark_retrieval_ranks_relevant_document_first() -> None:
+    documents = load_corpus(BENCHMARK_FIXTURES / "corpus")
+    queries = load_queries(BENCHMARK_FIXTURES / "queries.jsonl")
+    adapter = SyntheticRetrievalAdapter(documents)
+
+    policy_results = adapter.retrieve(queries[0])
+    faq_results = adapter.retrieve(queries[1])
+
+    assert policy_results[0].document_id == "sample-policy-001"
+    assert policy_results[0].rank == 1
+    assert policy_results[0].score > 0
+    assert "sample" in policy_results[0].matched_keywords
+    assert faq_results[0].document_id == "sample-faq-001"
+
+
+def test_benchmark_retrieval_tie_break_is_stable() -> None:
+    documents = [
+        BenchmarkDocument(
+            document_id="sample-beta-001",
+            title="Shared Synthetic Document",
+            tags=["shared"],
+            content="Shared benchmark token.",
+            expected_searchable_facts=["Shared benchmark token."],
+            file="b.md",
+        ),
+        BenchmarkDocument(
+            document_id="sample-alpha-001",
+            title="Shared Synthetic Document",
+            tags=["shared"],
+            content="Shared benchmark token.",
+            expected_searchable_facts=["Shared benchmark token."],
+            file="a.md",
+        ),
+    ]
+    query = BenchmarkQuery(
+        query_id="q_tie",
+        question="shared benchmark",
+        expected_source_ids=[],
+        expected_keywords=[],
+        expected_answer_hint="",
+        no_result_expected=False,
+        unsafe_or_unknown_expected=False,
+    )
+
+    results = SyntheticRetrievalAdapter(documents).retrieve(query)
+
+    assert [result.document_id for result in results] == ["sample-alpha-001", "sample-beta-001"]
+    assert [result.rank for result in results] == [1, 2]
+
+
+def test_benchmark_retrieval_no_match_returns_empty_results() -> None:
+    documents = load_corpus(BENCHMARK_FIXTURES / "corpus")
+    query = BenchmarkQuery(
+        query_id="q_no_match",
+        question="zzzz qqqq yyyy",
+        expected_source_ids=[],
+        expected_keywords=[],
+        expected_answer_hint="",
+        no_result_expected=True,
+        unsafe_or_unknown_expected=False,
+    )
+
+    results = SyntheticRetrievalAdapter(documents).retrieve(query)
+
+    assert results == []
+
+
+def test_benchmark_report_includes_ranked_results(tmp_path: Path) -> None:
+    code = main(
+        [
+            "benchmark",
+            "--corpus",
+            str(BENCHMARK_FIXTURES / "corpus"),
+            "--queries",
+            str(BENCHMARK_FIXTURES / "queries.jsonl"),
+            "--output",
+            str(tmp_path),
+        ]
+    )
+
+    result = json.loads((tmp_path / "benchmark_report.json").read_text(encoding="utf-8"))
+    markdown = (tmp_path / "benchmark_report.md").read_text(encoding="utf-8")
+    q001 = next(item for item in result["per_query_results"] if item["query_id"] == "q001")
+
+    assert code == 0
+    assert q001["evaluation_status"] == "not_evaluated"
+    assert q001["ranked_results"][0]["document_id"] == "sample-policy-001"
+    assert {
+        "rank",
+        "document_id",
+        "score",
+        "matched_keywords",
+        "title",
+        "source_path",
+    } <= q001["ranked_results"][0].keys()
+    assert "sample archive" not in q001["ranked_results"][0].get("content", "")
+    assert "- Ranked results:" in markdown
+    assert "`sample-policy-001`" in markdown
 
 
 def test_benchmark_loaders_read_valid_fixture() -> None:

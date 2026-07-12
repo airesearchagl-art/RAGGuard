@@ -2,6 +2,14 @@
 
 ## RAG Benchmark Harness v0.5 synthetic retrieval design
 
+Phase A implementation status:
+
+- Added a synthetic-only retrieval adapter.
+- Added deterministic keyword / token overlap retrieval.
+- Added ranked results to benchmark JSON and Markdown reports.
+- Kept scoring out of Phase A; `evaluation_status` remains `not_evaluated`.
+- Kept the implementation disconnected from real RAG systems, Hermes, LM Studio, embeddings, vector databases, LLM evaluation, cloud services, and external APIs.
+
 v0.5 is a design step for synthetic-only retrieval and scoring. It must not connect to production
 Local RAG, Hermes, LM Studio, real documents, embedding providers, vector databases, LLM evaluation,
 cloud services, external APIs, or external MCP services.
