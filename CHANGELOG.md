@@ -10,6 +10,8 @@
 - Added `hit_at_k`, `source_match`, `matched_expected_source_ids`, and source-match summary rates to benchmark reports.
 - Added v0.5 Phase C keyword coverage, no-result, and unsafe-or-unknown expectation evaluation.
 - Added `matched_keywords`, `missing_keywords`, `keyword_coverage_rate`, `no_result_pass`, and `unsafe_or_unknown_pass` to benchmark reports.
+- Finalized v0.5 Phase D report, CI, and docs cleanup.
+- Added benchmark CI checks for PASS `0`, WARNING `1`, FAIL `2`, and CLI error `3` cases.
 - Kept the design free of real RAG connections, Hermes, LM Studio, embeddings, vector databases, LLM evaluation, external APIs, cloud services, and real documents.
 
 ## v0.4

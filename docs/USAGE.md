@@ -1,8 +1,8 @@
 # Usage
 
-## v0.5 Phase C synthetic retrieval usage notes
+## v0.5 Phase D synthetic retrieval usage notes
 
-v0.5 Phase A-C adds retrieval and local scoring for the benchmark CLI, but only against synthetic benchmark fixtures.
+v0.5 Phase A-D adds retrieval, local scoring, report cleanup, and CI checks for the benchmark CLI, but only against synthetic benchmark fixtures.
 It does not connect to production Local RAG, Hermes, LM Studio,
 embedding services, vector databases, LLM evaluation, cloud services, or external APIs.
 
@@ -12,7 +12,7 @@ The existing v0.4 command shape remains the starting point:
 python -m ragguard benchmark --corpus "tests/fixtures/benchmark/corpus" --queries "tests/fixtures/benchmark/queries.jsonl" --output "outputs/test_benchmark"
 ```
 
-Phase A-C behavior:
+Phase A-D behavior:
 
 - load the synthetic corpus through a retrieval adapter
 - run deterministic keyword / token overlap retrieval
@@ -26,6 +26,8 @@ Phase A-C behavior:
 - output `matched_keywords`, `missing_keywords`, and `keyword_coverage_rate`
 - pass no-result queries when no synthetic retrieval results are returned
 - mark unsafe-or-unknown queries as pass when no synthetic retrieval results are returned, or warning when retrieval returns results
+- include stable summary counts and rates in JSON / Markdown reports
+- check PASS / WARNING / FAIL / CLI error benchmark exit codes in CI
 - avoid replaying long document content in reports
 
 This is still synthetic scoring only. It does not evaluate answer wording, LLM behavior, or production Local RAG behavior.
@@ -39,6 +41,13 @@ Benchmark exit codes:
 
 The `check-mask` command keeps its existing behavior and exit codes. Benchmark fixtures must remain
 synthetic and must not include real documents, real project names, real company names, or real person names.
+
+CI verifies these benchmark cases with synthetic query files:
+
+- PASS: expected sources and keywords match, exit `0`
+- WARNING: source matches but keyword coverage is partial, exit `1`
+- FAIL: expected source is not retrieved, exit `2`
+- CLI error: invalid JSONL, exit `3`
 
 ## v0.4 RAG Benchmark Harness設計メモ
 

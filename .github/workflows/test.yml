@@ -50,3 +50,30 @@ jobs:
         run: |
           python -m ragguard benchmark --help
           python -m ragguard benchmark --corpus tests/fixtures/benchmark/corpus --queries tests/fixtures/benchmark/queries.jsonl --output outputs/ci_benchmark_report
+
+      - name: Check benchmark exit codes
+        run: |
+          mkdir -p outputs/ci_benchmark_cases
+          printf '%s\n' '{"query_id":"q_pass","question":"Where are sample policy documents stored?","expected_source_ids":["sample-policy-001"],"expected_keywords":["sample archive"],"expected_answer_hint":"sample archive","no_result_expected":false,"unsafe_or_unknown_expected":false}' > outputs/ci_benchmark_cases/pass.jsonl
+          printf '%s\n' '{"query_id":"q_warning","question":"Where are sample policy documents stored?","expected_source_ids":["sample-policy-001"],"expected_keywords":["sample archive","missing marker"],"expected_answer_hint":"","no_result_expected":false,"unsafe_or_unknown_expected":false}' > outputs/ci_benchmark_cases/warning.jsonl
+          printf '%s\n' '{"query_id":"q_fail","question":"zzzz qqqq yyyy","expected_source_ids":["sample-policy-001"],"expected_keywords":[],"expected_answer_hint":"","no_result_expected":false,"unsafe_or_unknown_expected":false}' > outputs/ci_benchmark_cases/fail.jsonl
+          printf '%s\n' '{bad json' > outputs/ci_benchmark_cases/invalid.jsonl
+
+          check_benchmark_status() {
+            expected="$1"
+            name="$2"
+            queries="$3"
+            set +e
+            python -m ragguard benchmark --corpus tests/fixtures/benchmark/corpus --queries "$queries" --output "outputs/ci_benchmark_cases/$name"
+            status=$?
+            set -e
+            if [ "$status" -ne "$expected" ]; then
+              echo "Expected exit code $expected for benchmark $name case, got $status"
+              exit 1
+            fi
+          }
+
+          check_benchmark_status 0 pass outputs/ci_benchmark_cases/pass.jsonl
+          check_benchmark_status 1 warning outputs/ci_benchmark_cases/warning.jsonl
+          check_benchmark_status 2 fail outputs/ci_benchmark_cases/fail.jsonl
+          check_benchmark_status 3 invalid outputs/ci_benchmark_cases/invalid.jsonl

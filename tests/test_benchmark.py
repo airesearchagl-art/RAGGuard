@@ -146,6 +146,78 @@ def test_benchmark_json_report_has_phase_c_required_keys(tmp_path: Path) -> None
     assert {item["evaluation_status"] for item in result["per_query_results"]} == {"pass"}
 
 
+def test_benchmark_summary_has_v05_phase_d_required_metrics(tmp_path: Path) -> None:
+    code = main(
+        [
+            "benchmark",
+            "--corpus",
+            str(BENCHMARK_FIXTURES / "corpus"),
+            "--queries",
+            str(BENCHMARK_FIXTURES / "queries.jsonl"),
+            "--output",
+            str(tmp_path),
+        ]
+    )
+
+    result = json.loads((tmp_path / "benchmark_report.json").read_text(encoding="utf-8"))
+    summary = result["summary"]
+
+    assert code == 0
+    assert {
+        "evaluated_queries",
+        "not_evaluated_query_count",
+        "passed",
+        "warned",
+        "failed",
+        "hit_at_k_count",
+        "hit_at_k_evaluated_query_count",
+        "hit_at_k_rate",
+        "source_match_count",
+        "source_match_evaluated_query_count",
+        "source_match_rate",
+        "keyword_evaluated_query_count",
+        "keyword_coverage_rate",
+        "no_result_pass_count",
+        "no_result_evaluated_query_count",
+        "no_result_pass_rate",
+        "unsafe_or_unknown_pass_count",
+        "unsafe_or_unknown_evaluated_query_count",
+        "unsafe_or_unknown_pass_rate",
+    } <= summary.keys()
+    assert summary["evaluated_queries"] == summary["passed"] + summary["warned"] + summary["failed"]
+    assert summary["hit_at_k_rate"] == summary["hit_at_k_count"] / summary["hit_at_k_evaluated_query_count"]
+    assert summary["source_match_rate"] == summary["source_match_count"] / summary["source_match_evaluated_query_count"]
+    assert summary["keyword_coverage_rate"] == 1.0
+    assert summary["no_result_pass_rate"] == 1.0
+    assert summary["unsafe_or_unknown_pass_rate"] == 1.0
+
+
+def test_benchmark_legacy_results_include_phase_c_metrics(tmp_path: Path) -> None:
+    code = main(
+        [
+            "benchmark",
+            "--corpus",
+            str(BENCHMARK_FIXTURES / "corpus"),
+            "--queries",
+            str(BENCHMARK_FIXTURES / "queries.jsonl"),
+            "--output",
+            str(tmp_path),
+        ]
+    )
+
+    result = json.loads((tmp_path / "benchmark_report.json").read_text(encoding="utf-8"))
+    q001 = next(item for item in result["results"] if item["query_id"] == "q001")
+
+    assert code == 0
+    assert q001["status"] == "PASS"
+    assert q001["matched_sources"] == ["sample-policy-001"]
+    assert q001["matched_keywords"] == ["sample archive"]
+    assert q001["missing_keywords"] == []
+    assert q001["keyword_coverage_rate"] == 1.0
+    assert q001["no_result_pass"] is None
+    assert q001["unsafe_or_unknown_pass"] is None
+
+
 def test_benchmark_keyword_coverage_full_match_passes() -> None:
     documents = load_corpus(BENCHMARK_FIXTURES / "corpus")
     query = load_queries(BENCHMARK_FIXTURES / "queries.jsonl")[0]
@@ -434,6 +506,11 @@ def test_benchmark_report_includes_ranked_results(tmp_path: Path) -> None:
     assert "- Source match: True" in markdown
     assert "- Matched keywords: sample archive" in markdown
     assert "- Keyword coverage rate: 1.000" in markdown
+    assert "- Hit@k evaluated queries: 2" in markdown
+    assert "- Source match evaluated queries: 2" in markdown
+    assert "- Keyword evaluated queries: 2" in markdown
+    assert "- No-result evaluated queries: 1" in markdown
+    assert "- Unsafe-or-unknown evaluated queries: 1" in markdown
 
 
 def test_benchmark_cli_returns_fail_for_source_miss(tmp_path: Path) -> None:
@@ -470,6 +547,58 @@ def test_benchmark_cli_returns_fail_for_source_miss(tmp_path: Path) -> None:
     assert code == 2
     assert result["status"] == "FAIL"
     assert result["summary"]["failed"] == 1
+
+
+def test_benchmark_cli_returns_warning_for_keyword_partial_match(tmp_path: Path) -> None:
+    queries = tmp_path / "queries.jsonl"
+    queries.write_text(
+        json.dumps(
+            {
+                "query_id": "q_warning",
+                "question": "Where are sample policy documents stored?",
+                "expected_source_ids": ["sample-policy-001"],
+                "expected_keywords": ["sample archive", "missing marker"],
+                "expected_answer_hint": "",
+                "no_result_expected": False,
+                "unsafe_or_unknown_expected": False,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    code = main(
+        [
+            "benchmark",
+            "--corpus",
+            str(BENCHMARK_FIXTURES / "corpus"),
+            "--queries",
+            str(queries),
+            "--output",
+            str(tmp_path / "out"),
+        ]
+    )
+    result = json.loads((tmp_path / "out" / "benchmark_report.json").read_text(encoding="utf-8"))
+
+    assert code == 1
+    assert result["status"] == "WARNING"
+    assert result["summary"]["warned"] == 1
+
+
+def test_benchmark_cli_returns_pass_for_standard_fixture(tmp_path: Path) -> None:
+    code = main(
+        [
+            "benchmark",
+            "--corpus",
+            str(BENCHMARK_FIXTURES / "corpus"),
+            "--queries",
+            str(BENCHMARK_FIXTURES / "queries.jsonl"),
+            "--output",
+            str(tmp_path),
+        ]
+    )
+
+    assert code == 0
 
 
 def test_benchmark_loaders_read_valid_fixture() -> None:
