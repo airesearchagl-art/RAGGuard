@@ -2,13 +2,13 @@
 
 [![Tests](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml)
 
-## RAG Benchmark Harness v0.5 Phase B synthetic retrieval scoring
+## RAG Benchmark Harness v0.5 Phase C synthetic retrieval scoring
 
 v0.5 adds synthetic-only retrieval and local benchmark scoring for the benchmark harness.
 It remains local and detached from production Local RAG, Hermes, LM Studio, vector databases,
 embedding services, LLM evaluation, cloud services, and external APIs.
 
-Phase A-B scope:
+Phase A-C scope:
 
 - retrieval adapter boundary for corpus loading, query input, and ranked result output
 - deterministic keyword / token overlap search using the Python standard library
@@ -16,12 +16,14 @@ Phase A-B scope:
 - ranked results included in benchmark JSON and Markdown reports
 - hit@k evaluation with default top-k `5`
 - expected source match evaluation against the top-k ranked results
-- summary metrics for evaluated query count, hit@k count/rate, and source match count/rate
+- expected keyword coverage evaluation
+- no-result expected evaluation
+- unsafe-or-unknown expected evaluation without LLM judgment
+- summary metrics for evaluated query count, hit@k, source match, keyword coverage, no-result, and unsafe-or-unknown expectations
 - no long corpus content replay in JSON or Markdown reports
 
-Phase B marks queries as `pass`, `warning`, or `fail` when `expected_source_ids` can be evaluated.
-No-result, unsafe-or-unknown, and expected keyword coverage scoring remain future work and stay
-`not_evaluated`.
+Phase C marks synthetic queries as `pass`, `warning`, or `fail` from local deterministic retrieval only.
+No LLM answer judgment or production RAG behavior is evaluated.
 
 The existing `check-mask` behavior, exit codes, and report structures are not part of this v0.5 design change.
 

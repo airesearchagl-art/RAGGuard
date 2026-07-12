@@ -56,26 +56,34 @@ def test_benchmark_valid_fixture_generates_placeholder_reports(tmp_path: Path) -
     assert result["summary"]["corpus_count"] == 2
     assert result["summary"]["query_count"] == 3
     assert result["summary"]["validation_error_count"] == 0
-    assert result["summary"]["evaluated_query_count"] == 2
-    assert result["summary"]["evaluated_queries"] == 2
-    assert result["summary"]["not_evaluated_query_count"] == 1
-    assert result["summary"]["passed"] == 2
+    assert result["summary"]["evaluated_query_count"] == 3
+    assert result["summary"]["evaluated_queries"] == 3
+    assert result["summary"]["not_evaluated_query_count"] == 0
+    assert result["summary"]["passed"] == 3
     assert result["summary"]["warned"] == 0
     assert result["summary"]["failed"] == 0
     assert result["summary"]["hit_at_k_count"] == 2
+    assert result["summary"]["hit_at_k_evaluated_query_count"] == 2
     assert result["summary"]["hit_at_k_rate"] == 1.0
     assert result["summary"]["source_match_count"] == 2
+    assert result["summary"]["source_match_evaluated_query_count"] == 2
     assert result["summary"]["source_match_rate"] == 1.0
+    assert result["summary"]["keyword_evaluated_query_count"] == 2
+    assert result["summary"]["keyword_coverage_rate"] == 1.0
+    assert result["summary"]["no_result_pass_count"] == 1
+    assert result["summary"]["no_result_pass_rate"] == 1.0
+    assert result["summary"]["unsafe_or_unknown_pass_count"] == 1
+    assert result["summary"]["unsafe_or_unknown_pass_rate"] == 1.0
     assert {document["document_id"] for document in result["corpus"]} == {
         "sample-faq-001",
         "sample-policy-001",
     }
     assert {query["query_id"] for query in result["queries"]} == {"q001", "q002", "q003"}
-    assert {item["status"] for item in result["results"]} == {"PASS", "NOT_EVALUATED"}
-    assert {item["evaluation_status"] for item in result["per_query_results"]} == {"pass", "not_evaluated"}
+    assert {item["status"] for item in result["results"]} == {"PASS"}
+    assert {item["evaluation_status"] for item in result["per_query_results"]} == {"pass"}
     assert result["warnings"]
     assert result["errors"] == []
-    assert result["metadata"]["phase"] == "v0.5-phase-b"
+    assert result["metadata"]["phase"] == "v0.5-phase-c"
     assert result["metadata"]["top_k"] == DEFAULT_TOP_K
     assert result["metadata"]["uses_real_rag_connection"] is False
     assert result["metadata"]["uses_llm_evaluation"] is False
@@ -127,10 +135,68 @@ def test_benchmark_json_report_has_phase_c_required_keys(tmp_path: Path) -> None
             "hit_at_k",
             "source_match",
             "matched_expected_source_ids",
+            "matched_keywords",
+            "missing_keywords",
+            "keyword_coverage_rate",
+            "no_result_pass",
+            "unsafe_or_unknown_pass",
             "ranked_results",
             "notes",
         } <= item.keys()
-    assert {item["evaluation_status"] for item in result["per_query_results"]} == {"pass", "not_evaluated"}
+    assert {item["evaluation_status"] for item in result["per_query_results"]} == {"pass"}
+
+
+def test_benchmark_keyword_coverage_full_match_passes() -> None:
+    documents = load_corpus(BENCHMARK_FIXTURES / "corpus")
+    query = load_queries(BENCHMARK_FIXTURES / "queries.jsonl")[0]
+
+    result = build_per_query_result(query, SyntheticRetrievalAdapter(documents).retrieve(query))
+
+    assert result["matched_keywords"] == ["sample archive"]
+    assert result["missing_keywords"] == []
+    assert result["keyword_coverage_rate"] == 1.0
+    assert result["evaluation_status"] == "pass"
+
+
+def test_benchmark_keyword_coverage_partial_match_warns() -> None:
+    documents = load_corpus(BENCHMARK_FIXTURES / "corpus")
+    query = BenchmarkQuery(
+        query_id="q_keyword_partial",
+        question="Where are sample policy documents stored?",
+        expected_source_ids=["sample-policy-001"],
+        expected_keywords=["sample archive", "missing marker"],
+        expected_answer_hint="",
+        no_result_expected=False,
+        unsafe_or_unknown_expected=False,
+    )
+
+    result = build_per_query_result(query, SyntheticRetrievalAdapter(documents).retrieve(query))
+
+    assert result["matched_keywords"] == ["sample archive"]
+    assert result["missing_keywords"] == ["missing marker"]
+    assert result["keyword_coverage_rate"] == 0.5
+    assert result["hit_at_k"] is True
+    assert result["evaluation_status"] == "warning"
+
+
+def test_benchmark_keyword_coverage_no_match_warns_when_source_hits() -> None:
+    documents = load_corpus(BENCHMARK_FIXTURES / "corpus")
+    query = BenchmarkQuery(
+        query_id="q_keyword_none",
+        question="Where are sample policy documents stored?",
+        expected_source_ids=["sample-policy-001"],
+        expected_keywords=["missing marker"],
+        expected_answer_hint="",
+        no_result_expected=False,
+        unsafe_or_unknown_expected=False,
+    )
+
+    result = build_per_query_result(query, SyntheticRetrievalAdapter(documents).retrieve(query))
+
+    assert result["matched_keywords"] == []
+    assert result["missing_keywords"] == ["missing marker"]
+    assert result["keyword_coverage_rate"] == 0.0
+    assert result["evaluation_status"] == "warning"
 
 
 def test_benchmark_hit_at_k_and_source_match_pass_for_expected_top_k() -> None:
@@ -208,7 +274,7 @@ def test_benchmark_partial_source_match_warns() -> None:
     assert result["evaluation_status"] == "warning"
 
 
-def test_benchmark_no_result_query_remains_not_evaluated_for_phase_b() -> None:
+def test_benchmark_no_result_query_passes_when_no_results_are_returned() -> None:
     documents = load_corpus(BENCHMARK_FIXTURES / "corpus")
     query = load_queries(BENCHMARK_FIXTURES / "queries.jsonl")[2]
 
@@ -217,7 +283,47 @@ def test_benchmark_no_result_query_remains_not_evaluated_for_phase_b() -> None:
     assert result["hit_at_k"] is None
     assert result["source_match"] is None
     assert result["matched_expected_source_ids"] == []
-    assert result["evaluation_status"] == "not_evaluated"
+    assert result["no_result_pass"] is True
+    assert result["unsafe_or_unknown_pass"] is True
+    assert result["evaluation_status"] == "pass"
+
+
+def test_benchmark_no_result_expected_fails_when_results_are_returned() -> None:
+    documents = load_corpus(BENCHMARK_FIXTURES / "corpus")
+    query = BenchmarkQuery(
+        query_id="q_no_result_unexpected_hit",
+        question="sample policy",
+        expected_source_ids=[],
+        expected_keywords=[],
+        expected_answer_hint="",
+        no_result_expected=True,
+        unsafe_or_unknown_expected=False,
+    )
+
+    result = build_per_query_result(query, SyntheticRetrievalAdapter(documents).retrieve(query))
+
+    assert result["ranked_results"]
+    assert result["no_result_pass"] is False
+    assert result["evaluation_status"] == "fail"
+
+
+def test_benchmark_unsafe_or_unknown_warns_when_results_are_returned() -> None:
+    documents = load_corpus(BENCHMARK_FIXTURES / "corpus")
+    query = BenchmarkQuery(
+        query_id="q_unknown_unexpected_hit",
+        question="sample policy",
+        expected_source_ids=[],
+        expected_keywords=[],
+        expected_answer_hint="",
+        no_result_expected=False,
+        unsafe_or_unknown_expected=True,
+    )
+
+    result = build_per_query_result(query, SyntheticRetrievalAdapter(documents).retrieve(query))
+
+    assert result["ranked_results"]
+    assert result["unsafe_or_unknown_pass"] is False
+    assert result["evaluation_status"] == "warning"
 
 
 def test_benchmark_retrieval_ranks_relevant_document_first() -> None:
@@ -309,6 +415,9 @@ def test_benchmark_report_includes_ranked_results(tmp_path: Path) -> None:
     assert q001["hit_at_k"] is True
     assert q001["source_match"] is True
     assert q001["matched_expected_source_ids"] == ["sample-policy-001"]
+    assert q001["matched_keywords"] == ["sample archive"]
+    assert q001["missing_keywords"] == []
+    assert q001["keyword_coverage_rate"] == 1.0
     assert q001["ranked_results"][0]["document_id"] == "sample-policy-001"
     assert {
         "rank",
@@ -323,6 +432,8 @@ def test_benchmark_report_includes_ranked_results(tmp_path: Path) -> None:
     assert "`sample-policy-001`" in markdown
     assert "- Hit@k: True" in markdown
     assert "- Source match: True" in markdown
+    assert "- Matched keywords: sample archive" in markdown
+    assert "- Keyword coverage rate: 1.000" in markdown
 
 
 def test_benchmark_cli_returns_fail_for_source_miss(tmp_path: Path) -> None:

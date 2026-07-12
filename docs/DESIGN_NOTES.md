@@ -2,7 +2,7 @@
 
 ## RAG Benchmark Harness v0.5 synthetic retrieval design
 
-Phase A-B implementation status:
+Phase A-C implementation status:
 
 - Added a synthetic-only retrieval adapter.
 - Added deterministic keyword / token overlap retrieval.
@@ -10,8 +10,10 @@ Phase A-B implementation status:
 - Added hit@k evaluation with default top-k `5`.
 - Added expected source match evaluation against top-k ranked results.
 - Added per-query `hit_at_k`, `source_match`, and `matched_expected_source_ids`.
-- Added summary counts and rates for evaluated queries, hit@k, and source match.
-- Kept expected keyword coverage, no-result, and unsafe-or-unknown scoring out of Phase B.
+- Added expected keyword coverage with `matched_keywords`, `missing_keywords`, and `keyword_coverage_rate`.
+- Added no-result expected evaluation.
+- Added unsafe-or-unknown expected evaluation without LLM judgment.
+- Added summary counts and rates for evaluated queries, hit@k, source match, keyword coverage, no-result, and unsafe-or-unknown expectations.
 - Kept the implementation disconnected from real RAG systems, Hermes, LM Studio, embeddings, vector databases, LLM evaluation, cloud services, and external APIs.
 
 v0.5 is a design step for synthetic-only retrieval and scoring. It must not connect to production
@@ -101,7 +103,7 @@ This does not change `check-mask` behavior or exit codes.
 
 - Phase A: retrieval adapter / deterministic keyword search
 - Phase B: hit@k / expected source match - implemented
-- Phase C: keyword coverage / no-result / unsafe-or-unknown evaluation
+- Phase C: keyword coverage / no-result / unsafe-or-unknown evaluation - implemented
 - Phase D: report / CI / docs cleanup
 
 ### Safety constraints
