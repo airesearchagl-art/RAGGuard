@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### v0.6 retrieval adapter interface design
+
+- Defined the retrieval adapter contract for query input, top-k, deterministic ranked results, optional adapter metadata, and bounded error handling.
+- Separated retrieval responsibilities from benchmark evaluation, reports, and benchmark exit-code decisions.
+- Planned synthetic migration, mock contract tests, and a local-only adapter skeleton without real RAG access.
+- Explicitly excluded Hermes, LM Studio, production Local RAG, embeddings, vector databases, LLM evaluation, external APIs, cloud services, and real-document input.
+
 RAG Benchmark Harness v0.5 completed Phase A-D.
 
 - Designed RAG Benchmark Harness v0.5 synthetic-only retrieval and scoring direction.

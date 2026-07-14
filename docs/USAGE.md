@@ -1,5 +1,12 @@
 # Usage
 
+## Planned v0.6 adapter behavior
+
+The current benchmark CLI still uses the synthetic deterministic retrieval implementation from v0.5.
+v0.6 only designs a future adapter selection boundary; it does not add a new CLI option or connect
+to Local RAG. A future adapter will receive the validated query and requested top-k, return bounded
+ranked-result metadata, and leave benchmark scoring and exit-code decisions to the evaluator.
+
 ## v0.5 Phase D synthetic retrieval usage notes
 
 v0.5 Phase A-D adds retrieval, local scoring, report cleanup, and CI checks for the benchmark CLI, but only against synthetic benchmark fixtures.
