@@ -1,5 +1,152 @@
 # Design Notes
 
+## RAG Benchmark Harness v0.7 Local RAG connection contract
+
+This section is a design contract only. It does not enable Local RAG, localhost or socket
+communication, filesystem retrieval, configuration loading, credentials, or a CLI adapter selector.
+
+### Configuration schema proposal
+
+```yaml
+adapter: local-rag
+transport:
+  kind: in_memory  # future: localhost_http, unix_socket, windows_named_pipe
+  endpoint: null
+timeout_ms: 3000
+top_k: 5
+capabilities:
+  ranked_results: true
+  matched_keywords: false
+  filters: false
+```
+
+- `adapter` must identify `local-rag`; Synthetic remains the default when no selector is provided.
+- `transport.kind` is allowlisted. In-memory transport is implemented first; later transports must
+  remain local-only.
+- `endpoint` is transport-specific and must never appear in reports or logs. A future HTTP endpoint
+  must resolve to an explicit loopback address; redirects and non-loopback targets are rejected.
+- `timeout_ms` is required, positive, and bounded by implementation limits.
+- `top_k` is a positive bounded default that can be overridden by a validated request value.
+- Capability flags are booleans negotiated before retrieval. Unsupported required capabilities fail
+  before a query is sent.
+- Credentials are neither required nor loaded by the v0.7 contract. Configuration values are never
+  copied into reports, adapter metadata, or error messages.
+
+### Connection lifecycle
+
+1. `initialize`: validate schema and construct an allowlisted transport without exposing values.
+2. `health_check`: verify local availability within the configured timeout.
+3. `capability_check`: confirm ranked-result support and any requested optional capability.
+4. `retrieve`: send one bounded request and validate one bounded response.
+5. `close`: release transport resources idempotently, including after failures.
+
+Initialization, health, capability, retrieval, and close failures are normalized to safe categories.
+Unavailable, refused, timed-out, malformed, or unsupported states must not expose underlying exception
+text, paths, endpoints, environment values, credentials, response bodies, or stack traces.
+
+### Request contract
+
+```json
+{
+  "query": "bounded query text",
+  "top_k": 5,
+  "query_id": "optional-synthetic-id"
+}
+```
+
+- `query` is a required non-empty string with a future length limit.
+- `top_k` is required, positive, and bounded.
+- `query_id` is optional and must be a safe identifier, not source content.
+- `filters` are reserved for a future version and are rejected unless capability negotiation permits
+  a defined safe schema.
+- Requests never contain credentials, environment values, filesystem paths, or report destinations.
+
+### Response contract
+
+```json
+{
+  "results": [
+    {
+      "rank": 1,
+      "document_id": "synthetic-doc-001",
+      "score": 1.0,
+      "title": "Synthetic document",
+      "source_id": "synthetic-source-001",
+      "matched_keywords": ["synthetic"],
+      "adapter_metadata": {"transport": "in_memory"}
+    }
+  ]
+}
+```
+
+Responses are size-bounded and normalized to the existing `RankedResult` contract. `source_id` is
+preferred when a path is not safe to reveal; any mapped `source_path` must be an opaque or relative
+safe identifier. Results must have contiguous ranks, finite scores, unique document IDs, bounded
+strings, and at most `top_k` entries. Long document content, snippets, credentials, real paths, raw
+backend metadata, and stack traces are rejected. `adapter_metadata` is allowlisted and bounded.
+
+### Transport and safety boundary
+
+- Prefer no-network in-memory transport for implementation and tests.
+- Future network transport permits explicit loopback addresses only. Hostnames that may resolve
+  externally, wildcard binds, redirects, proxies, and external targets are rejected.
+- Unix sockets and Windows named pipes require an allowlisted local identifier; their concrete paths
+  are never reported.
+- Every operation has a required timeout and response byte limit.
+- The adapter never reads `C:\\AI_Restricted` or real materials under `C:\\AI_Local_RAG` directly.
+- Real data access, when separately approved in a later version, occurs only behind the retrieval API;
+  no adapter-side filesystem crawl is permitted.
+
+### Error mapping
+
+| Condition | Safe adapter category | Process result |
+| --- | --- | --- |
+| Missing configuration | `not_configured` | CLI error `3` |
+| Missing local dependency | `dependency_unavailable` | CLI error `3` |
+| Local connection refused | `connection_refused` | CLI error `3` |
+| Required timeout exceeded | `timeout` | CLI error `3` |
+| Schema or result violation | `invalid_response` | CLI error `3` |
+| Required capability absent | `unsupported_capability` | CLI error `3` |
+
+Each condition becomes a bounded `RetrievalAdapterError`, then `BenchmarkError`, then CLI error `3`.
+The user-facing message may include adapter name and safe category only.
+
+### Synthetic connection verification
+
+Contract tests use an in-memory transport by default and may use a fake local server only when a
+later phase specifically requires transport behavior. Responses are fixed, synthetic, deterministic,
+and body-bounded. Tests cover lifecycle ordering, request shape, response normalization, timeout,
+connection refusal, malformed responses, unsupported capabilities, cleanup, and secret/path
+non-disclosure. No real documents or external network are used.
+
+### Future CLI proposal
+
+- Add an explicit adapter selector in a later phase; `synthetic` remains the default.
+- `local-rag` is used only when explicitly requested with valid safe configuration.
+- Missing or invalid local configuration returns CLI error `3` before retrieval.
+- v0.7 design work does not add parser options, configuration loading, or adapter construction.
+
+### Observability
+
+Allowed fields are adapter name, bounded duration, result count, status, and safe error category.
+Query text, expected answer data, credentials, configuration values, endpoint/socket identifiers,
+real source paths, document content, response bodies, and stack traces are never logged or reported.
+
+### Implementation phases
+
+- Phase A: configuration and transport contract.
+- Phase B: in-memory or fake transport.
+- Phase C: local adapter client skeleton.
+- Phase D: CLI selector and safe configuration loading.
+- Phase E: synthetic end-to-end connection tests.
+- Phase F: docs, CI, and release preparation.
+
+### Non-goals
+
+Real RAG, Hermes, LM Studio, localhost HTTP implementation, filesystem retrieval, embeddings, vector
+databases, LLM evaluation, external APIs, cloud services, external MCP, real-document access, and
+credential loading are not part of this design PR.
+
 ## RAG Benchmark Harness v0.6 retrieval adapter interface design
 
 Phase A implementation status:

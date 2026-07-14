@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### v0.7 Local RAG connection contract design
+
+- Designed a future local-only adapter configuration and transport contract without implementing a connection.
+- Defined initialize, health, capability, retrieve, and close lifecycle stages.
+- Defined bounded request and ranked-response schemas that exclude long content, real paths, and secrets.
+- Restricted future transports to allowlisted local-only modes with timeout, response-size, and no-redirect requirements.
+- Mapped local connection failures to bounded adapter categories, `RetrievalAdapterError`, `BenchmarkError`, and CLI error `3`.
+- Planned in-memory synthetic contract testing and a future explicit CLI selector while preserving Synthetic as the default.
+- Kept real RAG, Hermes, LM Studio, localhost communication, filesystem retrieval, credentials, embeddings, vector databases, LLM evaluation, external APIs, cloud services, and external MCP unimplemented.
+
 ### v0.6 retrieval adapter interface design
 
 - Defined the retrieval adapter contract for query input, top-k, deterministic ranked results, optional adapter metadata, and bounded error handling.
