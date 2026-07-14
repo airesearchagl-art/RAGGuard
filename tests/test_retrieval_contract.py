@@ -14,12 +14,19 @@ from ragguard.benchmark import (
     ranked_result_to_dict,
 )
 from ragguard.retrieval import (
+    LocalRetrievalCapabilities,
+    LocalRetrievalConfig,
+    LocalRetrievalRequest,
+    LocalRetrievalResponse,
+    LocalRetrievalResult,
+    LocalRetrievalTransport,
     LocalRAGRetrievalAdapter,
     RankedResult,
     RetrievalAdapter,
     RetrievalAdapterError,
     RetrievalQuery,
     SyntheticRetrievalAdapter,
+    normalize_local_response,
     retrieve_and_validate,
     validate_ranked_results,
 )
@@ -58,6 +65,24 @@ class MockRetrievalAdapter:
         if self.error is not None:
             raise self.error
         return list(self.results)
+
+
+class ContractOnlyLocalTransport:
+    def initialize(self, config: LocalRetrievalConfig) -> None:
+        self.configured = config.configured
+
+    def health_check(self) -> bool:
+        return True
+
+    def capabilities(self) -> LocalRetrievalCapabilities:
+        return LocalRetrievalCapabilities()
+
+    def retrieve(self, request: LocalRetrievalRequest) -> LocalRetrievalResponse:
+        del request
+        return LocalRetrievalResponse(results=[])
+
+    def close(self) -> None:
+        return None
 
 
 def test_retrieval_adapter_contract_and_required_fields() -> None:
@@ -278,3 +303,177 @@ def test_local_adapter_skeleton_error_becomes_benchmark_error() -> None:
     message = str(exc_info.value)
     assert "not configured" in message
     assert "synthetic-secret-value" not in message
+
+
+def test_local_retrieval_config_accepts_safe_in_memory_contract() -> None:
+    capabilities = LocalRetrievalCapabilities(
+        ranked_results=True,
+        matched_keywords=True,
+        filters=False,
+    )
+    config = LocalRetrievalConfig(
+        transport_type="in_memory",
+        timeout_seconds=2.5,
+        default_top_k=10,
+        response_size_limit=65_536,
+        capabilities=capabilities,
+        configured=True,
+    )
+
+    assert config.transport_type == "in_memory"
+    assert config.capabilities.matched_keywords is True
+    assert config.configured is True
+
+
+@pytest.mark.parametrize(
+    ("overrides", "message"),
+    [
+        ({"timeout_seconds": 0}, "timeout_seconds"),
+        ({"timeout_seconds": float("nan")}, "timeout_seconds"),
+        ({"timeout_seconds": float("inf")}, "timeout_seconds"),
+        ({"timeout_seconds": True}, "timeout_seconds"),
+        ({"default_top_k": 0}, "default_top_k"),
+        ({"default_top_k": True}, "default_top_k"),
+        ({"response_size_limit": 0}, "response_size_limit"),
+        ({"response_size_limit": True}, "response_size_limit"),
+        ({"transport_type": "localhost_http"}, "unsupported local transport"),
+        ({"transport_type": []}, "unsupported local transport"),
+        ({"configured": 1}, "configured"),
+    ],
+)
+def test_local_retrieval_config_rejects_unsafe_values(
+    overrides: dict[str, Any],
+    message: str,
+) -> None:
+    with pytest.raises(RetrievalAdapterError, match=message):
+        LocalRetrievalConfig(**overrides)
+
+
+def test_local_transport_protocol_contract_is_runtime_checkable() -> None:
+    transport = ContractOnlyLocalTransport()
+
+    assert isinstance(transport, LocalRetrievalTransport)
+    assert transport.health_check() is True
+    assert transport.capabilities().ranked_results is True
+
+
+def test_local_request_and_response_normalize_to_ranked_result() -> None:
+    request = LocalRetrievalRequest(query="synthetic question", top_k=1, query_id="q-001")
+    response = LocalRetrievalResponse(
+        results=[
+            LocalRetrievalResult(
+                rank=1,
+                document_id="synthetic-doc-001",
+                score=1.25,
+                title="Synthetic Document",
+                source_id="synthetic-source-001",
+                matched_keywords=["synthetic"],
+                metadata={"transport": "in_memory", "match_type": "keyword"},
+            )
+        ]
+    )
+
+    results = normalize_local_response(response, top_k=request.top_k, response_size_limit=4096)
+
+    assert results == [
+        RankedResult(
+            rank=1,
+            document_id="synthetic-doc-001",
+            score=1.25,
+            title="Synthetic Document",
+            source_path="synthetic-source-001",
+            matched_keywords=["synthetic"],
+            adapter_metadata={"transport": "in_memory", "match_type": "keyword"},
+        )
+    ]
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"query": "", "top_k": 1},
+        {"query": "synthetic", "top_k": True},
+        {"query": "synthetic", "top_k": 0},
+        {"query": "synthetic", "top_k": 1, "query_id": "../private"},
+    ],
+)
+def test_local_request_rejects_invalid_or_path_like_values(kwargs: dict[str, Any]) -> None:
+    with pytest.raises(RetrievalAdapterError):
+        LocalRetrievalRequest(**kwargs)
+
+
+def test_local_response_rejects_paths_and_unapproved_metadata() -> None:
+    with pytest.raises(RetrievalAdapterError, match="source_id"):
+        LocalRetrievalResult(
+            rank=1,
+            document_id="synthetic-doc-001",
+            score=1,
+            title="Synthetic Document",
+            source_id="X:/private/source.md",
+        )
+
+    with pytest.raises(RetrievalAdapterError, match="unsupported keys"):
+        LocalRetrievalResult(
+            rank=1,
+            document_id="synthetic-doc-001",
+            score=1,
+            title="Synthetic Document",
+            source_id="synthetic-source-001",
+            metadata={"credential": "synthetic-secret-value"},
+        )
+
+
+def test_local_response_size_and_top_k_are_enforced() -> None:
+    single_response = LocalRetrievalResponse(
+        results=[
+            LocalRetrievalResult(
+                rank=1,
+                document_id="synthetic-doc-001",
+                score=1,
+                title="Synthetic Document",
+                source_id="synthetic-source-001",
+            )
+        ]
+    )
+    oversized_response = LocalRetrievalResponse(
+        results=[
+            single_response.results[0],
+            LocalRetrievalResult(
+                rank=2,
+                document_id="synthetic-doc-002",
+                score=0.5,
+                title="Second Synthetic Document",
+                source_id="synthetic-source-002",
+            ),
+        ]
+    )
+
+    with pytest.raises(RetrievalAdapterError, match="size limit"):
+        normalize_local_response(single_response, top_k=1, response_size_limit=1)
+    with pytest.raises(RetrievalAdapterError, match="more results than top_k"):
+        normalize_local_response(oversized_response, top_k=1, response_size_limit=4096)
+
+
+def test_local_config_and_transport_errors_do_not_expose_values() -> None:
+    unsafe_transport = "https://external.invalid/private"
+    with pytest.raises(RetrievalAdapterError) as config_error:
+        LocalRetrievalConfig(transport_type=unsafe_transport)
+
+    configured = LocalRetrievalConfig(configured=True)
+    with pytest.raises(RetrievalAdapterError, match="dependency is unavailable") as adapter_error:
+        retrieve_and_validate(LocalRAGRetrievalAdapter(configured), object(), 1)  # type: ignore[arg-type]
+
+    messages = f"{config_error.value} {adapter_error.value}"
+    assert unsafe_transport not in messages
+    assert "credential" not in messages.lower()
+    assert "path" not in messages.lower()
+
+
+def test_local_adapter_does_not_invoke_provided_transport_in_phase_a() -> None:
+    transport = ContractOnlyLocalTransport()
+    adapter = LocalRAGRetrievalAdapter(LocalRetrievalConfig(configured=True), transport)
+
+    with pytest.raises(RetrievalAdapterError, match="not operational"):
+        retrieve_and_validate(adapter, object(), 1)  # type: ignore[arg-type]
+
+    assert not hasattr(transport, "configured")

@@ -2,12 +2,19 @@
 
 [![Tests](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml)
 
-## RAG Benchmark Harness v0.7 connection contract design
+## RAG Benchmark Harness v0.7 local connection contract
 
-v0.7 designs a future local-only connection contract without enabling Local RAG access. The design
-covers adapter configuration, transport lifecycle, bounded request and response schemas, safe error
-mapping, observability, and synthetic contract testing. No CLI selector, configuration loader,
-filesystem retrieval, localhost communication, network access, or credential loading is implemented.
+v0.7 Phase A implements the internal contract for a future local-only connection without enabling
+Local RAG access. It adds a validated `LocalRetrievalConfig`, bounded request and response models,
+a runtime-checkable `LocalRetrievalTransport` Protocol, and a safe normalization boundary to the
+existing `RankedResult` model.
+
+Only `in_memory` is allowlisted at this phase. Timeout, top-k, response size, capability flags,
+safe identifiers, metadata keys, and response ordering are validated without retaining or reporting
+rejected values in errors. The non-operational adapter does not retain config or transport objects,
+and reports receive normalized safe fields only. No transport implementation, CLI selector,
+configuration loader, filesystem retrieval, localhost communication, network access, or credential
+loading is included.
 
 Synthetic retrieval remains the only operational adapter. A future local adapter must be selected
 explicitly, use only an approved local transport, normalize output to `RankedResult`, and keep query
