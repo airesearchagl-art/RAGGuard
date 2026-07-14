@@ -8,6 +8,14 @@ from typing import Any
 
 import yaml
 
+from ragguard.retrieval import (
+    RankedResult,
+    RetrievalAdapter,
+    RetrievalAdapterError,
+    RetrievalQuery,
+    validate_ranked_results,
+)
+
 
 JSON_REPORT_NAME = "benchmark_report.json"
 MARKDOWN_REPORT_NAME = "benchmark_report.md"
@@ -39,23 +47,19 @@ class BenchmarkQuery:
     unsafe_or_unknown_expected: bool
 
 
-@dataclass(frozen=True)
-class RankedResult:
-    rank: int
-    document_id: str
-    score: int
-    matched_keywords: list[str]
-    title: str
-    source_path: str
-
-
 class SyntheticRetrievalAdapter:
     """Deterministic synthetic-only keyword retrieval."""
+
+    name = "synthetic"
 
     def __init__(self, documents: list[BenchmarkDocument]) -> None:
         self._documents = documents
 
-    def retrieve(self, query: BenchmarkQuery) -> list[RankedResult]:
+    def retrieve(self, query: RetrievalQuery, top_k: int | None = None) -> list[RankedResult]:
+        if top_k is not None and (
+            isinstance(top_k, bool) or not isinstance(top_k, int) or top_k < 1
+        ):
+            raise RetrievalAdapterError("top_k must be a positive integer")
         query_terms = query_search_terms(query)
         scored: list[tuple[int, str, str, BenchmarkDocument, list[str]]] = []
         for document in self._documents:
@@ -66,6 +70,7 @@ class SyntheticRetrievalAdapter:
             scored.append((score, document.document_id, document.file, document, matched_keywords))
 
         scored.sort(key=lambda item: (-item[0], item[1], item[2]))
+        limited = scored if top_k is None else scored[:top_k]
         return [
             RankedResult(
                 rank=index,
@@ -75,7 +80,7 @@ class SyntheticRetrievalAdapter:
                 title=document.title,
                 source_path=document.file,
             )
-            for index, (score, _document_id, _file, document, matched_keywords) in enumerate(scored, start=1)
+            for index, (score, _document_id, _file, document, matched_keywords) in enumerate(limited, start=1)
         ]
 
 
@@ -206,13 +211,20 @@ def validate_query_sources(queries: list[BenchmarkQuery], documents: list[Benchm
 def build_placeholder_result(
     documents: list[BenchmarkDocument],
     queries: list[BenchmarkQuery],
-    retrieval_adapter: SyntheticRetrievalAdapter | None = None,
+    retrieval_adapter: RetrievalAdapter | None = None,
 ) -> dict:
     adapter = retrieval_adapter or SyntheticRetrievalAdapter(documents)
-    per_query_results = [
-        build_per_query_result(query, adapter.retrieve(query))
-        for query in queries
-    ]
+    try:
+        per_query_results = [
+            build_per_query_result(
+                query,
+                validate_ranked_results(adapter.retrieve(query, DEFAULT_TOP_K), DEFAULT_TOP_K),
+            )
+            for query in queries
+        ]
+    except RetrievalAdapterError as exc:
+        adapter_name = getattr(adapter, "name", "unknown")
+        raise BenchmarkError(f"Invalid retrieval result from adapter {adapter_name}: {exc}") from exc
     summary = build_benchmark_summary(len(documents), per_query_results)
     corpus_items = [
         {
@@ -251,7 +263,7 @@ def build_placeholder_result(
 
 
 def build_per_query_result(query: BenchmarkQuery, ranked_results: list[RankedResult]) -> dict:
-    ranked_result_dicts = [asdict(result) for result in ranked_results]
+    ranked_result_dicts = [ranked_result_to_dict(result) for result in ranked_results]
     top_k_results = ranked_results[:DEFAULT_TOP_K]
     top_k_ids = [result.document_id for result in top_k_results]
     matched_expected_source_ids = [
@@ -322,6 +334,20 @@ def build_per_query_result(query: BenchmarkQuery, ranked_results: list[RankedRes
         "ranked_results": ranked_result_dicts,
         "notes": notes,
     }
+
+
+def ranked_result_to_dict(result: RankedResult) -> dict[str, Any]:
+    serialized: dict[str, Any] = {
+        "rank": result.rank,
+        "document_id": result.document_id,
+        "score": result.score,
+        "matched_keywords": result.matched_keywords,
+        "title": result.title,
+        "source_path": result.source_path,
+    }
+    if result.adapter_metadata is not None:
+        serialized["adapter_metadata"] = dict(result.adapter_metadata)
+    return serialized
 
 
 def evaluate_expected_keywords(
@@ -593,7 +619,7 @@ def format_rate(value: float | None) -> str:
     return f"{value:.3f}"
 
 
-def query_search_terms(query: BenchmarkQuery) -> list[str]:
+def query_search_terms(query: RetrievalQuery) -> list[str]:
     terms = tokenize(query.question)
     for keyword in query.expected_keywords:
         terms.extend(tokenize(keyword))

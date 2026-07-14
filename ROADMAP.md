@@ -7,7 +7,7 @@ local-only implementation can be selected without changing benchmark evaluation 
 
 ### Phase plan
 
-- Phase A: interface and ranked-result model extraction.
+- Phase A: interface and ranked-result model extraction - completed.
 - Phase B: migrate deterministic synthetic retrieval to the interface.
 - Phase C: add mock adapter and adapter contract tests.
 - Phase D: add a local-only adapter skeleton without a real RAG connection.
