@@ -1,12 +1,15 @@
 # Usage
 
-## v0.6 Phase A adapter behavior
+## v0.6 Phase B synthetic adapter behavior
 
 The benchmark CLI still uses the synthetic deterministic retrieval implementation from v0.5.
 Phase A adds the internal adapter contract and validates ranked results before evaluation; it does
 not add a new CLI option or connect to Local RAG. Adapters receive the validated query and requested
 top-k, return bounded ranked-result metadata, and leave benchmark scoring and exit-code decisions
 to the evaluator. Invalid adapter results use the existing CLI error `3` boundary.
+
+Phase B moves the current Synthetic adapter behind this contract. The command, fixture inputs,
+ranked results, reports, evaluation statuses, and exit codes remain unchanged.
 
 ## v0.5 Phase D synthetic retrieval usage notes
 

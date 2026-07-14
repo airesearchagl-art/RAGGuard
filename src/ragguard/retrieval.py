@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Protocol, runtime_checkable
@@ -29,6 +30,17 @@ class RetrievalQuery(Protocol):
     expected_answer_hint: str
 
 
+class RetrievalDocument(Protocol):
+    """Document fields used by deterministic synthetic retrieval."""
+
+    document_id: str
+    title: str
+    tags: list[str]
+    content: str
+    expected_searchable_facts: list[str]
+    file: str
+
+
 @runtime_checkable
 class RetrievalAdapter(Protocol):
     """Retrieval-only contract; benchmark evaluation remains outside adapters."""
@@ -38,6 +50,59 @@ class RetrievalAdapter(Protocol):
     def retrieve(self, query: RetrievalQuery, top_k: int) -> Sequence[RankedResult]:
         """Return deterministically ordered results with contiguous one-based ranks."""
         ...
+
+
+class SyntheticRetrievalAdapter:
+    """Deterministic keyword retrieval over synthetic benchmark documents."""
+
+    name = "synthetic"
+
+    def __init__(self, documents: Sequence[RetrievalDocument]) -> None:
+        self._documents = tuple(documents)
+
+    def retrieve(
+        self,
+        query: RetrievalQuery,
+        top_k: int | None = None,
+    ) -> list[RankedResult]:
+        if top_k is not None and (
+            isinstance(top_k, bool) or not isinstance(top_k, int) or top_k < 1
+        ):
+            raise RetrievalAdapterError("top_k must be a positive integer")
+
+        query_terms = query_search_terms(query)
+        scored: list[tuple[int, str, str, RetrievalDocument, list[str]]] = []
+        for document in self._documents:
+            matched_keywords = matched_document_keywords(query_terms, document)
+            if not matched_keywords:
+                continue
+            score = len(matched_keywords)
+            scored.append((score, document.document_id, document.file, document, matched_keywords))
+
+        scored.sort(key=lambda item: (-item[0], item[1], item[2]))
+        limited = scored if top_k is None else scored[:top_k]
+        return [
+            RankedResult(
+                rank=index,
+                document_id=document.document_id,
+                score=score,
+                matched_keywords=matched_keywords,
+                title=document.title,
+                source_path=document.file,
+            )
+            for index, (score, _document_id, _file, document, matched_keywords) in enumerate(
+                limited, start=1
+            )
+        ]
+
+
+def retrieve_and_validate(
+    adapter: RetrievalAdapter,
+    query: RetrievalQuery,
+    top_k: int,
+) -> list[RankedResult]:
+    """Run any adapter and validate its output before evaluation."""
+    return validate_ranked_results(adapter.retrieve(query, top_k), top_k)
 
 
 def validate_ranked_results(
@@ -87,3 +152,33 @@ def _validate_ranked_result(result: RankedResult, expected_rank: int) -> None:
 
     if result.adapter_metadata is not None and not isinstance(result.adapter_metadata, Mapping):
         raise RetrievalAdapterError("adapter_metadata must be a mapping when provided")
+
+
+def query_search_terms(query: RetrievalQuery) -> list[str]:
+    terms = tokenize(query.question)
+    for keyword in query.expected_keywords:
+        terms.extend(tokenize(keyword))
+    if query.expected_answer_hint:
+        terms.extend(tokenize(query.expected_answer_hint))
+    return sorted(set(terms))
+
+
+def matched_document_keywords(
+    query_terms: list[str],
+    document: RetrievalDocument,
+) -> list[str]:
+    searchable_text = " ".join(
+        [
+            document.document_id,
+            document.title,
+            " ".join(document.tags),
+            " ".join(document.expected_searchable_facts),
+            document.content,
+        ]
+    )
+    document_terms = set(tokenize(searchable_text))
+    return [term for term in query_terms if term in document_terms]
+
+
+def tokenize(text: str) -> list[str]:
+    return [token.lower() for token in re.findall(r"[A-Za-z0-9]+", text)]

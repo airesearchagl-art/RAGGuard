@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -12,8 +11,9 @@ from ragguard.retrieval import (
     RankedResult,
     RetrievalAdapter,
     RetrievalAdapterError,
-    RetrievalQuery,
-    validate_ranked_results,
+    SyntheticRetrievalAdapter,
+    retrieve_and_validate,
+    tokenize,
 )
 
 
@@ -45,43 +45,6 @@ class BenchmarkQuery:
     expected_answer_hint: str
     no_result_expected: bool
     unsafe_or_unknown_expected: bool
-
-
-class SyntheticRetrievalAdapter:
-    """Deterministic synthetic-only keyword retrieval."""
-
-    name = "synthetic"
-
-    def __init__(self, documents: list[BenchmarkDocument]) -> None:
-        self._documents = documents
-
-    def retrieve(self, query: RetrievalQuery, top_k: int | None = None) -> list[RankedResult]:
-        if top_k is not None and (
-            isinstance(top_k, bool) or not isinstance(top_k, int) or top_k < 1
-        ):
-            raise RetrievalAdapterError("top_k must be a positive integer")
-        query_terms = query_search_terms(query)
-        scored: list[tuple[int, str, str, BenchmarkDocument, list[str]]] = []
-        for document in self._documents:
-            matched_keywords = matched_document_keywords(query_terms, document)
-            if not matched_keywords:
-                continue
-            score = len(matched_keywords)
-            scored.append((score, document.document_id, document.file, document, matched_keywords))
-
-        scored.sort(key=lambda item: (-item[0], item[1], item[2]))
-        limited = scored if top_k is None else scored[:top_k]
-        return [
-            RankedResult(
-                rank=index,
-                document_id=document.document_id,
-                score=score,
-                matched_keywords=matched_keywords,
-                title=document.title,
-                source_path=document.file,
-            )
-            for index, (score, _document_id, _file, document, matched_keywords) in enumerate(limited, start=1)
-        ]
 
 
 def run_benchmark(corpus_dir: Path, queries_path: Path, output_dir: Path) -> tuple[dict, Path, Path]:
@@ -218,7 +181,7 @@ def build_placeholder_result(
         per_query_results = [
             build_per_query_result(
                 query,
-                validate_ranked_results(adapter.retrieve(query, DEFAULT_TOP_K), DEFAULT_TOP_K),
+                retrieve_and_validate(adapter, query, DEFAULT_TOP_K),
             )
             for query in queries
         ]
@@ -617,33 +580,6 @@ def format_rate(value: float | None) -> str:
     if value is None:
         return "not_evaluated"
     return f"{value:.3f}"
-
-
-def query_search_terms(query: RetrievalQuery) -> list[str]:
-    terms = tokenize(query.question)
-    for keyword in query.expected_keywords:
-        terms.extend(tokenize(keyword))
-    if query.expected_answer_hint:
-        terms.extend(tokenize(query.expected_answer_hint))
-    return sorted(set(terms))
-
-
-def matched_document_keywords(query_terms: list[str], document: BenchmarkDocument) -> list[str]:
-    searchable_text = " ".join(
-        [
-            document.document_id,
-            document.title,
-            " ".join(document.tags),
-            " ".join(document.expected_searchable_facts),
-            document.content,
-        ]
-    )
-    document_terms = set(tokenize(searchable_text))
-    return [term for term in query_terms if term in document_terms]
-
-
-def tokenize(text: str) -> list[str]:
-    return [token.lower() for token in re.findall(r"[A-Za-z0-9]+", text)]
 
 
 def require_string(

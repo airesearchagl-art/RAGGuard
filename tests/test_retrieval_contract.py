@@ -8,7 +8,6 @@ import pytest
 
 from ragguard.benchmark import (
     BenchmarkError,
-    SyntheticRetrievalAdapter,
     build_placeholder_result,
     load_corpus,
     load_queries,
@@ -19,6 +18,8 @@ from ragguard.retrieval import (
     RetrievalAdapter,
     RetrievalAdapterError,
     RetrievalQuery,
+    SyntheticRetrievalAdapter,
+    retrieve_and_validate,
     validate_ranked_results,
 )
 
@@ -110,6 +111,28 @@ def test_synthetic_adapter_honors_top_k_and_keeps_stable_order() -> None:
     assert first == second
     assert len(first) == 1
     assert first[0].rank == 1
+
+
+def test_synthetic_adapter_returns_ranked_result_contract() -> None:
+    documents = load_corpus(BENCHMARK_FIXTURES / "corpus")
+    query = load_queries(BENCHMARK_FIXTURES / "queries.jsonl")[0]
+    adapter = SyntheticRetrievalAdapter(documents)
+
+    results = retrieve_and_validate(adapter, query, 1)
+
+    assert isinstance(adapter, RetrievalAdapter)
+    assert len(results) == 1
+    assert isinstance(results[0], RankedResult)
+    assert results[0].adapter_metadata is None
+
+
+def test_synthetic_adapter_top_k_limits_results() -> None:
+    documents = load_corpus(BENCHMARK_FIXTURES / "corpus")
+    query = load_queries(BENCHMARK_FIXTURES / "queries.jsonl")[0]
+
+    results = retrieve_and_validate(SyntheticRetrievalAdapter(documents), query, 1)
+
+    assert [result.rank for result in results] == [1]
 
 
 def test_ranked_result_model_does_not_include_evaluator_fields() -> None:
