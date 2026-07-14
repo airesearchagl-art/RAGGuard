@@ -1,5 +1,22 @@
 # Usage
 
+## v0.7 planned Local RAG connection
+
+v0.7 is design-only. The current command continues to use Synthetic retrieval:
+
+```powershell
+python -m ragguard benchmark --corpus tests/fixtures/benchmark/corpus --queries tests/fixtures/benchmark/queries.jsonl --output outputs/benchmark
+```
+
+A future adapter selector will keep `synthetic` as the default and require an explicit `local-rag`
+selection. Selecting local-rag without valid local-only configuration will return CLI error `3`.
+The selector, configuration loader, connection lifecycle, localhost transport, socket transport,
+and real retrieval are not implemented in v0.7 design work.
+
+Future local configuration must never be included in benchmark reports. Query text, credentials,
+real paths, source bodies, and stack traces must also remain outside logs and reports. Contract tests
+will use only fixed synthetic responses through an in-memory or fake transport.
+
 ## v0.6 Phase D local-only adapter skeleton
 
 The benchmark CLI still uses the synthetic deterministic retrieval implementation from v0.5.
