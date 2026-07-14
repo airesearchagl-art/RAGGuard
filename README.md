@@ -24,8 +24,17 @@ Phase A-D scope:
 - CI checks for benchmark PASS / WARNING / FAIL / CLI error exit codes
 - no long corpus content replay in JSON or Markdown reports
 
-Phase C marks synthetic queries as `pass`, `warning`, or `fail` from local deterministic retrieval only.
-No LLM answer judgment or production RAG behavior is evaluated.
+v0.5 marks synthetic benchmark queries as `pass`, `warning`, or `fail` from local deterministic
+retrieval only, and maps the overall benchmark result to PASS `0`, WARNING `1`, FAIL `2`, or
+CLI error `3`. No LLM answer judgment or production RAG behavior is evaluated.
+
+Current v0.5 limitations:
+
+- no production Local RAG connection
+- no Hermes or LM Studio connection
+- no embedding or vector database retrieval
+- no LLM-as-a-judge evaluation
+- no external API or cloud service integration
 
 The existing `check-mask` behavior, exit codes, and report structures are not part of this v0.5 design change.
 
