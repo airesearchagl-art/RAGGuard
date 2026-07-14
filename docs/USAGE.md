@@ -49,6 +49,18 @@ CI verifies these benchmark cases with synthetic query files:
 - FAIL: expected source is not retrieved, exit `2`
 - CLI error: invalid JSONL, exit `3`
 
+Benchmark reports:
+
+- `benchmark_report.json`
+- `benchmark_report.md`
+
+The report summary includes evaluated query counts, PASS / WARNING / FAIL counts, hit@k rate,
+source match rate, keyword coverage rate, no-result pass rate, and unsafe-or-unknown pass rate.
+`ranked_results` include identifiers and matched keyword labels, but do not replay long corpus content.
+
+v0.5 does not connect to production Local RAG, Hermes, LM Studio, embedding providers, vector
+databases, LLM evaluators, external APIs, or cloud services.
+
 ## v0.4 RAG Benchmark Harness設計メモ
 
 v0.4では、RAG Benchmark Harnessを追加する方針です。これはLocal RAG本線を直接操作せず、synthetic corpusとsynthetic query setを使ってRAG品質を外部から確認する補助ツールです。

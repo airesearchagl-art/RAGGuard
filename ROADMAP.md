@@ -21,6 +21,24 @@ real documents, embedding services, vector databases, LLM evaluators, cloud serv
 - Keep any future real RAG integration behind an adapter boundary and design it separately after v0.5.
 - Preserve existing `check-mask` behavior and exit codes.
 
+### v0.5 delivered capabilities
+
+- Synthetic retrieval adapter.
+- Deterministic keyword / token overlap retrieval.
+- Ranked benchmark results.
+- hit@k and expected source match scoring.
+- Expected keyword coverage scoring.
+- No-result and unsafe-or-unknown expectation scoring.
+- PASS / WARNING / FAIL / CLI error exit code alignment.
+
+### Still not implemented
+
+- Production Local RAG integration.
+- Hermes or LM Studio integration.
+- Embedding or vector database retrieval.
+- LLM-based answer evaluation.
+- External API or cloud service integration.
+
 ## Completed: RAG Benchmark Harness v0.4
 
 RAG Benchmark Harnessは、Local RAG本線を直接操作せず、RAG品質を外部から検証する補助ツールとして整備しました。v0.4では実資料を使わず、synthetic corpusとsynthetic query setだけで動くbenchmark CLI skeletonを追加しました。

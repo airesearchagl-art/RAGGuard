@@ -103,11 +103,37 @@ This does not change `check-mask` behavior or exit codes.
 
 ### v0.5 implementation order
 
-- Phase A: retrieval adapter / deterministic keyword search
+- Phase A: retrieval adapter / deterministic keyword search - implemented
 - Phase B: hit@k / expected source match - implemented
 - Phase C: keyword coverage / no-result / unsafe-or-unknown evaluation - implemented
 - Phase D: report / CI / docs cleanup - implemented
-- Phase D: report / CI / docs cleanup
+
+### v0.5 completion summary
+
+v0.5 completes the synthetic-only benchmark loop from corpus/query loading through deterministic
+retrieval, local scoring, JSON / Markdown reporting, and CI exit-code checks. It is intentionally
+not a production RAG connector.
+
+Delivered behavior:
+
+- synthetic retrieval adapter
+- deterministic keyword / token overlap retrieval
+- ranked results
+- hit@k
+- expected source match
+- keyword coverage
+- no-result expectation evaluation
+- unsafe-or-unknown expectation evaluation without LLM judgment
+- PASS / WARNING / FAIL / CLI error exit code alignment
+
+Not implemented in v0.5:
+
+- production Local RAG connection
+- Hermes / LM Studio connection
+- embedding retrieval
+- vector database retrieval
+- LLM-based evaluation
+- external API / cloud integration
 
 ### Safety constraints
 
