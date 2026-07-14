@@ -1,5 +1,88 @@
 # Design Notes
 
+## RAG Benchmark Harness v0.6 retrieval adapter interface design
+
+### Goal and boundary
+
+v0.6 defines a replaceable retrieval boundary. An adapter performs retrieval only: it receives a
+validated query plus a requested `top_k`, and returns ranked results or a retrieval error. It does
+not evaluate benchmark expectations, decide benchmark status, write reports, or map benchmark
+results to process exit codes.
+
+The benchmark evaluator remains responsible for hit@k, expected source match, keyword coverage,
+no-result, unsafe-or-unknown expectations, summary counts and rates, JSON and Markdown reports,
+and PASS `0` / WARNING `1` / FAIL `2` decisions. CLI or validation failures, including adapter
+initialization, query execution, timeout-equivalent, unavailable dependency, and invalid-result
+failures, remain CLI error `3` and must avoid exposing sensitive source content.
+
+### Interface contract
+
+The planned interface is equivalent to:
+
+```text
+adapter.name: str
+adapter.retrieve(query, top_k) -> list[RankedResult]
+```
+
+`query` is the existing validated benchmark query model. `top_k` is a positive caller-supplied
+limit. The adapter returns at most `top_k` results in deterministic order, with ranks beginning at
+`1` and increasing without gaps. Implementations must document their tie-break rule; the synthetic
+adapter continues to use deterministic score, `document_id`, then source-path ordering.
+
+Every ranked result must provide:
+
+- `rank`: one-based integer rank.
+- `document_id`: stable source identifier.
+- `score`: adapter-local numeric retrieval signal.
+- `matched_keywords`: bounded labels that explain lexical matches when available.
+- `title`: display-safe document title.
+- `source_path`: stable source location relative to the adapter input boundary.
+
+`adapter_metadata` is optional and namespaced by the adapter. It may contain bounded operational
+metadata, but must not contain long document body text, unredacted sensitive content, or values
+that the evaluator would treat as common metrics.
+
+### Adapter candidates
+
+- `SyntheticRetrievalAdapter`: current deterministic keyword/token-overlap implementation over synthetic corpus documents.
+- `LocalRAGRetrievalAdapter`: future local-only skeleton; it is not connected to Local RAG in v0.6.
+- `MockRetrievalAdapter`: test-only deterministic adapter for contract and evaluator tests.
+- External API adapters are explicitly out of scope.
+
+### Adapter and evaluator separation
+
+The adapter owns corpus-specific initialization, query execution, retrieval ordering, and its local
+score. The evaluator consumes normalized ranked results and owns all expectation comparisons. This
+prevents score meaning from one retrieval method from leaking into cross-adapter evaluation. A
+future adapter must therefore normalize required result fields before returning them and must not
+emit hit@k, source-match, keyword-coverage, or benchmark status fields.
+
+### Error and safety boundary
+
+Adapter construction failures, unavailable dependencies, and invalid adapter configuration are
+reported as CLI error `3`. Query execution failures, timeout-equivalent conditions, and malformed
+or non-deterministically ordered results are likewise converted to bounded CLI errors. Reports may
+state an adapter name and short error category, but never replay a query's source body or detailed
+environment paths.
+
+v0.6 reads neither `C:\\AI_Restricted` nor real materials under `C:\\AI_Local_RAG`. It uses
+synthetic fixtures only and does not connect to Hermes, LM Studio, production Local RAG, embedding
+providers, vector databases, LLM evaluators, external APIs, cloud services, or external MCP.
+
+### Implementation phases
+
+- Phase A: extract the interface and common ranked-result model.
+- Phase B: migrate synthetic deterministic retrieval behind the interface.
+- Phase C: add a mock adapter and adapter contract tests.
+- Phase D: add a local-only adapter skeleton without real RAG access.
+- Phase E: finalize docs, CI coverage, and release notes.
+
+### Non-goals
+
+v0.6 does not implement Hermes or LM Studio connections, real RAG search, embedding generation,
+vector database access, LLM evaluation, external API or cloud integration, external MCP use, or
+real-document loading.
+
 ## RAG Benchmark Harness v0.5 synthetic retrieval design
 
 Phase A-D implementation status:

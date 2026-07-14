@@ -1,5 +1,27 @@
 # RAGGuard Roadmap
 
+## Planned: RAG Benchmark Harness v0.6 retrieval adapter interface
+
+v0.6 will extract a stable retrieval interface so that the synthetic implementation and a future
+local-only implementation can be selected without changing benchmark evaluation semantics.
+
+### Phase plan
+
+- Phase A: interface and ranked-result model extraction.
+- Phase B: migrate deterministic synthetic retrieval to the interface.
+- Phase C: add mock adapter and adapter contract tests.
+- Phase D: add a local-only adapter skeleton without a real RAG connection.
+- Phase E: document the interface, add CI coverage, and prepare release notes.
+
+### Constraints and non-goals
+
+- Adapters receive a query and `top_k` and return deterministic ranked results or a typed retrieval error.
+- The evaluator owns hit@k, source match, keyword coverage, no-result, unsafe-or-unknown, reporting, and result-to-exit-code mapping.
+- Adapter-local scores must not be compared as universal quality scores across implementations.
+- Reports keep identifiers and bounded metadata only; they never replay long document content.
+- Synthetic fixtures remain the only data source during v0.6 implementation and testing.
+- No Hermes, LM Studio, production Local RAG, embeddings, vector databases, LLM evaluation, external API, cloud, external MCP, `C:\\AI_Restricted`, or `C:\\AI_Local_RAG` real-document access is in scope.
+
 ## Completed: RAG Benchmark Harness v0.5 synthetic retrieval
 
 v0.5 adds synthetic-only retrieval and scoring before any production RAG integration.
