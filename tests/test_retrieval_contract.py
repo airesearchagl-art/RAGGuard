@@ -14,6 +14,7 @@ from ragguard.benchmark import (
     ranked_result_to_dict,
 )
 from ragguard.retrieval import (
+    LocalRAGRetrievalAdapter,
     RankedResult,
     RetrievalAdapter,
     RetrievalAdapterError,
@@ -233,3 +234,47 @@ def test_adapter_exception_becomes_bounded_benchmark_error() -> None:
         build_placeholder_result(documents, queries, adapter)
 
     assert "sensitive backend detail" not in str(exc_info.value)
+
+
+def test_local_adapter_skeleton_conforms_to_protocol() -> None:
+    assert isinstance(LocalRAGRetrievalAdapter(), RetrievalAdapter)
+    assert LocalRAGRetrievalAdapter.name == "local-rag"
+
+
+def test_local_adapter_skeleton_is_safely_not_configured() -> None:
+    adapter = LocalRAGRetrievalAdapter()
+
+    with pytest.raises(RetrievalAdapterError, match="not configured") as exc_info:
+        retrieve_and_validate(adapter, object(), 1)  # type: ignore[arg-type]
+
+    assert "path" not in str(exc_info.value).lower()
+    assert "token" not in str(exc_info.value).lower()
+
+
+def test_local_adapter_skeleton_does_not_retain_or_expose_configuration_values() -> None:
+    private_path = "X:/private/synthetic-location"
+    private_token = "synthetic-secret-value"
+    adapter = LocalRAGRetrievalAdapter({"path": private_path, "token": private_token})
+
+    assert not hasattr(adapter, "configuration")
+    with pytest.raises(RetrievalAdapterError, match="dependency is unavailable") as exc_info:
+        retrieve_and_validate(adapter, object(), 1)  # type: ignore[arg-type]
+
+    message = str(exc_info.value)
+    assert private_path not in message
+    assert private_token not in message
+
+
+def test_local_adapter_skeleton_error_becomes_benchmark_error() -> None:
+    documents = load_corpus(BENCHMARK_FIXTURES / "corpus")
+    queries = load_queries(BENCHMARK_FIXTURES / "queries.jsonl")
+
+    with pytest.raises(
+        BenchmarkError,
+        match="Invalid retrieval result from adapter local-rag",
+    ) as exc_info:
+        build_placeholder_result(documents, queries, LocalRAGRetrievalAdapter())
+
+    message = str(exc_info.value)
+    assert "not configured" in message
+    assert "synthetic-secret-value" not in message

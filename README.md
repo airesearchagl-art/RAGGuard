@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml)
 
-## RAG Benchmark Harness v0.6 Phase C contract coverage
+## RAG Benchmark Harness v0.6 Phase D local-only adapter skeleton
 
 Phase A added a shared retrieval adapter contract, ranked-result model, and result validation so
 synthetic retrieval and a future local-only implementation can share one narrow interface. It does not add a Local RAG connection,
@@ -29,6 +29,11 @@ retains only evaluation and report serialization responsibilities.
 Phase C adds a deterministic test-only mock adapter and contract coverage for empty and ranked
 results, optional metadata, stable ordering, invalid fields, duplicate documents, top-k limits,
 adapter exceptions, and the CLI error boundary. Runtime behavior and report shapes remain unchanged.
+
+Phase D adds an unconnected `LocalRAGRetrievalAdapter` skeleton. It records only whether constructor
+configuration was supplied, does not read or retain configuration values, and performs no file,
+environment, localhost, or network access. Retrieval fails through bounded `not configured` or
+`dependency is unavailable` errors and the existing benchmark CLI error `3` boundary.
 
 ## RAG Benchmark Harness v0.5 Phase D synthetic retrieval scoring
 
