@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from ragguard.benchmark import (
+    BenchmarkError,
     BenchmarkDocument,
     BenchmarkQuery,
     DEFAULT_TOP_K,
@@ -30,6 +31,31 @@ def test_benchmark_help_is_available(capsys: pytest.CaptureFixture[str]) -> None
     assert "benchmark" in captured.out
     assert "--corpus" in captured.out
     assert "--queries" in captured.out
+
+
+def test_benchmark_adapter_error_reaches_cli_error_boundary(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def fail_benchmark(*args: object) -> None:
+        del args
+        raise BenchmarkError("Invalid retrieval result from adapter mock")
+
+    monkeypatch.setattr("ragguard.cli.run_benchmark", fail_benchmark)
+    code = main(
+        [
+            "benchmark",
+            "--corpus",
+            "synthetic-corpus",
+            "--queries",
+            "synthetic-queries.jsonl",
+            "--output",
+            "synthetic-output",
+        ]
+    )
+
+    assert code == 3
+    assert "Invalid retrieval result from adapter mock" in capsys.readouterr().err
 
 
 def test_benchmark_valid_fixture_generates_placeholder_reports(tmp_path: Path) -> None:

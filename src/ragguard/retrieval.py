@@ -102,7 +102,13 @@ def retrieve_and_validate(
     top_k: int,
 ) -> list[RankedResult]:
     """Run any adapter and validate its output before evaluation."""
-    return validate_ranked_results(adapter.retrieve(query, top_k), top_k)
+    try:
+        results = adapter.retrieve(query, top_k)
+    except RetrievalAdapterError:
+        raise
+    except Exception as exc:
+        raise RetrievalAdapterError("adapter retrieval failed") from exc
+    return validate_ranked_results(results, top_k)
 
 
 def validate_ranked_results(

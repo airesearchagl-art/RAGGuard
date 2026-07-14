@@ -10,6 +10,11 @@
 - Migrated the Phase B Synthetic adapter and deterministic matching helpers into the shared retrieval module.
 - Routed adapter execution through one validation boundary before benchmark evaluation.
 - Preserved existing report serialization when adapter metadata is omitted.
+- Added the Phase C deterministic test-only mock adapter and expanded retrieval contract tests.
+- Covered empty and ranked results, optional metadata, deterministic ordering, invalid fields,
+  duplicate document IDs, top-k overflow, and adapter exception normalization.
+- Verified invalid adapter results reach benchmark CLI error `3` without changing report keys or
+  evaluator-owned status decisions.
 - Planned synthetic migration, mock contract tests, and a local-only adapter skeleton without real RAG access.
 - Explicitly excluded Hermes, LM Studio, production Local RAG, embeddings, vector databases, LLM evaluation, external APIs, cloud services, and real-document input.
 

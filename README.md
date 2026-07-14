@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml)
 
-## RAG Benchmark Harness v0.6 Phase B synthetic adapter migration
+## RAG Benchmark Harness v0.6 Phase C contract coverage
 
 Phase A added a shared retrieval adapter contract, ranked-result model, and result validation so
 synthetic retrieval and a future local-only implementation can share one narrow interface. It does not add a Local RAG connection,
@@ -25,6 +25,10 @@ direct-call behavior.
 Phase B moves the deterministic Synthetic adapter and its retrieval-only helpers behind the shared
 interface. The benchmark module now invokes retrieval through one validated adapter boundary and
 retains only evaluation and report serialization responsibilities.
+
+Phase C adds a deterministic test-only mock adapter and contract coverage for empty and ranked
+results, optional metadata, stable ordering, invalid fields, duplicate documents, top-k limits,
+adapter exceptions, and the CLI error boundary. Runtime behavior and report shapes remain unchanged.
 
 ## RAG Benchmark Harness v0.5 Phase D synthetic retrieval scoring
 
