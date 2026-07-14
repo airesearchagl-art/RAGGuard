@@ -15,6 +15,10 @@
   duplicate document IDs, top-k overflow, and adapter exception normalization.
 - Verified invalid adapter results reach benchmark CLI error `3` without changing report keys or
   evaluator-owned status decisions.
+- Added the Phase D unconnected `LocalRAGRetrievalAdapter` skeleton.
+- Defined a configuration-presence-only constructor boundary without reading or retaining values.
+- Added bounded not-configured and unavailable-dependency errors through the existing CLI error `3`
+  path, without filesystem, localhost, network, or real RAG access.
 - Planned synthetic migration, mock contract tests, and a local-only adapter skeleton without real RAG access.
 - Explicitly excluded Hermes, LM Studio, production Local RAG, embeddings, vector databases, LLM evaluation, external APIs, cloud services, and real-document input.
 

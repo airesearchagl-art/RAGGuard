@@ -10,7 +10,7 @@ local-only implementation can be selected without changing benchmark evaluation 
 - Phase A: interface and ranked-result model extraction - completed.
 - Phase B: migrate deterministic synthetic retrieval to the interface - completed.
 - Phase C: add mock adapter and adapter contract tests - completed.
-- Phase D: add a local-only adapter skeleton without a real RAG connection.
+- Phase D: add a local-only adapter skeleton without a real RAG connection - completed.
 - Phase E: document the interface, add CI coverage, and prepare release notes.
 
 ### Constraints and non-goals

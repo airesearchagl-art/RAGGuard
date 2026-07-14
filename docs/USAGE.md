@@ -1,6 +1,6 @@
 # Usage
 
-## v0.6 Phase C retrieval contract behavior
+## v0.6 Phase D local-only adapter skeleton
 
 The benchmark CLI still uses the synthetic deterministic retrieval implementation from v0.5.
 Phase A adds the internal adapter contract and validates ranked results before evaluation; it does
@@ -15,6 +15,11 @@ Phase C adds test-only mock coverage for empty and ranked results, optional meta
 ordering, invalid fields, duplicate documents, top-k limits, and adapter failures. Invalid adapter
 output uses the existing benchmark CLI error boundary (exit code `3`); valid benchmark exit codes
 and report keys do not change.
+
+Phase D adds an internal local-only adapter skeleton but does not add a CLI selector or connection.
+Without configuration it reports `not configured`; with configuration presence it reports an
+unavailable dependency. Configuration values, paths, environment values, and internal exception
+details are not read or reported. The synthetic benchmark command remains the only working adapter.
 
 ## v0.5 Phase D synthetic retrieval usage notes
 

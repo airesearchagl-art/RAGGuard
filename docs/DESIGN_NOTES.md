@@ -31,6 +31,16 @@ Phase C implementation status:
 - Verified that invalid adapter output reaches benchmark CLI error `3` without moving hit@k, source
   match, keyword coverage, or exit-code decisions into adapters.
 
+Phase D implementation status:
+
+- Added `LocalRAGRetrievalAdapter` as a Protocol-compatible, local-only skeleton.
+- Defined a constructor boundary that records configuration presence without reading or retaining
+  endpoint, path, environment, credential, or other configuration values.
+- Kept retrieval explicitly unavailable with bounded `not configured` and `dependency is unavailable`
+  errors that contain no internal path, value, or underlying exception detail.
+- Routed skeleton failures through `RetrievalAdapterError`, `BenchmarkError`, and CLI error `3`.
+- Added no CLI selector, filesystem access, localhost communication, network connection, or report data.
+
 ### Goal and boundary
 
 v0.6 defines a replaceable retrieval boundary. An adapter performs retrieval only: it receives a
@@ -103,7 +113,7 @@ providers, vector databases, LLM evaluators, external APIs, cloud services, or e
 - Phase A: extract the interface and common ranked-result model.
 - Phase B: migrate synthetic deterministic retrieval behind the interface.
 - Phase C: add a mock adapter and adapter contract tests - completed.
-- Phase D: add a local-only adapter skeleton without real RAG access.
+- Phase D: add a local-only adapter skeleton without real RAG access - completed.
 - Phase E: finalize docs, CI coverage, and release notes.
 
 ### Non-goals

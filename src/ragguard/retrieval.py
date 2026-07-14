@@ -96,6 +96,22 @@ class SyntheticRetrievalAdapter:
         ]
 
 
+class LocalRAGRetrievalAdapter:
+    """Unconnected local-only adapter skeleton with a bounded error surface."""
+
+    name = "local-rag"
+
+    def __init__(self, configuration: Mapping[str, Any] | None = None) -> None:
+        # Phase D records configuration presence only; values are never read or retained.
+        self._configured = configuration is not None
+
+    def retrieve(self, query: RetrievalQuery, top_k: int) -> list[RankedResult]:
+        del query, top_k
+        if not self._configured:
+            raise RetrievalAdapterError("local retrieval adapter is not configured")
+        raise RetrievalAdapterError("local retrieval adapter dependency is unavailable")
+
+
 def retrieve_and_validate(
     adapter: RetrievalAdapter,
     query: RetrievalQuery,

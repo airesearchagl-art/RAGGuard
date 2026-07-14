@@ -12,10 +12,12 @@ from ragguard.benchmark import (
     DEFAULT_TOP_K,
     SyntheticRetrievalAdapter,
     build_per_query_result,
+    build_placeholder_result,
     load_corpus,
     load_queries,
 )
 from ragguard.cli import main
+from ragguard.retrieval import LocalRAGRetrievalAdapter
 
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -56,6 +58,40 @@ def test_benchmark_adapter_error_reaches_cli_error_boundary(
 
     assert code == 3
     assert "Invalid retrieval result from adapter mock" in capsys.readouterr().err
+
+
+def test_local_adapter_skeleton_reaches_cli_error_3(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def run_with_local_adapter(*args: object) -> None:
+        del args
+        documents = load_corpus(BENCHMARK_FIXTURES / "corpus")
+        queries = load_queries(BENCHMARK_FIXTURES / "queries.jsonl")
+        build_placeholder_result(
+            documents,
+            queries,
+            LocalRAGRetrievalAdapter({"token": "synthetic-secret-value"}),
+        )
+
+    monkeypatch.setattr("ragguard.cli.run_benchmark", run_with_local_adapter)
+    code = main(
+        [
+            "benchmark",
+            "--corpus",
+            "synthetic-corpus",
+            "--queries",
+            "synthetic-queries.jsonl",
+            "--output",
+            "synthetic-output",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert code == 3
+    assert "Invalid retrieval result from adapter local-rag" in captured.err
+    assert "dependency is unavailable" in captured.err
+    assert "synthetic-secret-value" not in captured.err
 
 
 def test_benchmark_valid_fixture_generates_placeholder_reports(tmp_path: Path) -> None:
