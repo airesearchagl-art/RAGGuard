@@ -2,8 +2,23 @@
 
 ## RAG Benchmark Harness v0.7 Local RAG connection contract
 
-This section is a design contract only. It does not enable Local RAG, localhost or socket
+Phase A implements the internal configuration, request, response, normalization, and transport
+contracts described below. It does not enable Local RAG, localhost or socket
 communication, filesystem retrieval, configuration loading, credentials, or a CLI adapter selector.
+
+### Phase A implementation status
+
+- Added immutable `LocalRetrievalConfig` and `LocalRetrievalCapabilities` models.
+- Allowlisted only the no-network `in_memory` transport type for this phase.
+- Added bounded `LocalRetrievalRequest`, `LocalRetrievalResult`, and `LocalRetrievalResponse` models.
+- Added a runtime-checkable `LocalRetrievalTransport` Protocol covering initialize, health check,
+  capability discovery, retrieve, and close lifecycle methods.
+- Added response normalization to the existing `RankedResult` model with top-k and encoded-size
+  enforcement.
+- Rejected path-like source identifiers, unsupported metadata, booleans used as numbers, invalid
+  ordering, duplicate documents, and unbounded values without replaying rejected values in errors.
+- Kept the local adapter non-operational and retained no configuration or transport object.
+- Kept Synthetic retrieval, evaluator ownership, reports, and exit codes unchanged.
 
 ### Configuration schema proposal
 

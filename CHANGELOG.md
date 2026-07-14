@@ -11,6 +11,12 @@
 - Mapped local connection failures to bounded adapter categories, `RetrievalAdapterError`, `BenchmarkError`, and CLI error `3`.
 - Planned in-memory synthetic contract testing and a future explicit CLI selector while preserving Synthetic as the default.
 - Kept real RAG, Hermes, LM Studio, localhost communication, filesystem retrieval, credentials, embeddings, vector databases, LLM evaluation, external APIs, cloud services, and external MCP unimplemented.
+- Completed Phase A with validated local retrieval configuration and capability models.
+- Added bounded local request/response models and a runtime-checkable transport lifecycle Protocol.
+- Added safe local response normalization to `RankedResult`, including top-k, response-size,
+  deterministic ordering, identifier, and allowlisted metadata checks.
+- Kept `in_memory` as the only allowed transport type and added no transport implementation,
+  configuration loading, CLI selector, filesystem access, localhost access, or network access.
 
 ### v0.6 retrieval adapter interface design
 

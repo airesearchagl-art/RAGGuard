@@ -1,8 +1,9 @@
 # Usage
 
-## v0.7 planned Local RAG connection
+## v0.7 Phase A Local RAG contract
 
-v0.7 is design-only. The current command continues to use Synthetic retrieval:
+Phase A adds internal models and Protocols only. The current command continues to use Synthetic
+retrieval:
 
 ```powershell
 python -m ragguard benchmark --corpus tests/fixtures/benchmark/corpus --queries tests/fixtures/benchmark/queries.jsonl --output outputs/benchmark
@@ -11,7 +12,12 @@ python -m ragguard benchmark --corpus tests/fixtures/benchmark/corpus --queries 
 A future adapter selector will keep `synthetic` as the default and require an explicit `local-rag`
 selection. Selecting local-rag without valid local-only configuration will return CLI error `3`.
 The selector, configuration loader, connection lifecycle, localhost transport, socket transport,
-and real retrieval are not implemented in v0.7 design work.
+and real retrieval are not implemented.
+
+The internal Phase A contract currently allows only `in_memory` as a transport type. It validates
+positive bounded timeout, top-k, and response-size values; boolean capability flags; bounded query
+requests; deterministic ranked responses; safe source identifiers; and allowlisted metadata.
+These types are not loaded from a user config file and are not selectable from the CLI.
 
 Future local configuration must never be included in benchmark reports. Query text, credentials,
 real paths, source bodies, and stack traces must also remain outside logs and reports. Contract tests
