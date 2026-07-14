@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml)
 
-## RAG Benchmark Harness v0.6 Phase D local-only adapter skeleton
+## RAG Benchmark Harness v0.6 retrieval adapter boundary
 
 Phase A added a shared retrieval adapter contract, ranked-result model, and result validation so
 synthetic retrieval and a future local-only implementation can share one narrow interface. It does not add a Local RAG connection,
@@ -34,6 +34,19 @@ Phase D adds an unconnected `LocalRAGRetrievalAdapter` skeleton. It records only
 configuration was supplied, does not read or retain configuration values, and performs no file,
 environment, localhost, or network access. Retrieval fails through bounded `not configured` or
 `dependency is unavailable` errors and the existing benchmark CLI error `3` boundary.
+
+v0.6 Phase A-E now provides:
+
+- a runtime-checkable `RetrievalAdapter` Protocol
+- a validated `RankedResult` model with deterministic ordering requirements
+- the existing Synthetic adapter behind the common contract
+- mock adapter contract and error-boundary tests
+- a skeleton-only, not operational `LocalRAGRetrievalAdapter`
+- Python 3.11 / 3.12 CI checks for synthetic benchmark success, benchmark exit codes, and the local
+  skeleton CLI error `3` boundary
+
+Only the Synthetic adapter is operational. There is no local-rag CLI selector. The local skeleton
+does not access filesystems, localhost, networks, configuration values, paths, or credentials.
 
 ## RAG Benchmark Harness v0.5 Phase D synthetic retrieval scoring
 

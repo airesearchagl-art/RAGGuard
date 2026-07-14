@@ -41,6 +41,14 @@ Phase D implementation status:
 - Routed skeleton failures through `RetrievalAdapterError`, `BenchmarkError`, and CLI error `3`.
 - Added no CLI selector, filesystem access, localhost communication, network connection, or report data.
 
+Phase E completion status:
+
+- Consolidated Phase A-D interface, model, migration, contract-test, and skeleton status in docs.
+- Added explicit CI coverage for synthetic benchmark success and the local skeleton CLI error `3`
+  boundary while retaining Python 3.11 / 3.12 and benchmark exit-code checks.
+- Marked `LocalRAGRetrievalAdapter` as skeleton-only, not operational, and unavailable from the CLI.
+- Preserved evaluator ownership of metrics, reports, status, and exit-code decisions.
+
 ### Goal and boundary
 
 v0.6 defines a replaceable retrieval boundary. An adapter performs retrieval only: it receives a
@@ -114,7 +122,18 @@ providers, vector databases, LLM evaluators, external APIs, cloud services, or e
 - Phase B: migrate synthetic deterministic retrieval behind the interface.
 - Phase C: add a mock adapter and adapter contract tests - completed.
 - Phase D: add a local-only adapter skeleton without real RAG access - completed.
-- Phase E: finalize docs, CI coverage, and release notes.
+- Phase E: finalize docs, CI coverage, and release notes - completed.
+
+### v0.6.0 release checklist
+
+- Phase A-E are complete and merged through review before tagging.
+- Python 3.11 and 3.12 workflow jobs pass.
+- Full pytest, synthetic benchmark execution, benchmark exit codes, and local skeleton error `3` pass.
+- `check-mask` and `benchmark` help remain unchanged.
+- JSON / Markdown report top-level keys and Synthetic adapter output remain compatible.
+- The local adapter remains skeleton-only with no CLI selector or filesystem, localhost, or network access.
+- No configuration value, path, credential, real document, or internal exception detail is reported.
+- Tag and GitHub Release creation occur only after the release-summary PR is merged.
 
 ### Non-goals
 

@@ -19,8 +19,19 @@
 - Defined a configuration-presence-only constructor boundary without reading or retaining values.
 - Added bounded not-configured and unavailable-dependency errors through the existing CLI error `3`
   path, without filesystem, localhost, network, or real RAG access.
-- Planned synthetic migration, mock contract tests, and a local-only adapter skeleton without real RAG access.
+- Completed Phase E documentation, CI contract coverage, and v0.6.0 release preparation.
+- Added an explicit CI step for the local-only skeleton CLI error `3` boundary while retaining
+  synthetic benchmark success and PASS / WARNING / FAIL / CLI error checks on Python 3.11 and 3.12.
+- Completed synthetic migration, mock contract tests, and a local-only adapter skeleton without real RAG access.
 - Explicitly excluded Hermes, LM Studio, production Local RAG, embeddings, vector databases, LLM evaluation, external APIs, cloud services, and real-document input.
+
+PR summary:
+
+- PR #25: Designed the v0.6 retrieval adapter interface and safety boundary.
+- PR #26: Added the common Protocol, ranked-result model, and runtime validation.
+- PR #27: Migrated Synthetic retrieval behind the common adapter contract.
+- PR #28: Added mock adapter contract and error-boundary tests.
+- PR #29: Added the unconnected local-only adapter skeleton.
 
 RAG Benchmark Harness v0.5 completed Phase A-D.
 

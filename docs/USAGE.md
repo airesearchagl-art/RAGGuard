@@ -21,6 +21,17 @@ Without configuration it reports `not configured`; with configuration presence i
 unavailable dependency. Configuration values, paths, environment values, and internal exception
 details are not read or reported. The synthetic benchmark command remains the only working adapter.
 
+### Adapter availability in v0.6
+
+| Adapter | Availability | CLI behavior |
+| --- | --- | --- |
+| `synthetic` | Operational for synthetic fixtures | Existing `benchmark` command and exit codes |
+| `mock` | Tests only | No CLI selector |
+| `local-rag` | Skeleton only; not operational | No selector; contract tests confirm CLI error `3` |
+
+The local-rag skeleton performs no filesystem, localhost, or network access and retains no endpoint,
+path, environment, or credential value. It must not be treated as a production Local RAG connector.
+
 ## v0.5 Phase D synthetic retrieval usage notes
 
 v0.5 Phase A-D adds retrieval, local scoring, report cleanup, and CI checks for the benchmark CLI, but only against synthetic benchmark fixtures.
