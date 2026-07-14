@@ -1,6 +1,6 @@
 # Usage
 
-## v0.6 Phase B synthetic adapter behavior
+## v0.6 Phase C retrieval contract behavior
 
 The benchmark CLI still uses the synthetic deterministic retrieval implementation from v0.5.
 Phase A adds the internal adapter contract and validates ranked results before evaluation; it does
@@ -10,6 +10,11 @@ to the evaluator. Invalid adapter results use the existing CLI error `3` boundar
 
 Phase B moves the current Synthetic adapter behind this contract. The command, fixture inputs,
 ranked results, reports, evaluation statuses, and exit codes remain unchanged.
+
+Phase C adds test-only mock coverage for empty and ranked results, optional metadata, deterministic
+ordering, invalid fields, duplicate documents, top-k limits, and adapter failures. Invalid adapter
+output uses the existing benchmark CLI error boundary (exit code `3`); valid benchmark exit codes
+and report keys do not change.
 
 ## v0.5 Phase D synthetic retrieval usage notes
 

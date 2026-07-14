@@ -43,13 +43,24 @@ def make_result(**overrides: Any) -> RankedResult:
 class MockRetrievalAdapter:
     name = "mock"
 
+    def __init__(
+        self,
+        results: list[RankedResult] | None = None,
+        error: Exception | None = None,
+    ) -> None:
+        self.results = list(results or [])
+        self.error = error
+        self.calls: list[tuple[RetrievalQuery, int]] = []
+
     def retrieve(self, query: RetrievalQuery, top_k: int) -> list[RankedResult]:
-        del query
-        return [make_result()][:top_k]
+        self.calls.append((query, top_k))
+        if self.error is not None:
+            raise self.error
+        return list(self.results)
 
 
 def test_retrieval_adapter_contract_and_required_fields() -> None:
-    adapter = MockRetrievalAdapter()
+    adapter = MockRetrievalAdapter([make_result()])
     result = adapter.retrieve(object(), 1)  # type: ignore[arg-type]
 
     assert isinstance(adapter, RetrievalAdapter)
@@ -64,10 +75,47 @@ def test_retrieval_adapter_contract_and_required_fields() -> None:
     assert validate_ranked_results(result, 1) == result
 
 
+@pytest.mark.parametrize(
+    "results",
+    [
+        [],
+        [make_result()],
+        [
+            make_result(),
+            make_result(rank=2, document_id="synthetic-doc-002", source_path="second.md"),
+        ],
+    ],
+)
+def test_mock_adapter_accepts_valid_empty_single_and_multiple_results(
+    results: list[RankedResult],
+) -> None:
+    adapter = MockRetrievalAdapter(results)
+
+    assert retrieve_and_validate(adapter, object(), max(1, len(results))) == results  # type: ignore[arg-type]
+
+
+def test_mock_adapter_is_deterministic_and_receives_top_k() -> None:
+    results = [make_result()]
+    adapter = MockRetrievalAdapter(results)
+    query = object()
+
+    first = retrieve_and_validate(adapter, query, 1)  # type: ignore[arg-type]
+    second = retrieve_and_validate(adapter, query, 1)  # type: ignore[arg-type]
+
+    assert first == second == results
+    assert adapter.calls == [(query, 1), (query, 1)]
+
+
 def test_adapter_metadata_is_optional_and_omitted_from_legacy_report_shape() -> None:
     without_metadata = make_result()
     with_metadata = make_result(adapter_metadata={"strategy": "synthetic"})
 
+    assert retrieve_and_validate(MockRetrievalAdapter([without_metadata]), object(), 1) == [  # type: ignore[arg-type]
+        without_metadata
+    ]
+    assert retrieve_and_validate(MockRetrievalAdapter([with_metadata]), object(), 1) == [  # type: ignore[arg-type]
+        with_metadata
+    ]
     assert without_metadata.adapter_metadata is None
     assert "adapter_metadata" not in ranked_result_to_dict(without_metadata)
     assert ranked_result_to_dict(with_metadata)["adapter_metadata"] == {"strategy": "synthetic"}
@@ -79,6 +127,7 @@ def test_adapter_metadata_is_optional_and_omitted_from_legacy_report_shape() -> 
         (make_result(rank=0), "rank"),
         (make_result(document_id=1), "document_id"),
         (make_result(score="high"), "score"),
+        (make_result(score=True), "score"),
         (make_result(matched_keywords=["valid", 1]), "matched_keywords"),
         (make_result(title=None), "title"),
         (make_result(source_path=[]), "source_path"),
@@ -98,6 +147,22 @@ def test_ranked_results_require_contiguous_deterministic_order() -> None:
 
     with pytest.raises(RetrievalAdapterError, match="contiguous"):
         validate_ranked_results(out_of_order, 2)
+
+
+def test_ranked_results_reject_duplicate_document_ids() -> None:
+    duplicated = [make_result(), make_result(rank=2, source_path="second.md")]
+
+    with pytest.raises(RetrievalAdapterError, match="duplicate document_id"):
+        validate_ranked_results(duplicated, 2)
+
+
+def test_mock_adapter_rejects_results_over_top_k() -> None:
+    adapter = MockRetrievalAdapter(
+        [make_result(), make_result(rank=2, document_id="synthetic-doc-002", source_path="second.md")]
+    )
+
+    with pytest.raises(RetrievalAdapterError, match="more results than top_k"):
+        retrieve_and_validate(adapter, object(), 1)  # type: ignore[arg-type]
 
 
 def test_synthetic_adapter_honors_top_k_and_keeps_stable_order() -> None:
@@ -157,3 +222,14 @@ def test_invalid_adapter_result_becomes_benchmark_error() -> None:
 
     with pytest.raises(BenchmarkError, match="Invalid retrieval result from adapter invalid"):
         build_placeholder_result(documents, queries, InvalidAdapter())
+
+
+def test_adapter_exception_becomes_bounded_benchmark_error() -> None:
+    documents = load_corpus(BENCHMARK_FIXTURES / "corpus")
+    queries = load_queries(BENCHMARK_FIXTURES / "queries.jsonl")
+    adapter = MockRetrievalAdapter(error=RuntimeError("sensitive backend detail"))
+
+    with pytest.raises(BenchmarkError, match="Invalid retrieval result from adapter mock") as exc_info:
+        build_placeholder_result(documents, queries, adapter)
+
+    assert "sensitive backend detail" not in str(exc_info.value)

@@ -22,6 +22,15 @@ Phase B implementation status:
 - Preserved deterministic score-descending, document-id, and source-path ordering.
 - Preserved existing benchmark JSON / Markdown output, evaluation results, and exit codes.
 
+Phase C implementation status:
+
+- Added a deterministic test-only mock adapter with injectable ranked results and failures.
+- Fixed contract coverage for empty, single, and multiple results; optional metadata; contiguous
+  ordering; field types; duplicate documents; and top-k limits.
+- Normalized unexpected adapter exceptions to a bounded retrieval error before benchmark evaluation.
+- Verified that invalid adapter output reaches benchmark CLI error `3` without moving hit@k, source
+  match, keyword coverage, or exit-code decisions into adapters.
+
 ### Goal and boundary
 
 v0.6 defines a replaceable retrieval boundary. An adapter performs retrieval only: it receives a
@@ -93,7 +102,7 @@ providers, vector databases, LLM evaluators, external APIs, cloud services, or e
 
 - Phase A: extract the interface and common ranked-result model.
 - Phase B: migrate synthetic deterministic retrieval behind the interface.
-- Phase C: add a mock adapter and adapter contract tests.
+- Phase C: add a mock adapter and adapter contract tests - completed.
 - Phase D: add a local-only adapter skeleton without real RAG access.
 - Phase E: finalize docs, CI coverage, and release notes.
 
