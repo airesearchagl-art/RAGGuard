@@ -2,6 +2,16 @@
 
 ## RAG Benchmark Harness v0.6 retrieval adapter interface design
 
+Phase A implementation status:
+
+- Added a runtime-checkable retrieval adapter protocol with adapter name and `retrieve(query, top_k)` contract.
+- Extracted the common ranked-result model into `ragguard.retrieval`.
+- Added validation for field types, positive contiguous ranks, finite numeric scores, duplicate sources, result limits, and optional adapter metadata.
+- Validated adapter output before benchmark evaluation and converted contract violations to the existing benchmark error boundary.
+- Kept absent `adapter_metadata` out of serialized reports to preserve existing report output.
+- Kept the synthetic adapter's deterministic score, document-id, and source-path ordering.
+- Did not add a real RAG connection or change benchmark result and exit-code semantics.
+
 ### Goal and boundary
 
 v0.6 defines a replaceable retrieval boundary. An adapter performs retrieval only: it receives a
