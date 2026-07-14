@@ -51,6 +51,9 @@ jobs:
           python -m ragguard benchmark --help
           python -m ragguard benchmark --corpus tests/fixtures/benchmark/corpus --queries tests/fixtures/benchmark/queries.jsonl --output outputs/ci_benchmark_report
 
+      - name: Check local adapter skeleton boundary
+        run: python -m pytest tests/test_benchmark.py::test_local_adapter_skeleton_reaches_cli_error_3
+
       - name: Check benchmark exit codes
         run: |
           mkdir -p outputs/ci_benchmark_cases
