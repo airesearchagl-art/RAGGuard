@@ -7,6 +7,8 @@
 - Defined the retrieval adapter contract for query input, top-k, deterministic ranked results, optional adapter metadata, and bounded error handling.
 - Separated retrieval responsibilities from benchmark evaluation, reports, and benchmark exit-code decisions.
 - Added the Phase A retrieval adapter protocol, common ranked-result model, contract validation, and synthetic adapter compatibility layer.
+- Migrated the Phase B Synthetic adapter and deterministic matching helpers into the shared retrieval module.
+- Routed adapter execution through one validation boundary before benchmark evaluation.
 - Preserved existing report serialization when adapter metadata is omitted.
 - Planned synthetic migration, mock contract tests, and a local-only adapter skeleton without real RAG access.
 - Explicitly excluded Hermes, LM Studio, production Local RAG, embeddings, vector databases, LLM evaluation, external APIs, cloud services, and real-document input.

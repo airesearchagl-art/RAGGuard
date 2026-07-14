@@ -12,6 +12,16 @@ Phase A implementation status:
 - Kept the synthetic adapter's deterministic score, document-id, and source-path ordering.
 - Did not add a real RAG connection or change benchmark result and exit-code semantics.
 
+Phase B implementation status:
+
+- Moved `SyntheticRetrievalAdapter` and retrieval-only matching helpers into `ragguard.retrieval`.
+- Added a retrieval-document protocol for the synthetic corpus fields used by the adapter.
+- Routed every adapter execution through `retrieve_and_validate` before evaluator input.
+- Removed synthetic query-term construction, document matching, ranking, and tie-breaking from the benchmark evaluator module.
+- Kept ranked-result dictionary conversion at the report boundary only.
+- Preserved deterministic score-descending, document-id, and source-path ordering.
+- Preserved existing benchmark JSON / Markdown output, evaluation results, and exit codes.
+
 ### Goal and boundary
 
 v0.6 defines a replaceable retrieval boundary. An adapter performs retrieval only: it receives a
