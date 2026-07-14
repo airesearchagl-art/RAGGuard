@@ -7,14 +7,20 @@
 v0.7 Phase A implements the internal contract for a future local-only connection without enabling
 Local RAG access. It adds a validated `LocalRetrievalConfig`, bounded request and response models,
 a runtime-checkable `LocalRetrievalTransport` Protocol, and a safe normalization boundary to the
-existing `RankedResult` model.
+existing `RankedResult` model. Phase B adds a deterministic `InMemoryLocalRetrievalTransport` for
+contract tests only.
 
 Only `in_memory` is allowlisted at this phase. Timeout, top-k, response size, capability flags,
 safe identifiers, metadata keys, and response ordering are validated without retaining or reporting
 rejected values in errors. The non-operational adapter does not retain config or transport objects,
-and reports receive normalized safe fields only. No transport implementation, CLI selector,
+and reports receive normalized safe fields only. No operational transport, CLI selector,
 configuration loader, filesystem retrieval, localhost communication, network access, or credential
-loading is included.
+loading is included; the Phase B transport is an in-memory contract-test fake only.
+
+The in-memory transport performs no I/O. It uses fixed synthetic responses, enforces explicit
+`created`, `initialized`, and `closed` states, supports bounded error injection, and passes responses
+through the Phase A validation and normalization boundary. It is not selectable from the CLI and
+does not make the local adapter operational.
 
 Synthetic retrieval remains the only operational adapter. A future local adapter must be selected
 explicitly, use only an approved local transport, normalize output to `RankedResult`, and keep query

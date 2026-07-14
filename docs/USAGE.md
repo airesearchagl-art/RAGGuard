@@ -1,6 +1,6 @@
 # Usage
 
-## v0.7 Phase A Local RAG contract
+## v0.7 Phase A-B Local RAG contract
 
 Phase A adds internal models and Protocols only. The current command continues to use Synthetic
 retrieval:
@@ -18,6 +18,20 @@ The internal Phase A contract currently allows only `in_memory` as a transport t
 positive bounded timeout, top-k, and response-size values; boolean capability flags; bounded query
 requests; deterministic ranked responses; safe source identifiers; and allowlisted metadata.
 These types are not loaded from a user config file and are not selectable from the CLI.
+
+Phase B adds `InMemoryLocalRetrievalTransport` as a test-only no-I/O implementation. It returns
+fixed synthetic responses and supports lifecycle and bounded failure testing. It does not read a
+filesystem, open localhost or network connections, load credentials, or expose a CLI selector.
+Normal use of `benchmark` remains on the existing Synthetic adapter.
+
+The in-memory lifecycle is deterministic:
+
+- `initialize` moves `created` to `initialized`; duplicate initialization is rejected.
+- `retrieve`, `health_check`, and `capabilities` require the initialized state.
+- `close` moves any state to `closed` and is idempotent.
+- retrieval before initialization or after close returns a bounded retrieval error.
+- injected health, capability, timeout, invalid-response, oversized-response, and transport failures
+  are for contract tests only and do not expose raw details.
 
 Future local configuration must never be included in benchmark reports. Query text, credentials,
 real paths, source bodies, and stack traces must also remain outside logs and reports. Contract tests

@@ -17,6 +17,13 @@
   deterministic ordering, identifier, and allowlisted metadata checks.
 - Kept `in_memory` as the only allowed transport type and added no transport implementation,
   configuration loading, CLI selector, filesystem access, localhost access, or network access.
+- Completed Phase B with a deterministic no-I/O `InMemoryLocalRetrievalTransport`.
+- Added explicit lifecycle enforcement, idempotent close behavior, fixed synthetic responses, and
+  safe normalization to the existing ranked-result contract.
+- Added test-only health, capability, timeout, invalid-response, oversized-response, and transport
+  exception injection with bounded `RetrievalAdapterError`, `BenchmarkError`, and CLI error `3` paths.
+- Kept the local adapter non-operational and added no config loader, CLI selector, filesystem access,
+  localhost access, network communication, real RAG connection, or credential loading.
 
 ### v0.6 retrieval adapter interface design
 

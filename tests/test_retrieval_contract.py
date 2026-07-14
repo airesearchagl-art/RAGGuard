@@ -6,6 +6,7 @@ from typing import Any
 
 import pytest
 
+from ragguard.cli import main
 from ragguard.benchmark import (
     BenchmarkError,
     build_placeholder_result,
@@ -14,6 +15,7 @@ from ragguard.benchmark import (
     ranked_result_to_dict,
 )
 from ragguard.retrieval import (
+    InMemoryLocalRetrievalTransport,
     LocalRetrievalCapabilities,
     LocalRetrievalConfig,
     LocalRetrievalRequest,
@@ -27,6 +29,7 @@ from ragguard.retrieval import (
     RetrievalQuery,
     SyntheticRetrievalAdapter,
     normalize_local_response,
+    retrieve_local_and_normalize,
     retrieve_and_validate,
     validate_ranked_results,
 )
@@ -83,6 +86,27 @@ class ContractOnlyLocalTransport:
 
     def close(self) -> None:
         return None
+
+
+class InMemoryTransportBackedTestAdapter:
+    name = "in-memory-test"
+
+    def __init__(
+        self,
+        transport: InMemoryLocalRetrievalTransport,
+        config: LocalRetrievalConfig,
+    ) -> None:
+        self.transport = transport
+        self.config = config
+        self.transport.initialize(config)
+
+    def retrieve(self, query: RetrievalQuery, top_k: int) -> list[RankedResult]:
+        request = LocalRetrievalRequest(
+            query=query.question,
+            top_k=top_k,
+            query_id=getattr(query, "query_id", None),
+        )
+        return retrieve_local_and_normalize(self.transport, request, self.config)
 
 
 def test_retrieval_adapter_contract_and_required_fields() -> None:
@@ -477,3 +501,233 @@ def test_local_adapter_does_not_invoke_provided_transport_in_phase_a() -> None:
         retrieve_and_validate(adapter, object(), 1)  # type: ignore[arg-type]
 
     assert not hasattr(transport, "configured")
+
+
+def test_in_memory_transport_conforms_and_runs_normal_lifecycle() -> None:
+    transport = InMemoryLocalRetrievalTransport()
+    config = LocalRetrievalConfig(configured=True)
+    request = LocalRetrievalRequest(query="synthetic question", top_k=1, query_id="q-001")
+
+    assert isinstance(transport, LocalRetrievalTransport)
+    assert transport.state == "created"
+
+    transport.initialize(config)
+
+    assert transport.state == "initialized"
+    assert transport.health_check() is True
+    assert transport.capabilities().ranked_results is True
+    assert transport.capabilities().matched_keywords is True
+
+    results = retrieve_local_and_normalize(transport, request, config)
+
+    assert len(results) == 1
+    assert results[0].document_id == "synthetic-local-doc-001"
+    assert results[0].source_path == "synthetic-local-source-001"
+    assert results[0].adapter_metadata == {
+        "transport": "in_memory",
+        "result_type": "synthetic",
+    }
+
+    transport.close()
+    transport.close()
+    assert transport.state == "closed"
+
+
+def test_in_memory_transport_rejects_retrieve_before_initialize_and_after_close() -> None:
+    transport = InMemoryLocalRetrievalTransport()
+    request = LocalRetrievalRequest(query="synthetic question", top_k=1)
+
+    with pytest.raises(RetrievalAdapterError, match="not initialized"):
+        transport.retrieve(request)
+
+    transport.initialize(LocalRetrievalConfig(configured=True))
+    transport.close()
+
+    with pytest.raises(RetrievalAdapterError, match="closed"):
+        transport.retrieve(request)
+
+
+def test_in_memory_transport_rejects_duplicate_initialize_and_initialize_after_close() -> None:
+    config = LocalRetrievalConfig(configured=True)
+    transport = InMemoryLocalRetrievalTransport()
+    transport.initialize(config)
+
+    with pytest.raises(RetrievalAdapterError, match="already initialized"):
+        transport.initialize(config)
+
+    transport.close()
+    with pytest.raises(RetrievalAdapterError, match="closed"):
+        transport.initialize(config)
+
+
+def test_in_memory_transport_health_failure_is_bounded() -> None:
+    transport = InMemoryLocalRetrievalTransport(health_failure=True)
+    transport.initialize(LocalRetrievalConfig(configured=True))
+
+    with pytest.raises(RetrievalAdapterError, match="health check failed"):
+        transport.health_check()
+
+
+def test_in_memory_transport_rejects_unsupported_required_capability() -> None:
+    transport = InMemoryLocalRetrievalTransport(
+        capabilities=LocalRetrievalCapabilities(
+            ranked_results=True,
+            matched_keywords=True,
+            filters=False,
+        )
+    )
+    config = LocalRetrievalConfig(
+        capabilities=LocalRetrievalCapabilities(
+            ranked_results=True,
+            matched_keywords=True,
+            filters=True,
+        ),
+        configured=True,
+    )
+
+    with pytest.raises(RetrievalAdapterError, match="required capability"):
+        transport.initialize(config)
+
+    assert transport.state == "created"
+
+
+def test_in_memory_transport_timeout_is_bounded() -> None:
+    config = LocalRetrievalConfig(configured=True)
+    transport = InMemoryLocalRetrievalTransport(error_mode="timeout")
+    transport.initialize(config)
+
+    with pytest.raises(RetrievalAdapterError, match="timed out"):
+        retrieve_local_and_normalize(
+            transport,
+            LocalRetrievalRequest(query="synthetic question", top_k=1),
+            config,
+        )
+
+
+def test_in_memory_transport_invalid_response_is_rejected() -> None:
+    config = LocalRetrievalConfig(configured=True)
+    transport = InMemoryLocalRetrievalTransport(error_mode="invalid_response")
+    transport.initialize(config)
+
+    with pytest.raises(RetrievalAdapterError, match="invalid response"):
+        retrieve_local_and_normalize(
+            transport,
+            LocalRetrievalRequest(query="synthetic question", top_k=1),
+            config,
+        )
+
+
+def test_in_memory_transport_oversized_response_is_rejected() -> None:
+    config = LocalRetrievalConfig(response_size_limit=1024, configured=True)
+    transport = InMemoryLocalRetrievalTransport(error_mode="oversized_response")
+    transport.initialize(config)
+
+    with pytest.raises(RetrievalAdapterError, match="size limit"):
+        retrieve_local_and_normalize(
+            transport,
+            LocalRetrievalRequest(query="synthetic question", top_k=1),
+            config,
+        )
+
+
+def test_in_memory_transport_exception_hides_raw_details() -> None:
+    config = LocalRetrievalConfig(configured=True)
+    transport = InMemoryLocalRetrievalTransport(error_mode="transport_exception")
+    transport.initialize(config)
+
+    with pytest.raises(RetrievalAdapterError, match="local transport retrieval failed") as exc_info:
+        retrieve_local_and_normalize(
+            transport,
+            LocalRetrievalRequest(query="synthetic question", top_k=1),
+            config,
+        )
+
+    message = str(exc_info.value)
+    assert "private transport detail" not in message
+    assert "credential" not in message.lower()
+    assert "path" not in message.lower()
+
+
+def test_in_memory_transport_response_is_deterministic_and_top_k_bounded() -> None:
+    response = LocalRetrievalResponse(
+        results=[
+            LocalRetrievalResult(
+                rank=1,
+                document_id="synthetic-local-doc-001",
+                score=2,
+                title="First Synthetic Document",
+                source_id="synthetic-local-source-001",
+                matched_keywords=["first"],
+                metadata={"transport": "in_memory"},
+            ),
+            LocalRetrievalResult(
+                rank=2,
+                document_id="synthetic-local-doc-002",
+                score=1,
+                title="Second Synthetic Document",
+                source_id="synthetic-local-source-002",
+                matched_keywords=["second"],
+            ),
+        ]
+    )
+    config = LocalRetrievalConfig(configured=True)
+    transport = InMemoryLocalRetrievalTransport(response=response)
+    transport.initialize(config)
+    request = LocalRetrievalRequest(query="synthetic question", top_k=1)
+
+    first = retrieve_local_and_normalize(transport, request, config)
+    second = retrieve_local_and_normalize(transport, request, config)
+
+    assert first == second
+    assert [result.rank for result in first] == [1]
+    assert [result.document_id for result in first] == ["synthetic-local-doc-001"]
+
+
+def test_in_memory_transport_error_reaches_benchmark_error_boundary() -> None:
+    documents = load_corpus(BENCHMARK_FIXTURES / "corpus")
+    queries = load_queries(BENCHMARK_FIXTURES / "queries.jsonl")
+    adapter = InMemoryTransportBackedTestAdapter(
+        InMemoryLocalRetrievalTransport(error_mode="transport_exception"),
+        LocalRetrievalConfig(configured=True),
+    )
+
+    with pytest.raises(BenchmarkError, match="Invalid retrieval result") as exc_info:
+        build_placeholder_result(documents, queries, adapter)
+
+    assert "private transport detail" not in str(exc_info.value)
+
+
+def test_in_memory_transport_error_reaches_cli_error_three(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    adapter = InMemoryTransportBackedTestAdapter(
+        InMemoryLocalRetrievalTransport(error_mode="transport_exception"),
+        LocalRetrievalConfig(configured=True),
+    )
+    monkeypatch.setattr("ragguard.benchmark.SyntheticRetrievalAdapter", lambda documents: adapter)
+
+    code = main(
+        [
+            "benchmark",
+            "--corpus",
+            str(BENCHMARK_FIXTURES / "corpus"),
+            "--queries",
+            str(BENCHMARK_FIXTURES / "queries.jsonl"),
+            "--output",
+            str(tmp_path / "out"),
+        ]
+    )
+
+    assert code == 3
+    assert not (tmp_path / "out" / "benchmark_report.json").exists()
+
+
+def test_in_memory_transport_keeps_synthetic_adapter_behavior_unchanged() -> None:
+    documents = load_corpus(BENCHMARK_FIXTURES / "corpus")
+    query = load_queries(BENCHMARK_FIXTURES / "queries.jsonl")[0]
+
+    results = retrieve_and_validate(SyntheticRetrievalAdapter(documents), query, 1)
+
+    assert results[0].document_id == "sample-policy-001"
+    assert results[0].adapter_metadata is None
