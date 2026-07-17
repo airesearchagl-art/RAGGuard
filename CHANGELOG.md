@@ -24,6 +24,14 @@
   exception injection with bounded `RetrievalAdapterError`, `BenchmarkError`, and CLI error `3` paths.
 - Kept the local adapter non-operational and added no config loader, CLI selector, filesystem access,
   localhost access, network communication, real RAG connection, or credential loading.
+- Completed Phase C by integrating the internal local adapter client with validated config and the
+  in-memory transport.
+- Added one-shot initialize, health, capability, retrieve, normalize, and close orchestration with
+  guaranteed cleanup and config/transport reference release.
+- Added bounded initialize, health, capability, retrieval, invalid/oversized response, and close
+  failure handling through existing benchmark and CLI error `3` boundaries.
+- Kept Synthetic retrieval as the only CLI behavior and added no config loader, adapter selector,
+  filesystem access, localhost/network communication, or real Local RAG connection.
 
 ### v0.6 retrieval adapter interface design
 

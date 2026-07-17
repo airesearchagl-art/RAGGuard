@@ -1,6 +1,6 @@
 # Usage
 
-## v0.7 Phase A-B Local RAG contract
+## v0.7 Phase A-C Local RAG contract
 
 Phase A adds internal models and Protocols only. The current command continues to use Synthetic
 retrieval:
@@ -32,6 +32,16 @@ The in-memory lifecycle is deterministic:
 - retrieval before initialization or after close returns a bounded retrieval error.
 - injected health, capability, timeout, invalid-response, oversized-response, and transport failures
   are for contract tests only and do not expose raw details.
+
+Phase C integrates the in-memory transport with the internal `LocalRAGRetrievalAdapter`. The client
+is one-shot: it validates the request, initializes the transport, checks health and capabilities,
+retrieves and normalizes one response, and closes in a cleanup path. It releases config and transport
+references after success or failure. Unsupported transports are rejected before lifecycle execution.
+
+This internal integration is still not available from `python -m ragguard benchmark`. Synthetic
+retrieval remains the CLI default and only selectable behavior. Config loading, an adapter selector,
+filesystem access, localhost communication, network communication, and real Local RAG retrieval
+remain unimplemented.
 
 Future local configuration must never be included in benchmark reports. Query text, credentials,
 real paths, source bodies, and stack traces must also remain outside logs and reports. Contract tests
