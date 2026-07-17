@@ -6,7 +6,7 @@ import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from types import MappingProxyType
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, Protocol, cast, runtime_checkable
 
 
 class RetrievalAdapterError(ValueError):
@@ -16,6 +16,9 @@ class RetrievalAdapterError(ValueError):
 LOCAL_TRANSPORT_TYPES = frozenset({"in_memory"})
 LOCAL_RESPONSE_METADATA_KEYS = frozenset(
     {"capability", "match_type", "result_type", "transport"}
+)
+IN_MEMORY_ERROR_MODES = frozenset(
+    {"invalid_response", "oversized_response", "timeout", "transport_exception"}
 )
 MAX_LOCAL_TIMEOUT_SECONDS = 60.0
 MAX_LOCAL_TOP_K = 100
@@ -172,7 +175,7 @@ class LocalRetrievalResponse:
 
 @runtime_checkable
 class LocalRetrievalTransport(Protocol):
-    """Lifecycle contract only; Phase A provides no transport implementation."""
+    """Lifecycle contract for bounded local-only retrieval transports."""
 
     def initialize(self, config: LocalRetrievalConfig) -> None: ...
 
@@ -183,6 +186,89 @@ class LocalRetrievalTransport(Protocol):
     def retrieve(self, request: LocalRetrievalRequest) -> LocalRetrievalResponse: ...
 
     def close(self) -> None: ...
+
+
+class InMemoryLocalRetrievalTransport:
+    """Deterministic no-I/O transport for local contract and error-boundary tests."""
+
+    def __init__(
+        self,
+        response: LocalRetrievalResponse | None = None,
+        *,
+        capabilities: LocalRetrievalCapabilities | None = None,
+        health_failure: bool = False,
+        error_mode: str | None = None,
+    ) -> None:
+        if response is not None and not isinstance(response, LocalRetrievalResponse):
+            raise RetrievalAdapterError("in-memory response must use LocalRetrievalResponse")
+        if capabilities is not None and not isinstance(
+            capabilities, LocalRetrievalCapabilities
+        ):
+            raise RetrievalAdapterError(
+                "in-memory capabilities must use LocalRetrievalCapabilities"
+            )
+        if type(health_failure) is not bool:
+            raise RetrievalAdapterError("health_failure must be boolean")
+        if error_mode is not None and error_mode not in IN_MEMORY_ERROR_MODES:
+            raise RetrievalAdapterError("unsupported in-memory error mode")
+
+        self._response = response or _default_in_memory_response()
+        self._capabilities = capabilities or LocalRetrievalCapabilities(
+            matched_keywords=True
+        )
+        self._health_failure = health_failure
+        self._error_mode = error_mode
+        self._state = "created"
+
+    @property
+    def state(self) -> str:
+        """Expose only the bounded lifecycle state."""
+        return self._state
+
+    def initialize(self, config: LocalRetrievalConfig) -> None:
+        if not isinstance(config, LocalRetrievalConfig):
+            raise RetrievalAdapterError("in-memory transport requires LocalRetrievalConfig")
+        if self._state == "initialized":
+            raise RetrievalAdapterError("in-memory transport is already initialized")
+        if self._state == "closed":
+            raise RetrievalAdapterError("in-memory transport is closed")
+        _validate_required_capabilities(config.capabilities, self._capabilities)
+        self._state = "initialized"
+
+    def health_check(self) -> bool:
+        self._require_initialized()
+        if self._health_failure:
+            raise RetrievalAdapterError("in-memory transport health check failed")
+        return True
+
+    def capabilities(self) -> LocalRetrievalCapabilities:
+        self._require_initialized()
+        return self._capabilities
+
+    def retrieve(self, request: LocalRetrievalRequest) -> LocalRetrievalResponse:
+        self._require_initialized()
+        if not isinstance(request, LocalRetrievalRequest):
+            raise RetrievalAdapterError("in-memory transport requires LocalRetrievalRequest")
+        if self._error_mode == "timeout":
+            raise RetrievalAdapterError("in-memory transport timed out")
+        if self._error_mode == "transport_exception":
+            raise RuntimeError("simulated private transport detail")
+        if self._error_mode == "invalid_response":
+            return cast(LocalRetrievalResponse, object())
+        if self._error_mode == "oversized_response":
+            return _oversized_in_memory_response()
+
+        return LocalRetrievalResponse(results=self._response.results[: request.top_k])
+
+    def close(self) -> None:
+        # Closing an unused or already closed fake transport is intentionally idempotent.
+        self._state = "closed"
+
+    def _require_initialized(self) -> None:
+        if self._state == "created":
+            raise RetrievalAdapterError("in-memory transport is not initialized")
+        if self._state == "closed":
+            raise RetrievalAdapterError("in-memory transport is closed")
 
 
 @dataclass(frozen=True)
@@ -332,6 +418,31 @@ def normalize_local_response(
     return validate_ranked_results(ranked_results, top_k)
 
 
+def retrieve_local_and_normalize(
+    transport: LocalRetrievalTransport,
+    request: LocalRetrievalRequest,
+    config: LocalRetrievalConfig,
+) -> list[RankedResult]:
+    """Execute one local transport request through a bounded error and result boundary."""
+    if not isinstance(transport, LocalRetrievalTransport):
+        raise RetrievalAdapterError("invalid local retrieval transport")
+    if not isinstance(request, LocalRetrievalRequest):
+        raise RetrievalAdapterError("invalid local retrieval request")
+    if not isinstance(config, LocalRetrievalConfig):
+        raise RetrievalAdapterError("invalid local retrieval config")
+    try:
+        response = transport.retrieve(request)
+    except RetrievalAdapterError:
+        raise
+    except Exception as exc:
+        raise RetrievalAdapterError("local transport retrieval failed") from exc
+    return normalize_local_response(
+        response,
+        top_k=request.top_k,
+        response_size_limit=config.response_size_limit,
+    )
+
+
 def retrieve_and_validate(
     adapter: RetrievalAdapter,
     query: RetrievalQuery,
@@ -396,6 +507,18 @@ def _validate_ranked_result(result: RankedResult, expected_rank: int) -> None:
         raise RetrievalAdapterError("adapter_metadata must be a mapping when provided")
 
 
+def _validate_required_capabilities(
+    required: LocalRetrievalCapabilities,
+    available: LocalRetrievalCapabilities,
+) -> None:
+    if required.ranked_results and not available.ranked_results:
+        raise RetrievalAdapterError("in-memory transport lacks a required capability")
+    if required.matched_keywords and not available.matched_keywords:
+        raise RetrievalAdapterError("in-memory transport lacks a required capability")
+    if required.filters and not available.filters:
+        raise RetrievalAdapterError("in-memory transport lacks a required capability")
+
+
 def _validate_positive_integer(value: Any, field_name: str, maximum: int | None = None) -> None:
     if isinstance(value, bool) or not isinstance(value, int) or value < 1:
         raise RetrievalAdapterError(f"{field_name} must be a positive integer")
@@ -451,6 +574,41 @@ def _local_response_size(response: LocalRetrievalResponse) -> int:
         for result in response.results
     ]
     return len(json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
+
+
+def _default_in_memory_response() -> LocalRetrievalResponse:
+    return LocalRetrievalResponse(
+        results=(
+            LocalRetrievalResult(
+                rank=1,
+                document_id="synthetic-local-doc-001",
+                score=1.0,
+                title="Synthetic Local Document",
+                source_id="synthetic-local-source-001",
+                matched_keywords=("synthetic",),
+                metadata={"transport": "in_memory", "result_type": "synthetic"},
+            ),
+        )
+    )
+
+
+def _oversized_in_memory_response() -> LocalRetrievalResponse:
+    return LocalRetrievalResponse(
+        results=(
+            LocalRetrievalResult(
+                rank=1,
+                document_id="synthetic-local-oversized-001",
+                score=1.0,
+                title="S" * MAX_LOCAL_TITLE_LENGTH,
+                source_id="synthetic-local-source-oversized-001",
+                matched_keywords=tuple(
+                    f"synthetic-{index:03d}-" + "x" * 110
+                    for index in range(MAX_LOCAL_KEYWORDS)
+                ),
+                metadata={"transport": "in_memory", "result_type": "synthetic"},
+            ),
+        )
+    )
 
 
 def query_search_terms(query: RetrievalQuery) -> list[str]:

@@ -20,6 +20,22 @@ communication, filesystem retrieval, configuration loading, credentials, or a CL
 - Kept the local adapter non-operational and retained no configuration or transport object.
 - Kept Synthetic retrieval, evaluator ownership, reports, and exit codes unchanged.
 
+### Phase B implementation status
+
+- Added `InMemoryLocalRetrievalTransport` as a runtime Protocol-compatible no-I/O fake transport.
+- Fixed lifecycle states to `created`, `initialized`, and `closed`.
+- Rejected duplicate initialization; made close idempotent; rejected retrieve, health, and
+  capability calls outside the initialized state.
+- Returned deterministic fixed synthetic responses with safe identifiers and allowlisted metadata.
+- Added a transport execution boundary that converts unexpected exceptions to bounded
+  `RetrievalAdapterError` values before response validation and `RankedResult` normalization.
+- Added controlled health, capability, timeout, invalid-response, oversized-response, and raw
+  transport exception cases for contract tests.
+- Verified transport failures reach `BenchmarkError` and CLI error `3` without exposing raw error
+  details, paths, or credentials.
+- Kept the production local adapter non-operational; Phase C client integration remains unimplemented.
+- Added no filesystem access, localhost access, network communication, config loader, or CLI selector.
+
 ### Configuration schema proposal
 
 ```yaml
