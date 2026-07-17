@@ -109,6 +109,48 @@ class InMemoryTransportBackedTestAdapter:
         return retrieve_local_and_normalize(self.transport, request, self.config)
 
 
+class RecordingInMemoryTransport(InMemoryLocalRetrievalTransport):
+    def __init__(
+        self,
+        *args: Any,
+        fail_stage: str | None = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.fail_stage = fail_stage
+        self.events: list[str] = []
+
+    def initialize(self, config: LocalRetrievalConfig) -> None:
+        self.events.append("initialize")
+        if self.fail_stage == "initialize":
+            raise RuntimeError("private initialization path and credential detail")
+        super().initialize(config)
+
+    def health_check(self) -> bool:
+        self.events.append("health_check")
+        if self.fail_stage == "health_check":
+            raise RuntimeError("private health path and credential detail")
+        return super().health_check()
+
+    def capabilities(self) -> LocalRetrievalCapabilities:
+        self.events.append("capabilities")
+        if self.fail_stage == "capabilities":
+            raise RuntimeError("private capability path and credential detail")
+        return super().capabilities()
+
+    def retrieve(self, request: LocalRetrievalRequest) -> LocalRetrievalResponse:
+        self.events.append("retrieve")
+        if self.fail_stage == "retrieve":
+            raise RuntimeError("private retrieval path and credential detail")
+        return super().retrieve(request)
+
+    def close(self) -> None:
+        self.events.append("close")
+        super().close()
+        if self.fail_stage == "close":
+            raise RuntimeError("private close path and credential detail")
+
+
 def test_retrieval_adapter_contract_and_required_fields() -> None:
     adapter = MockRetrievalAdapter([make_result()])
     result = adapter.retrieve(object(), 1)  # type: ignore[arg-type]
@@ -493,12 +535,11 @@ def test_local_config_and_transport_errors_do_not_expose_values() -> None:
     assert "path" not in messages.lower()
 
 
-def test_local_adapter_does_not_invoke_provided_transport_in_phase_a() -> None:
+def test_local_adapter_rejects_non_in_memory_transport_in_phase_c() -> None:
     transport = ContractOnlyLocalTransport()
-    adapter = LocalRAGRetrievalAdapter(LocalRetrievalConfig(configured=True), transport)
 
-    with pytest.raises(RetrievalAdapterError, match="not operational"):
-        retrieve_and_validate(adapter, object(), 1)  # type: ignore[arg-type]
+    with pytest.raises(RetrievalAdapterError, match="unsupported local retrieval transport"):
+        LocalRAGRetrievalAdapter(LocalRetrievalConfig(configured=True), transport)
 
     assert not hasattr(transport, "configured")
 
@@ -724,6 +765,212 @@ def test_in_memory_transport_error_reaches_cli_error_three(
 
 
 def test_in_memory_transport_keeps_synthetic_adapter_behavior_unchanged() -> None:
+    documents = load_corpus(BENCHMARK_FIXTURES / "corpus")
+    query = load_queries(BENCHMARK_FIXTURES / "queries.jsonl")[0]
+
+    results = retrieve_and_validate(SyntheticRetrievalAdapter(documents), query, 1)
+
+    assert results[0].document_id == "sample-policy-001"
+    assert results[0].adapter_metadata is None
+
+
+def test_local_adapter_runs_in_memory_lifecycle_in_order_and_releases_state() -> None:
+    query = load_queries(BENCHMARK_FIXTURES / "queries.jsonl")[0]
+    transport = RecordingInMemoryTransport()
+    adapter = LocalRAGRetrievalAdapter(LocalRetrievalConfig(configured=True), transport)
+
+    results = retrieve_and_validate(adapter, query, 1)
+
+    assert transport.events == [
+        "initialize",
+        "health_check",
+        "capabilities",
+        "retrieve",
+        "close",
+    ]
+    assert results[0].document_id == "synthetic-local-doc-001"
+    assert results[0].source_path == "synthetic-local-source-001"
+    assert adapter._configuration is None
+    assert adapter._transport is None
+
+    with pytest.raises(RetrievalAdapterError, match="closed"):
+        adapter.retrieve(query, 1)
+
+
+@pytest.mark.parametrize(
+    ("fail_stage", "message", "events"),
+    [
+        ("initialize", "initialization failed", ["initialize", "close"]),
+        (
+            "health_check",
+            "health check failed",
+            ["initialize", "health_check", "close"],
+        ),
+        (
+            "capabilities",
+            "capability check failed",
+            ["initialize", "health_check", "capabilities", "close"],
+        ),
+        (
+            "retrieve",
+            "local transport retrieval failed",
+            ["initialize", "health_check", "capabilities", "retrieve", "close"],
+        ),
+    ],
+)
+def test_local_adapter_stops_lifecycle_after_failed_stage_and_closes(
+    fail_stage: str,
+    message: str,
+    events: list[str],
+) -> None:
+    query = load_queries(BENCHMARK_FIXTURES / "queries.jsonl")[0]
+    transport = RecordingInMemoryTransport(fail_stage=fail_stage)
+    adapter = LocalRAGRetrievalAdapter(LocalRetrievalConfig(configured=True), transport)
+
+    with pytest.raises(RetrievalAdapterError, match=message) as exc_info:
+        adapter.retrieve(query, 1)
+
+    assert transport.events == events
+    assert "private" not in str(exc_info.value)
+    assert "path" not in str(exc_info.value).lower()
+    assert "credential" not in str(exc_info.value).lower()
+
+
+def test_local_adapter_stops_before_retrieve_on_capability_mismatch() -> None:
+    query = load_queries(BENCHMARK_FIXTURES / "queries.jsonl")[0]
+    transport = RecordingInMemoryTransport(
+        capabilities=LocalRetrievalCapabilities(
+            ranked_results=True,
+            matched_keywords=True,
+            filters=False,
+        )
+    )
+    config = LocalRetrievalConfig(
+        capabilities=LocalRetrievalCapabilities(
+            ranked_results=True,
+            matched_keywords=True,
+            filters=True,
+        ),
+        configured=True,
+    )
+    adapter = LocalRAGRetrievalAdapter(config, transport)
+
+    with pytest.raises(RetrievalAdapterError, match="required capability"):
+        adapter.retrieve(query, 1)
+
+    assert transport.events == ["initialize", "close"]
+
+
+def test_local_adapter_close_failure_is_bounded_after_success() -> None:
+    query = load_queries(BENCHMARK_FIXTURES / "queries.jsonl")[0]
+    transport = RecordingInMemoryTransport(fail_stage="close")
+    adapter = LocalRAGRetrievalAdapter(LocalRetrievalConfig(configured=True), transport)
+
+    with pytest.raises(RetrievalAdapterError, match="close failed") as exc_info:
+        adapter.retrieve(query, 1)
+
+    assert transport.events[-1] == "close"
+    assert "private close" not in str(exc_info.value)
+
+
+def test_local_adapter_preserves_retrieve_failure_when_close_also_fails() -> None:
+    class RetrieveAndCloseFailureTransport(RecordingInMemoryTransport):
+        def retrieve(self, request: LocalRetrievalRequest) -> LocalRetrievalResponse:
+            self.events.append("retrieve")
+            raise RetrievalAdapterError("bounded retrieval failure")
+
+        def close(self) -> None:
+            self.events.append("close")
+            raise RuntimeError("private close detail")
+
+    query = load_queries(BENCHMARK_FIXTURES / "queries.jsonl")[0]
+    transport = RetrieveAndCloseFailureTransport()
+    adapter = LocalRAGRetrievalAdapter(LocalRetrievalConfig(configured=True), transport)
+
+    with pytest.raises(RetrievalAdapterError, match="bounded retrieval failure") as exc_info:
+        adapter.retrieve(query, 1)
+
+    assert transport.events[-2:] == ["retrieve", "close"]
+    assert "private close" not in str(exc_info.value)
+
+
+@pytest.mark.parametrize(
+    ("error_mode", "message"),
+    [
+        ("invalid_response", "invalid response"),
+        ("oversized_response", "size limit"),
+        ("timeout", "timed out"),
+        ("transport_exception", "local transport retrieval failed"),
+    ],
+)
+def test_local_adapter_normalizes_in_memory_response_failures(
+    error_mode: str,
+    message: str,
+) -> None:
+    query = load_queries(BENCHMARK_FIXTURES / "queries.jsonl")[0]
+    config = LocalRetrievalConfig(response_size_limit=1024, configured=True)
+    transport = RecordingInMemoryTransport(error_mode=error_mode)
+    adapter = LocalRAGRetrievalAdapter(config, transport)
+
+    with pytest.raises(RetrievalAdapterError, match=message) as exc_info:
+        adapter.retrieve(query, 1)
+
+    assert transport.events[-1] == "close"
+    assert "private transport detail" not in str(exc_info.value)
+
+
+def test_local_adapter_in_memory_result_is_deterministic_across_clients() -> None:
+    query = load_queries(BENCHMARK_FIXTURES / "queries.jsonl")[0]
+
+    first = LocalRAGRetrievalAdapter(
+        LocalRetrievalConfig(configured=True), RecordingInMemoryTransport()
+    ).retrieve(query, 1)
+    second = LocalRAGRetrievalAdapter(
+        LocalRetrievalConfig(configured=True), RecordingInMemoryTransport()
+    ).retrieve(query, 1)
+
+    assert first == second
+
+
+def test_local_adapter_failure_reaches_benchmark_and_cli_error_boundaries(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    documents = load_corpus(BENCHMARK_FIXTURES / "corpus")
+    queries = load_queries(BENCHMARK_FIXTURES / "queries.jsonl")
+    failing_adapter = LocalRAGRetrievalAdapter(
+        LocalRetrievalConfig(configured=True),
+        RecordingInMemoryTransport(error_mode="transport_exception"),
+    )
+
+    with pytest.raises(BenchmarkError, match="Invalid retrieval result") as exc_info:
+        build_placeholder_result(documents, queries, failing_adapter)
+    assert "private transport detail" not in str(exc_info.value)
+
+    monkeypatch.setattr(
+        "ragguard.benchmark.SyntheticRetrievalAdapter",
+        lambda documents: LocalRAGRetrievalAdapter(
+            LocalRetrievalConfig(configured=True),
+            RecordingInMemoryTransport(error_mode="transport_exception"),
+        ),
+    )
+    code = main(
+        [
+            "benchmark",
+            "--corpus",
+            str(BENCHMARK_FIXTURES / "corpus"),
+            "--queries",
+            str(BENCHMARK_FIXTURES / "queries.jsonl"),
+            "--output",
+            str(tmp_path / "out"),
+        ]
+    )
+
+    assert code == 3
+    assert not (tmp_path / "out" / "benchmark_report.json").exists()
+
+
+def test_local_adapter_integration_keeps_synthetic_adapter_unchanged() -> None:
     documents = load_corpus(BENCHMARK_FIXTURES / "corpus")
     query = load_queries(BENCHMARK_FIXTURES / "queries.jsonl")[0]
 

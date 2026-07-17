@@ -36,6 +36,24 @@ communication, filesystem retrieval, configuration loading, credentials, or a CL
 - Kept the production local adapter non-operational; Phase C client integration remains unimplemented.
 - Added no filesystem access, localhost access, network communication, config loader, or CLI selector.
 
+### Phase C implementation status
+
+- Integrated `LocalRAGRetrievalAdapter` with validated `LocalRetrievalConfig` and
+  `InMemoryLocalRetrievalTransport` instances.
+- Restricted Phase C client execution to the in-memory transport class and its test subclasses.
+- Converted benchmark queries to bounded `LocalRetrievalRequest` values and normalized transport
+  responses through the existing `RankedResult` boundary.
+- Enforced initialize, health check, capability check, retrieve, and close order inside the adapter.
+- Stopped before retrieval when initialization, health, or capability checks fail.
+- Closed after successful retrieval and every started failure path; retrieval errors take precedence
+  when close also fails.
+- Normalized unexpected initialize, health, capability, retrieve, and close exceptions without
+  replaying raw details.
+- Released config and transport references after each one-shot execution attempt and never retained
+  raw responses.
+- Kept the adapter internal: no CLI selector, config loader, filesystem access, localhost access,
+  network communication, or real Local RAG connection was added.
+
 ### Configuration schema proposal
 
 ```yaml

@@ -357,7 +357,7 @@ class SyntheticRetrievalAdapter:
 
 
 class LocalRAGRetrievalAdapter:
-    """Unconnected local-only adapter skeleton with a bounded error surface."""
+    """One-shot local adapter client restricted to the no-I/O in-memory transport."""
 
     name = "local-rag"
 
@@ -366,21 +366,76 @@ class LocalRAGRetrievalAdapter:
         configuration: LocalRetrievalConfig | Mapping[str, Any] | None = None,
         transport: LocalRetrievalTransport | None = None,
     ) -> None:
-        # Phase A records boundary state only; values and transport objects are not retained.
-        self._configured = (
-            configuration.configured
-            if isinstance(configuration, LocalRetrievalConfig)
-            else configuration is not None
+        if transport is not None and not isinstance(
+            transport, InMemoryLocalRetrievalTransport
+        ):
+            raise RetrievalAdapterError("unsupported local retrieval transport")
+
+        # Legacy mappings remain presence-only for compatibility and are never retained.
+        self._legacy_configured = isinstance(configuration, Mapping)
+        self._configuration = (
+            configuration if isinstance(configuration, LocalRetrievalConfig) else None
         )
-        self._transport_provided = transport is not None
+        self._transport = transport
+        self._closed = False
 
     def retrieve(self, query: RetrievalQuery, top_k: int) -> list[RankedResult]:
-        del query, top_k
-        if not self._configured:
+        if self._closed:
+            raise RetrievalAdapterError("local retrieval adapter is closed")
+        if self._configuration is None:
+            if self._legacy_configured:
+                self._release_state()
+                raise RetrievalAdapterError("local retrieval adapter dependency is unavailable")
+            self._release_state()
             raise RetrievalAdapterError("local retrieval adapter is not configured")
-        if not self._transport_provided:
+        if not self._configuration.configured:
+            self._release_state()
+            raise RetrievalAdapterError("local retrieval adapter is not configured")
+        if self._transport is None:
+            self._release_state()
             raise RetrievalAdapterError("local retrieval adapter dependency is unavailable")
-        raise RetrievalAdapterError("local retrieval adapter is not operational")
+
+        configuration = self._configuration
+        transport = self._transport
+        results: list[RankedResult] | None = None
+        failure: RetrievalAdapterError | None = None
+        close_failure: RetrievalAdapterError | None = None
+
+        try:
+            request = LocalRetrievalRequest(
+                query=query.question,
+                top_k=top_k,
+                query_id=getattr(query, "query_id", None),
+            )
+            _initialize_local_transport(transport, configuration)
+            _check_local_transport_health(transport)
+            _check_local_transport_capabilities(transport, configuration.capabilities)
+            results = retrieve_local_and_normalize(transport, request, configuration)
+        except RetrievalAdapterError as exc:
+            failure = exc
+        except Exception:
+            failure = RetrievalAdapterError("local retrieval adapter failed")
+
+        try:
+            transport.close()
+        except Exception:
+            close_failure = RetrievalAdapterError("local retrieval adapter close failed")
+        finally:
+            self._release_state()
+
+        if failure is not None:
+            raise failure
+        if close_failure is not None:
+            raise close_failure
+        if results is None:
+            raise RetrievalAdapterError("local retrieval adapter returned no result state")
+        return results
+
+    def _release_state(self) -> None:
+        self._configuration = None
+        self._transport = None
+        self._legacy_configured = False
+        self._closed = True
 
 
 def normalize_local_response(
@@ -441,6 +496,44 @@ def retrieve_local_and_normalize(
         top_k=request.top_k,
         response_size_limit=config.response_size_limit,
     )
+
+
+def _initialize_local_transport(
+    transport: LocalRetrievalTransport,
+    config: LocalRetrievalConfig,
+) -> None:
+    try:
+        transport.initialize(config)
+    except RetrievalAdapterError:
+        raise
+    except Exception as exc:
+        raise RetrievalAdapterError("local transport initialization failed") from exc
+
+
+def _check_local_transport_health(transport: LocalRetrievalTransport) -> None:
+    try:
+        healthy = transport.health_check()
+    except RetrievalAdapterError:
+        raise
+    except Exception as exc:
+        raise RetrievalAdapterError("local transport health check failed") from exc
+    if healthy is not True:
+        raise RetrievalAdapterError("local transport health check failed")
+
+
+def _check_local_transport_capabilities(
+    transport: LocalRetrievalTransport,
+    required: LocalRetrievalCapabilities,
+) -> None:
+    try:
+        available = transport.capabilities()
+    except RetrievalAdapterError:
+        raise
+    except Exception as exc:
+        raise RetrievalAdapterError("local transport capability check failed") from exc
+    if not isinstance(available, LocalRetrievalCapabilities):
+        raise RetrievalAdapterError("local transport returned invalid capabilities")
+    _validate_required_capabilities(required, available)
 
 
 def retrieve_and_validate(
