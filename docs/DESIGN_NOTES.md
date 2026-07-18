@@ -1,5 +1,173 @@
 # Design Notes
 
+## RAG Benchmark Harness v0.8 secure Local RAG transport design
+
+v0.8 introduces a design boundary for a future real Local RAG transport. This section is normative
+for later implementation phases, but this PR adds no communication, endpoint loading, filesystem
+access, or real Local RAG integration.
+
+### Transport selection and order
+
+1. Loopback HTTP is the first implementation candidate because its request, response, timeout, and
+   test boundaries can be made explicit with the Python standard library.
+2. Unix domain sockets may be considered later on supported local platforms.
+3. Windows named pipes may be considered later with a separately reviewed identifier and ACL model.
+
+Every transport is local-only. External hosts, private LAN targets, wildcard or unspecified binds,
+redirect following, and proxy use are forbidden. A response cannot change the destination. Adding a
+new transport type or endpoint requires an explicit allowlist and a separate reviewed change.
+
+### Loopback endpoint validation
+
+- Accept literal `127.0.0.1` and `::1` only by default.
+- A hostname such as `localhost` is accepted only if explicitly allowlisted and every resolved
+  address is loopback. Mixed loopback/non-loopback resolution is rejected.
+- Reject `0.0.0.0`, `::`, private LAN, link-local, multicast, public, wildcard, user-info, fragment,
+  and non-allowlisted scheme or port values.
+- Resolve immediately before each new connection and verify the actual peer destination when the
+  client API exposes it. Do not reuse an earlier DNS decision across connections.
+- Disable redirects, environment proxy discovery, explicit proxy config, and proxy authentication.
+- Keep the validated scheme, host category, and allowlisted port internal. Do not emit the full
+  endpoint in reports, logs, or user-facing errors.
+
+These rules reduce DNS rebinding and time-of-check/time-of-use risk. Any inability to prove the peer
+is loopback fails closed as `external_host_rejected` or `invalid_endpoint`.
+
+### Authentication policy
+
+v0.8 uses no authentication. This is conditional on the loopback-only endpoint policy. The config
+schema does not accept API keys, bearer tokens, credential files, cookies, custom authorization
+headers, or environment credential references. Unknown auth-related fields are rejected.
+
+A future authentication design requires a separate security review. Credential values and
+authentication failure details must never enter reports, logs, adapter metadata, errors, or stored
+raw traffic.
+
+### HTTP request contract
+
+The request method is `POST`, the request content type is exactly `application/json`, and the
+accepted response content type is `application/json` with an optional UTF-8 charset. The request
+body contains only:
+
+```json
+{
+  "query": "bounded query text",
+  "top_k": 5,
+  "query_id": "optional-safe-id",
+  "capability_version": "optional-safe-version"
+}
+```
+
+- `query` is required, non-empty, and limited to the existing 4,096-character boundary.
+- `top_k` is required, positive, and limited to the existing maximum of 100.
+- `query_id` and `capability_version` are optional bounded safe identifiers.
+- Unknown fields are rejected. Filesystem paths, credentials, secrets, cookies, headers, report
+  paths, and arbitrary filters are not part of the v0.8 request.
+- The serialized UTF-8 JSON body has a proposed hard limit of 64 KiB and is measured before send.
+
+### HTTP response contract
+
+The response uses the existing ranked result boundary:
+
+```json
+{
+  "results": [
+    {
+      "rank": 1,
+      "document_id": "synthetic-doc-001",
+      "score": 1.0,
+      "title": "Synthetic document",
+      "source_id": "safe-source-001",
+      "matched_keywords": ["synthetic"],
+      "adapter_metadata": {"transport": "loopback_http"}
+    }
+  ]
+}
+```
+
+- The default response limit remains 256 KiB and the absolute configurable ceiling remains 1 MiB.
+- Read at most the configured limit plus one byte, then fail before parsing if the limit is exceeded.
+- Return no more than `top_k` items and never more than the existing maximum of 100.
+- Require contiguous ranks, unique document IDs, finite scores, bounded titles, safe source IDs,
+  bounded matched keywords, and allowlisted scalar adapter metadata.
+- Reject unknown top-level and result fields. Do not ignore or forward backend-specific payloads.
+- Reject long content, snippets, raw document bodies, real paths, credentials, headers, cookies,
+  stack traces, and nested unbounded metadata.
+
+### Timeout and retry policy
+
+- Define separate positive bounded connect and read timeouts and enforce an overall total deadline.
+- The total deadline is authoritative and includes endpoint resolution, connect, health, capability,
+  response read, validation, and cleanup work.
+- Do not retry by default. Connection failures, invalid responses, redirects, and timeouts fail once.
+- A future retry policy requires an idempotent request contract, a strict attempt cap, the same
+  validated loopback destination, and the same total deadline. It must not retry unsafe operations.
+- Normalize every timeout without raw exception details to `RetrievalAdapterError("timeout")`.
+
+### Transport lifecycle
+
+1. `initialize`: validate explicit endpoint and construct a short-lived no-proxy client.
+2. `health_check`: make a bounded loopback health request without query or secret data.
+3. `capability_check`: verify protocol version and required ranked-result capabilities.
+4. `retrieve`: send one bounded request and validate status, content type, size, and schema.
+5. `close`: release client resources after success or every started failure path.
+
+The adapter remains one-shot or short-lived. Connection pooling, background workers, persistent
+sessions, and shared mutable clients are v0.8 non-goals. Retrieval failure takes precedence when
+close also fails, while close failure is still mapped to a safe category when it is the only failure.
+
+### Error mapping
+
+| Condition | Safe category | Process result |
+| --- | --- | --- |
+| Missing config | `not_configured` | CLI error `3` |
+| Invalid scheme, host, port, or endpoint | `invalid_endpoint` | CLI error `3` |
+| Non-loopback or changed peer | `external_host_rejected` | CLI error `3` |
+| Local connection refused | `connection_refused` | CLI error `3` |
+| Connect, read, or total deadline exceeded | `timeout` | CLI error `3` |
+| Non-success HTTP status | `invalid_status` | CLI error `3` |
+| Unexpected content type | `invalid_content_type` | CLI error `3` |
+| Response exceeds configured limit | `response_too_large` | CLI error `3` |
+| JSON or schema violation | `invalid_response` | CLI error `3` |
+| Required protocol capability absent | `unsupported_capability` | CLI error `3` |
+
+Every category is represented by a bounded `RetrievalAdapterError`, then converted to
+`BenchmarkError` and CLI error `3`. Messages expose only adapter name and safe category. Endpoint,
+query text, headers, cookies, credentials, raw request, raw response, and underlying exception text
+are excluded.
+
+### Observability and non-disclosure
+
+Allow only adapter name, bounded duration, result count, status, and safe error category. Do not log
+or report the full endpoint, query text, expected answer, credentials, headers, cookies, environment
+values, real source paths, request or response bodies, stack traces, or internal exception details.
+Raw HTTP traffic is never persisted. A source is represented only by the existing bounded safe
+identifier after response validation.
+
+### Synthetic security verification
+
+Phase B uses a fake loopback server with fixed synthetic responses only. Tests must cover endpoint
+allowlisting, mixed/non-loopback resolution rejection, redirect rejection, proxy isolation, connect,
+read, and total timeout, invalid status, invalid content type, invalid JSON, unknown fields,
+oversized response, item overflow, deterministic normalization, lifecycle order, close on failure,
+and non-disclosure. Tests do not contact a real Local RAG system or any external network and do not
+use real documents.
+
+### v0.8 implementation phases
+
+- Phase A: endpoint and HTTP transport contract.
+- Phase B: fake loopback server tests with fixed synthetic responses.
+- Phase C: bounded loopback HTTP client.
+- Phase D: CLI and safe config integration.
+- Phase E: synthetic end-to-end and security tests.
+- Phase F: docs, CI, and release preparation.
+
+### v0.8 non-goals
+
+Real Local RAG, Hermes, LM Studio, private-LAN or external-network communication, redirect following,
+proxy use, credential loading, filesystem retrieval, embeddings, vector databases, LLM evaluation,
+external APIs, cloud services, external MCP, and real-document access are not part of this design PR.
+
 ## RAG Benchmark Harness v0.7 Local RAG connection contract
 
 Phase A implements the internal configuration, request, response, normalization, and transport

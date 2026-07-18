@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### v0.8 secure Local RAG transport design
+
+- Selected loopback HTTP as the first real transport candidate, with Unix domain sockets and Windows
+  named pipes deferred for later review.
+- Defined loopback-only endpoint validation, DNS resolution and peer checks, redirect rejection,
+  proxy isolation, and explicit destination configuration.
+- Defined a no-authentication v0.8 policy with no API keys, bearer tokens, credential files, cookies,
+  or authorization headers.
+- Defined bounded JSON request and ranked response contracts, unknown-field rejection, a proposed
+  64 KiB request limit, a 256 KiB default response limit, and a 1 MiB hard response ceiling.
+- Defined connect, read, and total deadlines, no retry by default, short-lived lifecycle, and close
+  after success or failure.
+- Defined safe transport error categories through `RetrievalAdapterError`, `BenchmarkError`, and CLI
+  error `3` without endpoint, query, credential, raw traffic, path, or stack-trace disclosure.
+- Planned fake loopback security tests before any real Local RAG connection or transport integration.
+- Kept this change documentation-only with no localhost, network, socket, named-pipe, filesystem, or
+  real-document access.
+
 ### v0.7 Local RAG connection contract design
 
 - Designed a future local-only adapter configuration and transport contract without implementing a connection.

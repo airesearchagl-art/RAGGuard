@@ -2,6 +2,23 @@
 
 [![Tests](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml)
 
+## RAG Benchmark Harness v0.8 secure local transport design
+
+v0.8 designs a real Local RAG transport boundary before any communication is implemented. The
+first transport candidate is loopback HTTP. Unix domain sockets and Windows named pipes remain
+future candidates. External hosts, private LAN targets, wildcard addresses, redirects, proxies,
+filesystem retrieval, and credential loading are excluded.
+
+The HTTP contract permits only validated loopback destinations (`127.0.0.1`, `::1`, or an explicit
+allowlist whose resolved addresses are all loopback). It requires fixed JSON content types, bounded
+requests and responses, connect/read/total timeouts, no automatic retry, no connection pooling, and
+a short-lived one-shot lifecycle with close after success or failure. Reports and logs retain only
+adapter name, bounded duration, result count, status, and safe error category.
+
+This is a design-only phase. No HTTP, socket, named-pipe, localhost, network, or filesystem access is
+added. Synthetic retrieval remains the default and `local-rag` remains limited to the existing
+no-I/O `in_memory` transport until later v0.8 phases are separately implemented and reviewed.
+
 ## RAG Benchmark Harness v0.7 local connection contract
 
 v0.7 Phase A implements the internal contract for a future local-only connection without enabling

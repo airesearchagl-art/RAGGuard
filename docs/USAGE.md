@@ -1,5 +1,34 @@
 # Usage
 
+## v0.8 secure transport design status
+
+v0.8 currently defines a future loopback HTTP transport only. There is no HTTP, socket, named-pipe,
+localhost, network, or filesystem implementation in this design PR. Continue to use the Synthetic
+default or the existing synthetic-only `in_memory` local-rag path documented below.
+
+Planned HTTP use will require an explicit local-rag selection and explicit safe endpoint config.
+Only `127.0.0.1`, `::1`, or a separately reviewed allowlisted name resolving exclusively to
+loopback addresses may be accepted. Private LAN addresses, external addresses, `0.0.0.0`, wildcard
+binds, redirects, and proxy routing are rejected. Endpoint changes must come from explicit config;
+responses cannot redirect or otherwise replace the destination.
+
+v0.8 authentication is intentionally absent. No API key, bearer token, credential file, cookie, or
+environment credential is loaded. This is safe only under the loopback-only boundary. A future
+authentication design must keep all credential material out of reports, logs, errors, and persisted
+raw requests or responses.
+
+Planned requests use fixed JSON content type and contain only bounded `query`, `top_k`, optional
+`query_id`, and optional capability version. Query text remains bounded to 4,096 characters and
+top-k to 100; the encoded HTTP body will also have an explicit byte limit before transmission.
+Planned responses keep the existing ranked-result fields, default to a 256 KiB limit, have a hard
+1 MiB ceiling, contain no more than top-k items, reject unknown fields, and never include long body
+text or real paths.
+
+Transport failures are operational CLI errors, not benchmark quality results. Invalid endpoint,
+external host, refusal, timeout, status, content type, response size, response schema, or capability
+maps through a bounded `RetrievalAdapterError` and `BenchmarkError` to CLI error `3`. Valid retrieval
+continues to use PASS `0`, WARNING `1`, and FAIL `2` for evaluator outcomes.
+
 ## v0.7 Phase A-F Local RAG contract
 
 Phase A adds internal models and Protocols only. The current command continues to use Synthetic

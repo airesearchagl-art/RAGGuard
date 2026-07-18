@@ -1,5 +1,31 @@
 # RAGGuard Roadmap
 
+## In progress: RAG Benchmark Harness v0.8 secure Local RAG transport
+
+v0.8 defines and incrementally verifies a loopback-only HTTP transport without connecting to a real
+Local RAG system during the design phase. Synthetic retrieval remains the default, and every
+transport phase must preserve the existing adapter, evaluator, report, and exit-code boundaries.
+
+### Phase plan
+
+- Phase A: define endpoint validation and HTTP transport contracts.
+- Phase B: add fake loopback server contract tests with fixed synthetic responses.
+- Phase C: implement the bounded loopback HTTP client.
+- Phase D: integrate the transport with safe CLI and config selection.
+- Phase E: add synthetic end-to-end and transport security tests.
+- Phase F: finalize docs, CI coverage, and release notes.
+
+### Security constraints and non-goals
+
+- Allow only `127.0.0.1`, `::1`, or explicitly allowlisted names whose complete resolution set is
+  loopback; reject external, private-LAN, wildcard, unspecified, and changed destinations.
+- Disable redirects and proxy use. Validate the peer destination for every new connection to reduce
+  DNS rebinding and time-of-check/time-of-use risk.
+- Require bounded JSON requests and responses, connect/read/total timeouts, and safe error mapping.
+- Do not load API keys, bearer tokens, credential files, cookies, environment secrets, or real paths.
+- Do not implement real Local RAG, Hermes, LM Studio, filesystem retrieval, embeddings, vector
+  databases, LLM evaluation, external APIs, cloud services, external MCP, or real-document access.
+
 ## Completed: RAG Benchmark Harness v0.7 local connection contract
 
 v0.7 designs a local-only connection boundary before any Local RAG integration. Synthetic retrieval
