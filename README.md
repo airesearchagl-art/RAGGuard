@@ -4,9 +4,11 @@
 
 ## RAG Benchmark Harness v0.8 secure local transport design
 
-v0.8 designs a real Local RAG transport boundary before any communication is implemented. Phase A
-codes the endpoint, caller-supplied resolution proof, JSON request/response, size, and safe error
-contracts without performing DNS lookup or I/O. The first transport candidate is loopback HTTP.
+v0.8 designs a real Local RAG transport boundary before any production communication is implemented.
+Phase A codes the endpoint, caller-supplied resolution proof, JSON request/response, size, and safe
+error contracts without performing DNS lookup or I/O. Phase B verifies those contracts against a
+test-only fake loopback server with fixed synthetic responses. The first production transport
+candidate is loopback HTTP.
 Unix domain sockets and Windows named pipes remain future candidates. External hosts, private LAN
 targets, wildcard addresses, redirects, proxies, filesystem retrieval, and credential loading are
 excluded.
@@ -17,9 +19,11 @@ requests and responses, connect/read/total timeouts, no automatic retry, no conn
 a short-lived one-shot lifecycle with close after success or failure. Reports and logs retain only
 adapter name, bounded duration, result count, status, and safe error category.
 
-This is a design-only phase. No HTTP, socket, named-pipe, localhost, network, or filesystem access is
-added. Synthetic retrieval remains the default and `local-rag` remains limited to the existing
-no-I/O `in_memory` transport until later v0.8 phases are separately implemented and reviewed.
+No production HTTP client, DNS lookup, redirect handling, proxy use, or real Local RAG access is
+added. Phase B communication is confined to ephemeral `127.0.0.1` / `::1` test servers that always
+close after each test. Synthetic retrieval remains the default and `local-rag` remains limited to
+the existing no-I/O `in_memory` transport until later v0.8 phases are separately implemented and
+reviewed.
 
 ## RAG Benchmark Harness v0.7 local connection contract
 
