@@ -2,9 +2,10 @@
 
 ## v0.8 secure transport design status
 
-v0.8 currently defines a future loopback HTTP transport only. There is no HTTP, socket, named-pipe,
-localhost, network, or filesystem implementation in this design PR. Continue to use the Synthetic
-default or the existing synthetic-only `in_memory` local-rag path documented below.
+v0.8 Phase A provides endpoint, resolution-proof, request, response, size, and safe error models for
+a future loopback HTTP transport. These models perform no DNS lookup, HTTP, socket, named-pipe,
+localhost, network, or filesystem access. Continue to use the Synthetic default or the existing
+synthetic-only `in_memory` local-rag path documented below.
 
 Planned HTTP use will require an explicit local-rag selection and explicit safe endpoint config.
 Only `127.0.0.1`, `::1`, or a separately reviewed allowlisted name resolving exclusively to

@@ -6,6 +6,23 @@ v0.8 introduces a design boundary for a future real Local RAG transport. This se
 for later implementation phases, but this PR adds no communication, endpoint loading, filesystem
 access, or real Local RAG integration.
 
+### Phase A implementation status
+
+- Added a validated `LocalHTTPEndpoint` model for HTTP-only scheme, loopback literals or explicit
+  hostname allowlists, bounded port/path/timeouts, and bounded response size.
+- Added `LoopbackResolutionContract` so a later client must supply an immediately refreshed complete
+  resolution set and verified peer address; the model performs no DNS lookup.
+- Added deterministic bounded `HTTPRetrievalRequest` JSON serialization with fixed fields and safe
+  optional identifiers.
+- Added response status, content-type, byte-limit, JSON/schema, item-count, ranked-result, metadata,
+  and unknown-field validation before normalization to `LocalRetrievalResponse`.
+- Added the limit-plus-one read contract and bounded HTTP error categories without implementing a
+  reader or client.
+- Added contract tests for loopback IPv4/IPv6, explicit hostname allowlisting, unsafe endpoints,
+  mixed resolution, timeout and size limits, schema rejection, and sensitive-value non-disclosure.
+- Added no DNS lookup, HTTP client, socket connection, localhost traffic, redirect, proxy, or real
+  Local RAG integration.
+
 ### Transport selection and order
 
 1. Loopback HTTP is the first implementation candidate because its request, response, timeout, and
@@ -155,7 +172,7 @@ use real documents.
 
 ### v0.8 implementation phases
 
-- Phase A: endpoint and HTTP transport contract.
+- Phase A: endpoint and HTTP transport contract - completed.
 - Phase B: fake loopback server tests with fixed synthetic responses.
 - Phase C: bounded loopback HTTP client.
 - Phase D: CLI and safe config integration.
