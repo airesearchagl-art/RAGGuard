@@ -46,6 +46,21 @@
   default regression coverage.
 - Added a bounded `retrieval_adapter` identifier to existing report metadata and Markdown Inputs
   without changing top-level report keys or exposing config values, paths, credentials, or content.
+- Completed Phase F documentation, explicit local-rag synthetic E2E CI coverage, and v0.7.0 release
+  preparation.
+- Documented that local-rag remains `in_memory`-only, synthetic-only, and free of filesystem,
+  localhost, and network communication.
+- Documented the distinction between evaluation FAIL `2` and transport or configuration CLI error
+  `3`, plus the one-shot lifecycle and guaranteed close boundary.
+
+PR summary:
+
+- PR #31: Designed the v0.7 Local RAG connection contract and safety boundary.
+- PR #32: Added local retrieval configuration and transport contracts.
+- PR #33: Added the deterministic in-memory local retrieval transport.
+- PR #34: Integrated the local adapter with the in-memory transport lifecycle.
+- PR #35: Added the CLI selector and bounded safe JSON / YAML config loading.
+- PR #36: Added synthetic local-rag end-to-end tests and report safety coverage.
 
 ### v0.6 retrieval adapter interface design
 
