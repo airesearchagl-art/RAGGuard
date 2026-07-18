@@ -4,11 +4,17 @@ import argparse
 import sys
 from pathlib import Path
 
-from ragguard.benchmark import BenchmarkError, run_benchmark
+from ragguard.benchmark import DEFAULT_TOP_K, BenchmarkError, run_benchmark
 from ragguard.config_loader import ConfigError, load_rules_from_config
 from ragguard.detectors import RULES
 from ragguard.masked_document_checker import check_path, exit_code_for_status
 from ragguard.report import write_reports
+from ragguard.retrieval import (
+    InMemoryLocalRetrievalTransport,
+    LocalRAGRetrievalAdapter,
+    RetrievalAdapterError,
+    load_local_retrieval_config,
+)
 
 
 class RagguardArgumentParser(argparse.ArgumentParser):
@@ -46,6 +52,16 @@ def build_parser() -> argparse.ArgumentParser:
     benchmark.add_argument("--corpus", required=True, help="Synthetic benchmark corpus folder.")
     benchmark.add_argument("--queries", required=True, help="Synthetic benchmark queries JSONL file.")
     benchmark.add_argument("--output", required=True, help="Output folder for benchmark reports.")
+    benchmark.add_argument(
+        "--adapter",
+        choices=["synthetic", "local-rag"],
+        default="synthetic",
+        help="Retrieval adapter. Synthetic remains the default.",
+    )
+    benchmark.add_argument(
+        "--adapter-config",
+        help="Bounded JSON or YAML config required by the local-rag adapter.",
+    )
     benchmark.add_argument("--verbose", action="store_true", help="Print report paths.")
     return parser
 
@@ -76,12 +92,33 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "benchmark":
         try:
-            result, json_path, markdown_path = run_benchmark(
+            adapter_factory = None
+            top_k = DEFAULT_TOP_K
+            if args.adapter == "local-rag":
+                if not args.adapter_config:
+                    raise BenchmarkError("local-rag adapter requires a config file")
+                local_config = load_local_retrieval_config(Path(args.adapter_config))
+                top_k = local_config.default_top_k
+                adapter_factory = lambda _query: LocalRAGRetrievalAdapter(
+                    local_config,
+                    InMemoryLocalRetrievalTransport(),
+                )
+            elif args.adapter_config:
+                raise BenchmarkError("adapter config requires the local-rag adapter")
+            benchmark_args = (
                 Path(args.corpus),
                 Path(args.queries),
                 Path(args.output),
             )
-        except BenchmarkError as exc:
+            if adapter_factory is None:
+                result, json_path, markdown_path = run_benchmark(*benchmark_args)
+            else:
+                result, json_path, markdown_path = run_benchmark(
+                    *benchmark_args,
+                    retrieval_adapter_factory=adapter_factory,
+                    top_k=top_k,
+                )
+        except (BenchmarkError, RetrievalAdapterError) as exc:
             print(f"ragguard: benchmark error: {exc}", file=sys.stderr)
             return 3
         except Exception as exc:

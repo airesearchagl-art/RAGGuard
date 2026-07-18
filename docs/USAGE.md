@@ -1,6 +1,6 @@
 # Usage
 
-## v0.7 Phase A-C Local RAG contract
+## v0.7 Phase A-D Local RAG contract
 
 Phase A adds internal models and Protocols only. The current command continues to use Synthetic
 retrieval:
@@ -9,10 +9,32 @@ retrieval:
 python -m ragguard benchmark --corpus tests/fixtures/benchmark/corpus --queries tests/fixtures/benchmark/queries.jsonl --output outputs/benchmark
 ```
 
-A future adapter selector will keep `synthetic` as the default and require an explicit `local-rag`
-selection. Selecting local-rag without valid local-only configuration will return CLI error `3`.
-The selector, configuration loader, connection lifecycle, localhost transport, socket transport,
-and real retrieval are not implemented.
+The benchmark CLI keeps `synthetic` as the default. Phase D adds an explicit `local-rag` selector
+that requires a bounded JSON or YAML configuration file:
+
+```powershell
+python -m ragguard benchmark --corpus tests/fixtures/benchmark/corpus --queries tests/fixtures/benchmark/queries.jsonl --output outputs/local-benchmark --adapter local-rag --adapter-config local-rag.json
+```
+
+Minimal JSON configuration:
+
+```json
+{
+  "transport_type": "in_memory",
+  "timeout_seconds": 3.0,
+  "default_top_k": 5,
+  "response_size_limit": 262144,
+  "capabilities": {
+    "ranked_results": true,
+    "matched_keywords": false,
+    "filters": false
+  }
+}
+```
+
+Only `in_memory` is accepted. Missing configuration, invalid values, unsupported fields or
+transports, and unknown adapter values return CLI error `3`. A config supplied with the default
+Synthetic adapter is rejected instead of being silently ignored.
 
 The internal Phase A contract currently allows only `in_memory` as a transport type. It validates
 positive bounded timeout, top-k, and response-size values; boolean capability flags; bounded query
@@ -38,10 +60,10 @@ is one-shot: it validates the request, initializes the transport, checks health 
 retrieves and normalizes one response, and closes in a cleanup path. It releases config and transport
 references after success or failure. Unsupported transports are rejected before lifecycle execution.
 
-This internal integration is still not available from `python -m ragguard benchmark`. Synthetic
-retrieval remains the CLI default and only selectable behavior. Config loading, an adapter selector,
-filesystem access, localhost communication, network communication, and real Local RAG retrieval
-remain unimplemented.
+This integration is available from `python -m ragguard benchmark` only through explicit
+`--adapter local-rag`. Synthetic retrieval remains the CLI default. The local-rag option creates a
+fresh one-shot in-memory adapter for each query. Filesystem retrieval, localhost communication,
+network communication, credentials, and real Local RAG retrieval remain unimplemented.
 
 Future local configuration must never be included in benchmark reports. Query text, credentials,
 real paths, source bodies, and stack traces must also remain outside logs and reports. Contract tests

@@ -54,28 +54,38 @@ communication, filesystem retrieval, configuration loading, credentials, or a CL
 - Kept the adapter internal: no CLI selector, config loader, filesystem access, localhost access,
   network communication, or real Local RAG connection was added.
 
-### Configuration schema proposal
+### Phase D implementation status
+
+- Added `--adapter` with the allowlisted values `synthetic` and `local-rag`; Synthetic remains the
+  default and preserves its existing three-argument benchmark execution path.
+- Added `--adapter-config` for bounded UTF-8 JSON or YAML files. Local configuration accepts only
+  `transport_type`, timeout, default top-k, response-size limit, and capability flags.
+- Centralized value validation in `LocalRetrievalConfig` and `LocalRetrievalCapabilities`; the loader
+  rejects unsupported fields, formats, transports, booleans used as numbers, and oversized files.
+- Restricted local-rag construction to `InMemoryLocalRetrievalTransport` and creates a fresh one-shot
+  adapter for every benchmark query.
+- Kept file paths, rejected values, credentials, and parser exception details out of CLI errors and
+  reports.
+- Added no filesystem retrieval, localhost or network communication, real Local RAG connection,
+  credential loading, embeddings, vector database access, or LLM evaluation.
+
+### Configuration schema
 
 ```yaml
-adapter: local-rag
-transport:
-  kind: in_memory  # future: localhost_http, unix_socket, windows_named_pipe
-  endpoint: null
-timeout_ms: 3000
-top_k: 5
+transport_type: in_memory
+timeout_seconds: 3.0
+default_top_k: 5
+response_size_limit: 262144
 capabilities:
   ranked_results: true
   matched_keywords: false
   filters: false
 ```
 
-- `adapter` must identify `local-rag`; Synthetic remains the default when no selector is provided.
-- `transport.kind` is allowlisted. In-memory transport is implemented first; later transports must
-  remain local-only.
-- `endpoint` is transport-specific and must never appear in reports or logs. A future HTTP endpoint
-  must resolve to an explicit loopback address; redirects and non-loopback targets are rejected.
-- `timeout_ms` is required, positive, and bounded by implementation limits.
-- `top_k` is a positive bounded default that can be overridden by a validated request value.
+- The CLI selector identifies `local-rag`; Synthetic remains the default when no selector is provided.
+- `transport_type` is allowlisted and Phase D accepts only `in_memory`.
+- `timeout_seconds` is positive, finite, and bounded by implementation limits.
+- `default_top_k` and `response_size_limit` are positive bounded integers; booleans are rejected.
 - Capability flags are booleans negotiated before retrieval. Unsupported required capabilities fail
   before a query is sent.
 - Credentials are neither required nor loaded by the v0.7 contract. Configuration values are never
@@ -168,12 +178,12 @@ and body-bounded. Tests cover lifecycle ordering, request shape, response normal
 connection refusal, malformed responses, unsupported capabilities, cleanup, and secret/path
 non-disclosure. No real documents or external network are used.
 
-### Future CLI proposal
+### CLI selector
 
-- Add an explicit adapter selector in a later phase; `synthetic` remains the default.
+- `synthetic` remains the default and may be selected explicitly.
 - `local-rag` is used only when explicitly requested with valid safe configuration.
 - Missing or invalid local configuration returns CLI error `3` before retrieval.
-- v0.7 design work does not add parser options, configuration loading, or adapter construction.
+- Unknown adapters and a local config supplied to Synthetic also return CLI error `3`.
 
 ### Observability
 
@@ -186,7 +196,7 @@ real source paths, document content, response bodies, and stack traces are never
 - Phase A: configuration and transport contract.
 - Phase B: in-memory or fake transport.
 - Phase C: local adapter client skeleton.
-- Phase D: CLI selector and safe configuration loading.
+- Phase D: CLI selector and safe configuration loading - completed.
 - Phase E: synthetic end-to-end connection tests.
 - Phase F: docs, CI, and release preparation.
 
