@@ -5,8 +5,11 @@ import math
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Protocol, cast, runtime_checkable
+
+import yaml
 
 
 class RetrievalAdapterError(ValueError):
@@ -29,7 +32,20 @@ MAX_LOCAL_TITLE_LENGTH = 512
 MAX_LOCAL_KEYWORDS = 100
 MAX_LOCAL_KEYWORD_LENGTH = 128
 MAX_LOCAL_METADATA_VALUE_LENGTH = 128
+MAX_LOCAL_CONFIG_SIZE = 65_536
 _SAFE_IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*\Z")
+_LOCAL_CONFIG_KEYS = frozenset(
+    {
+        "transport_type",
+        "timeout_seconds",
+        "default_top_k",
+        "response_size_limit",
+        "capabilities",
+    }
+)
+_LOCAL_CAPABILITY_KEYS = frozenset(
+    {"ranked_results", "matched_keywords", "filters"}
+)
 
 
 @dataclass(frozen=True)
@@ -84,6 +100,59 @@ class LocalRetrievalConfig:
             raise RetrievalAdapterError("capabilities must use LocalRetrievalCapabilities")
         if type(self.configured) is not bool:
             raise RetrievalAdapterError("configured must be boolean")
+
+
+def load_local_retrieval_config(path: Path) -> LocalRetrievalConfig:
+    """Load a bounded JSON or YAML config without exposing its path or values."""
+    try:
+        if not path.is_file() or path.stat().st_size > MAX_LOCAL_CONFIG_SIZE:
+            raise RetrievalAdapterError("local retrieval config is unavailable or too large")
+        raw_text = path.read_text(encoding="utf-8")
+    except RetrievalAdapterError:
+        raise
+    except (OSError, UnicodeError) as exc:
+        raise RetrievalAdapterError("local retrieval config could not be read") from exc
+
+    suffix = path.suffix.lower()
+    try:
+        if suffix == ".json":
+            raw_config = json.loads(raw_text)
+        elif suffix in {".yaml", ".yml"}:
+            raw_config = yaml.safe_load(raw_text)
+        else:
+            raise RetrievalAdapterError("local retrieval config must be JSON or YAML")
+    except RetrievalAdapterError:
+        raise
+    except (json.JSONDecodeError, yaml.YAMLError) as exc:
+        raise RetrievalAdapterError("local retrieval config is invalid") from exc
+
+    if not isinstance(raw_config, Mapping):
+        raise RetrievalAdapterError("local retrieval config must be a mapping")
+    config_values = dict(raw_config)
+    if not set(config_values).issubset(_LOCAL_CONFIG_KEYS):
+        raise RetrievalAdapterError("local retrieval config contains unsupported fields")
+    if "transport_type" not in config_values:
+        raise RetrievalAdapterError("local retrieval config requires transport_type")
+
+    raw_capabilities = config_values.get("capabilities", {})
+    if not isinstance(raw_capabilities, Mapping):
+        raise RetrievalAdapterError("local retrieval capabilities must be a mapping")
+    capability_values = dict(raw_capabilities)
+    if not set(capability_values).issubset(_LOCAL_CAPABILITY_KEYS):
+        raise RetrievalAdapterError("local retrieval capabilities contain unsupported fields")
+
+    try:
+        capabilities = LocalRetrievalCapabilities(**capability_values)
+        return LocalRetrievalConfig(
+            transport_type=config_values["transport_type"],
+            timeout_seconds=config_values.get("timeout_seconds", 3.0),
+            default_top_k=config_values.get("default_top_k", 5),
+            response_size_limit=config_values.get("response_size_limit", 262_144),
+            capabilities=capabilities,
+            configured=True,
+        )
+    except TypeError as exc:
+        raise RetrievalAdapterError("local retrieval config has invalid field types") from exc
 
 
 @dataclass(frozen=True)

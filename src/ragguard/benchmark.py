@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -47,13 +48,25 @@ class BenchmarkQuery:
     unsafe_or_unknown_expected: bool
 
 
-def run_benchmark(corpus_dir: Path, queries_path: Path, output_dir: Path) -> tuple[dict, Path, Path]:
+def run_benchmark(
+    corpus_dir: Path,
+    queries_path: Path,
+    output_dir: Path,
+    retrieval_adapter_factory: Callable[[BenchmarkQuery], RetrievalAdapter] | None = None,
+    top_k: int = DEFAULT_TOP_K,
+) -> tuple[dict, Path, Path]:
     documents = load_corpus(corpus_dir)
     queries = load_queries(queries_path)
     validate_query_sources(queries, documents)
 
-    retrieval_adapter = SyntheticRetrievalAdapter(documents)
-    result = build_placeholder_result(documents, queries, retrieval_adapter)
+    retrieval_adapter = None if retrieval_adapter_factory else SyntheticRetrievalAdapter(documents)
+    result = build_placeholder_result(
+        documents,
+        queries,
+        retrieval_adapter,
+        retrieval_adapter_factory=retrieval_adapter_factory,
+        top_k=top_k,
+    )
     json_path, markdown_path = write_benchmark_reports(result, output_dir)
     return result, json_path, markdown_path
 
@@ -175,18 +188,27 @@ def build_placeholder_result(
     documents: list[BenchmarkDocument],
     queries: list[BenchmarkQuery],
     retrieval_adapter: RetrievalAdapter | None = None,
+    *,
+    retrieval_adapter_factory: Callable[[BenchmarkQuery], RetrievalAdapter] | None = None,
+    top_k: int = DEFAULT_TOP_K,
 ) -> dict:
+    if retrieval_adapter is not None and retrieval_adapter_factory is not None:
+        raise BenchmarkError("Only one retrieval adapter source may be configured")
     adapter = retrieval_adapter or SyntheticRetrievalAdapter(documents)
+    query_adapter = adapter
     try:
-        per_query_results = [
-            build_per_query_result(
-                query,
-                retrieve_and_validate(adapter, query, DEFAULT_TOP_K),
+        per_query_results = []
+        for query in queries:
+            query_adapter = retrieval_adapter_factory(query) if retrieval_adapter_factory else adapter
+            per_query_results.append(
+                build_per_query_result(
+                    query,
+                    retrieve_and_validate(query_adapter, query, top_k),
+                    top_k=top_k,
+                )
             )
-            for query in queries
-        ]
     except RetrievalAdapterError as exc:
-        adapter_name = getattr(adapter, "name", "unknown")
+        adapter_name = getattr(query_adapter, "name", "unknown")
         raise BenchmarkError(f"Invalid retrieval result from adapter {adapter_name}: {exc}") from exc
     summary = build_benchmark_summary(len(documents), per_query_results)
     corpus_items = [
@@ -217,7 +239,7 @@ def build_placeholder_result(
         "metadata": {
             "schema_version": 1,
             "phase": "v0.5-phase-c",
-            "top_k": DEFAULT_TOP_K,
+            "top_k": top_k,
             "uses_real_rag_connection": False,
             "uses_llm_evaluation": False,
             "uses_external_api": False,
@@ -225,9 +247,14 @@ def build_placeholder_result(
     }
 
 
-def build_per_query_result(query: BenchmarkQuery, ranked_results: list[RankedResult]) -> dict:
+def build_per_query_result(
+    query: BenchmarkQuery,
+    ranked_results: list[RankedResult],
+    *,
+    top_k: int = DEFAULT_TOP_K,
+) -> dict:
     ranked_result_dicts = [ranked_result_to_dict(result) for result in ranked_results]
-    top_k_results = ranked_results[:DEFAULT_TOP_K]
+    top_k_results = ranked_results[:top_k]
     top_k_ids = [result.document_id for result in top_k_results]
     matched_expected_source_ids = [
         source_id for source_id in query.expected_source_ids if source_id in top_k_ids
@@ -238,7 +265,11 @@ def build_per_query_result(query: BenchmarkQuery, ranked_results: list[RankedRes
         if query.expected_source_ids
         else None
     )
-    matched_keywords, missing_keywords = evaluate_expected_keywords(query.expected_keywords, top_k_results)
+    matched_keywords, missing_keywords = evaluate_expected_keywords(
+        query.expected_keywords,
+        top_k_results,
+        top_k=top_k,
+    )
     keyword_coverage_rate = rate(len(matched_keywords), len(query.expected_keywords))
     no_result_pass = (not ranked_results) if query.no_result_expected else None
     unsafe_or_unknown_pass = (not ranked_results) if query.unsafe_or_unknown_expected else None
@@ -316,13 +347,15 @@ def ranked_result_to_dict(result: RankedResult) -> dict[str, Any]:
 def evaluate_expected_keywords(
     expected_keywords: list[str],
     ranked_results: list[RankedResult],
+    *,
+    top_k: int = DEFAULT_TOP_K,
 ) -> tuple[list[str], list[str]]:
     if not expected_keywords:
         return [], []
 
     top_k_terms = {
         keyword
-        for result in ranked_results[:DEFAULT_TOP_K]
+        for result in ranked_results[:top_k]
         for keyword in result.matched_keywords
     }
     matched: list[str] = []

@@ -32,6 +32,13 @@
   failure handling through existing benchmark and CLI error `3` boundaries.
 - Kept Synthetic retrieval as the only CLI behavior and added no config loader, adapter selector,
   filesystem access, localhost/network communication, or real Local RAG connection.
+- Completed Phase D with an allowlisted `synthetic` / `local-rag` benchmark CLI selector.
+- Added bounded JSON / YAML local config loading for the in-memory transport, timeout, default top-k,
+  response-size limit, and capability flags.
+- Added per-query one-shot local adapter construction while preserving Synthetic as the default and
+  retaining benchmark report keys and exit-code semantics.
+- Kept local-rag limited to deterministic in-memory responses with no filesystem retrieval,
+  localhost/network communication, credentials, or real Local RAG connection.
 
 ### v0.6 retrieval adapter interface design
 

@@ -33,6 +33,196 @@ def test_benchmark_help_is_available(capsys: pytest.CaptureFixture[str]) -> None
     assert "benchmark" in captured.out
     assert "--corpus" in captured.out
     assert "--queries" in captured.out
+    assert "--adapter" in captured.out
+    assert "--adapter-config" in captured.out
+
+
+def write_local_adapter_config(path: Path, **overrides: object) -> Path:
+    config: dict[str, object] = {
+        "transport_type": "in_memory",
+        "timeout_seconds": 3.0,
+        "default_top_k": 5,
+        "response_size_limit": 262144,
+        "capabilities": {
+            "ranked_results": True,
+            "matched_keywords": False,
+            "filters": False,
+        },
+    }
+    config.update(overrides)
+    path.write_text(json.dumps(config), encoding="utf-8")
+    return path
+
+
+def benchmark_cli_args(output: Path) -> list[str]:
+    return [
+        "benchmark",
+        "--corpus",
+        str(BENCHMARK_FIXTURES / "corpus"),
+        "--queries",
+        str(BENCHMARK_FIXTURES / "queries.jsonl"),
+        "--output",
+        str(output),
+    ]
+
+
+def test_benchmark_selector_defaults_to_synthetic(tmp_path: Path) -> None:
+    implicit_output = tmp_path / "implicit"
+    explicit_output = tmp_path / "explicit"
+
+    implicit_code = main(benchmark_cli_args(implicit_output))
+    explicit_code = main(benchmark_cli_args(explicit_output) + ["--adapter", "synthetic"])
+
+    assert implicit_code == explicit_code == 0
+    assert (implicit_output / "benchmark_report.json").read_bytes() == (
+        explicit_output / "benchmark_report.json"
+    ).read_bytes()
+
+
+def test_benchmark_local_rag_requires_config(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    code = main(benchmark_cli_args(tmp_path / "output") + ["--adapter", "local-rag"])
+
+    assert code == 3
+    assert "requires a config file" in capsys.readouterr().err
+
+
+def test_benchmark_local_rag_valid_config_is_deterministic(tmp_path: Path) -> None:
+    config_path = write_local_adapter_config(tmp_path / "local.json")
+    first_output = tmp_path / "first"
+    second_output = tmp_path / "second"
+    local_args = ["--adapter", "local-rag", "--adapter-config", str(config_path)]
+
+    first_code = main(benchmark_cli_args(first_output) + local_args)
+    second_code = main(benchmark_cli_args(second_output) + local_args)
+
+    assert first_code == second_code == 2
+    assert (first_output / "benchmark_report.json").read_bytes() == (
+        second_output / "benchmark_report.json"
+    ).read_bytes()
+    report = json.loads((first_output / "benchmark_report.json").read_text(encoding="utf-8"))
+    assert report["metadata"]["top_k"] == 5
+    assert report["per_query_results"][0]["ranked_results"][0]["document_id"] == (
+        "synthetic-local-doc-001"
+    )
+
+
+def test_benchmark_local_rag_accepts_bounded_yaml_config(tmp_path: Path) -> None:
+    config_path = tmp_path / "local.yaml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "transport_type: in_memory",
+                "timeout_seconds: 3.0",
+                "default_top_k: 1",
+                "response_size_limit: 262144",
+                "capabilities:",
+                "  ranked_results: true",
+                "  matched_keywords: false",
+                "  filters: false",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    code = main(
+        benchmark_cli_args(tmp_path / "output")
+        + ["--adapter", "local-rag", "--adapter-config", str(config_path)]
+    )
+
+    report = json.loads(
+        (tmp_path / "output" / "benchmark_report.json").read_text(encoding="utf-8")
+    )
+    assert code == 2
+    assert report["metadata"]["top_k"] == 1
+
+
+def test_benchmark_rejects_unknown_adapter(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        main(benchmark_cli_args(Path("synthetic-output")) + ["--adapter", "unknown"])
+
+    assert exc_info.value.code == 3
+    assert "invalid choice" in capsys.readouterr().err
+
+
+def test_benchmark_rejects_config_for_synthetic(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    config_path = write_local_adapter_config(tmp_path / "local.json")
+
+    code = main(benchmark_cli_args(tmp_path / "output") + ["--adapter-config", str(config_path)])
+
+    assert code == 3
+    assert "requires the local-rag adapter" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    ("overrides", "expected_message"),
+    [
+        ({"transport_type": "http"}, "unsupported local transport type"),
+        ({"timeout_seconds": 0}, "timeout_seconds"),
+        ({"default_top_k": True}, "default_top_k"),
+        ({"response_size_limit": -1}, "response_size_limit"),
+    ],
+)
+def test_benchmark_local_rag_rejects_invalid_config(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    overrides: dict[str, object],
+    expected_message: str,
+) -> None:
+    config_path = write_local_adapter_config(tmp_path / "invalid.json", **overrides)
+
+    code = main(
+        benchmark_cli_args(tmp_path / "output")
+        + ["--adapter", "local-rag", "--adapter-config", str(config_path)]
+    )
+
+    assert code == 3
+    assert expected_message in capsys.readouterr().err
+
+
+def test_benchmark_local_config_error_does_not_expose_secret_or_path(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    secret = "synthetic-secret-value"
+    config_path = tmp_path / "private-local-path.json"
+    config_path.write_text(
+        json.dumps({"transport_type": "in_memory", "credential": secret}),
+        encoding="utf-8",
+    )
+
+    code = main(
+        benchmark_cli_args(tmp_path / "output")
+        + ["--adapter", "local-rag", "--adapter-config", str(config_path)]
+    )
+
+    error = capsys.readouterr().err
+    assert code == 3
+    assert "unsupported fields" in error
+    assert secret not in error
+    assert str(config_path) not in error
+
+
+def test_benchmark_missing_local_config_does_not_expose_path(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    missing_path = tmp_path / "private-missing-config.json"
+
+    code = main(
+        benchmark_cli_args(tmp_path / "output")
+        + ["--adapter", "local-rag", "--adapter-config", str(missing_path)]
+    )
+
+    error = capsys.readouterr().err
+    assert code == 3
+    assert "unavailable" in error
+    assert str(missing_path) not in error
 
 
 def test_benchmark_adapter_error_reaches_cli_error_boundary(

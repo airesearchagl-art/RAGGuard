@@ -9,29 +9,35 @@ Local RAG access. It adds a validated `LocalRetrievalConfig`, bounded request an
 a runtime-checkable `LocalRetrievalTransport` Protocol, and a safe normalization boundary to the
 existing `RankedResult` model. Phase B adds a deterministic `InMemoryLocalRetrievalTransport` for
 contract tests only. Phase C integrates that transport with the internal
-`LocalRAGRetrievalAdapter` client skeleton.
+`LocalRAGRetrievalAdapter` client skeleton. Phase D adds an explicit CLI selector and bounded local
+configuration loading.
 
 Only `in_memory` is allowlisted at this phase. Timeout, top-k, response size, capability flags,
 safe identifiers, metadata keys, and response ordering are validated without retaining or reporting
-rejected values in errors. The non-operational adapter does not retain config or transport objects,
-and reports receive normalized safe fields only. No operational transport, CLI selector,
-configuration loader, filesystem retrieval, localhost communication, network access, or credential
-loading is included; the Phase B transport is an in-memory contract-test fake only.
+rejected values in errors. The local adapter does not retain config or transport objects, and
+reports receive normalized safe fields only. Only JSON or YAML configuration and the no-I/O
+`in_memory` transport are supported. Filesystem retrieval, localhost communication, network access,
+and credential loading remain excluded.
 
 The in-memory transport performs no I/O. It uses fixed synthetic responses, enforces explicit
 `created`, `initialized`, and `closed` states, supports bounded error injection, and passes responses
-through the Phase A validation and normalization boundary. It is not selectable from the CLI and
-does not make a real Local RAG connection operational.
+through the Phase A validation and normalization boundary. It is selectable only through explicit
+`--adapter local-rag --adapter-config <json-or-yaml>` arguments and does not make a real Local RAG
+connection operational.
 
 The Phase C local adapter is an internal one-shot client. It runs initialize, health, capability,
 retrieve, and close in order; closes after success or failure; then releases config and transport
 references. Only the in-memory transport is accepted. Raw transport failures are mapped to bounded
 retrieval errors before benchmark and CLI error handling.
 
-Synthetic retrieval remains the only operational adapter. A future local adapter must be selected
-explicitly, use only an approved local transport, normalize output to `RankedResult`, and keep query
-text, credentials, configuration values, real paths, long content, and stack traces out of reports
-and operational logs.
+Synthetic retrieval remains the default. The Phase D `local-rag` path is a deterministic in-memory
+integration path only. It must be selected explicitly, uses a fresh one-shot adapter per query, and
+keeps query text, credentials, configuration values, real paths, long content, and stack traces out
+of reports and operational logs.
+
+```powershell
+python -m ragguard benchmark --corpus tests/fixtures/benchmark/corpus --queries tests/fixtures/benchmark/queries.jsonl --output outputs/local-benchmark --adapter local-rag --adapter-config local-rag.json
+```
 
 ## RAG Benchmark Harness v0.6 retrieval adapter boundary
 
