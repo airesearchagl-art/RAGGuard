@@ -12,7 +12,7 @@ synthetic end-to-end tests are implemented and reviewed.
 - Phase B: implement an in-memory or fake transport with fixed synthetic responses - completed.
 - Phase C: implement a local adapter client skeleton against the transport abstraction - completed.
 - Phase D: add an explicit CLI selector and safe configuration loading - completed.
-- Phase E: add synthetic end-to-end connection and error contract tests.
+- Phase E: add synthetic end-to-end connection and error contract tests - completed.
 - Phase F: finalize docs, CI coverage, and release notes.
 
 ### Constraints and non-goals

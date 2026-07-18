@@ -39,6 +39,13 @@
   retaining benchmark report keys and exit-code semantics.
 - Kept local-rag limited to deterministic in-memory responses with no filesystem retrieval,
   localhost/network communication, credentials, or real Local RAG connection.
+- Completed Phase E with synthetic end-to-end tests from CLI and safe config loading through local
+  adapter lifecycle, in-memory transport, evaluation, JSON / Markdown reports, and exit codes.
+- Added JSON and YAML PASS coverage, WARNING / FAIL evaluation coverage, CLI error coverage, lifecycle
+  cleanup assertions, unsafe config rejection, invalid/oversized response checks, and Synthetic
+  default regression coverage.
+- Added a bounded `retrieval_adapter` identifier to existing report metadata and Markdown Inputs
+  without changing top-level report keys or exposing config values, paths, credentials, or content.
 
 ### v0.6 retrieval adapter interface design
 
