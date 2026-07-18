@@ -69,6 +69,24 @@ communication, filesystem retrieval, configuration loading, credentials, or a CL
 - Added no filesystem retrieval, localhost or network communication, real Local RAG connection,
   credential loading, embeddings, vector database access, or LLM evaluation.
 
+### Phase E implementation status
+
+- Added end-to-end tests for CLI selection, bounded JSON and YAML config loading, per-query local
+  adapter construction, in-memory lifecycle, evaluator output, JSON / Markdown reports, and exit
+  codes `0`, `1`, `2`, and `3`.
+- Fixed deterministic PASS, WARNING, and FAIL responses without changing benchmark fixtures or using
+  filesystem retrieval, localhost, network communication, or real RAG data.
+- Verified initialize, health check, capability check, retrieve, and close order for every successful
+  query and verified close on invalid and oversized response failures.
+- Covered missing config, non-mapping roots, unknown fields, unsupported transports, invalid bounded
+  values, unsafe YAML tags, oversized config files, and invalid or oversized transport responses.
+- Added the safe adapter name to existing report metadata and Markdown Inputs while keeping all
+  top-level report keys unchanged.
+- Verified config paths, timeout and response-size values, credentials, raw responses, exception
+  details, and long corpus content are absent from reports and bounded errors. Effective top-k
+  remains visible as existing evaluator metadata.
+- Preserved Synthetic as the default and retained its fixture result, report shape, and exit code.
+
 ### Configuration schema
 
 ```yaml
@@ -197,7 +215,7 @@ real source paths, document content, response bodies, and stack traces are never
 - Phase B: in-memory or fake transport.
 - Phase C: local adapter client skeleton.
 - Phase D: CLI selector and safe configuration loading - completed.
-- Phase E: synthetic end-to-end connection tests.
+- Phase E: synthetic end-to-end connection tests - completed.
 - Phase F: docs, CI, and release preparation.
 
 ### Non-goals

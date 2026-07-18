@@ -239,6 +239,7 @@ def build_placeholder_result(
         "metadata": {
             "schema_version": 1,
             "phase": "v0.5-phase-c",
+            "retrieval_adapter": getattr(query_adapter, "name", "unknown"),
             "top_k": top_k,
             "uses_real_rag_connection": False,
             "uses_llm_evaluation": False,
@@ -529,6 +530,7 @@ def render_benchmark_markdown(result: dict) -> str:
         "",
         f"- Schema version: {metadata.get('schema_version', 'unknown')}",
         f"- Phase: {metadata.get('phase', 'unknown')}",
+        f"- Retrieval adapter: {metadata.get('retrieval_adapter', 'unknown')}",
         f"- Top-k: {metadata.get('top_k', 'unknown')}",
         f"- Real RAG connection: {metadata.get('uses_real_rag_connection', False)}",
         f"- LLM evaluation: {metadata.get('uses_llm_evaluation', False)}",

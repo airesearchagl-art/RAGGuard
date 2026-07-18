@@ -36,6 +36,15 @@ Only `in_memory` is accepted. Missing configuration, invalid values, unsupported
 transports, and unknown adapter values return CLI error `3`. A config supplied with the default
 Synthetic adapter is rejected instead of being silently ignored.
 
+Phase E end-to-end tests cover the full bounded path from CLI selection through config loading,
+one-shot adapter and in-memory transport lifecycle, benchmark evaluation, report generation, and
+process exit code. JSON and YAML configs are covered. Local synthetic responses exercise PASS `0`,
+WARNING `1`, FAIL `2`, and CLI error `3`; Synthetic remains the default and its fixture remains PASS.
+
+The JSON `metadata.retrieval_adapter` field and Markdown Inputs identify `synthetic` or `local-rag`.
+No config path, timeout, response-size setting, credential, raw response, or long corpus content is
+added to reports. The effective top-k remains visible as existing benchmark evaluation metadata.
+
 The internal Phase A contract currently allows only `in_memory` as a transport type. It validates
 positive bounded timeout, top-k, and response-size values; boolean capability flags; bounded query
 requests; deterministic ranked responses; safe source identifiers; and allowlisted metadata.

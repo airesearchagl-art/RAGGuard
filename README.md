@@ -10,7 +10,7 @@ a runtime-checkable `LocalRetrievalTransport` Protocol, and a safe normalization
 existing `RankedResult` model. Phase B adds a deterministic `InMemoryLocalRetrievalTransport` for
 contract tests only. Phase C integrates that transport with the internal
 `LocalRAGRetrievalAdapter` client skeleton. Phase D adds an explicit CLI selector and bounded local
-configuration loading.
+configuration loading. Phase E fixes the complete synthetic local-rag path in end-to-end tests.
 
 Only `in_memory` is allowlisted at this phase. Timeout, top-k, response size, capability flags,
 safe identifiers, metadata keys, and response ordering are validated without retaining or reporting
@@ -34,6 +34,13 @@ Synthetic retrieval remains the default. The Phase D `local-rag` path is a deter
 integration path only. It must be selected explicitly, uses a fresh one-shot adapter per query, and
 keeps query text, credentials, configuration values, real paths, long content, and stack traces out
 of reports and operational logs.
+
+Phase E covers JSON and YAML config loading, PASS / WARNING / FAIL / CLI error outcomes,
+deterministic ranked results, adapter lifecycle cleanup, safe report output, invalid and oversized
+responses, and Synthetic-default regression. Reports identify only the safe adapter name in existing
+metadata and Markdown Inputs; they do not include config paths, timeout or response-size values,
+credentials, raw responses, or long corpus content. The effective top-k remains visible as existing
+benchmark evaluation metadata.
 
 ```powershell
 python -m ragguard benchmark --corpus tests/fixtures/benchmark/corpus --queries tests/fixtures/benchmark/queries.jsonl --output outputs/local-benchmark --adapter local-rag --adapter-config local-rag.json
