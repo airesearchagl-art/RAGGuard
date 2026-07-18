@@ -19,6 +19,12 @@
 - Planned fake loopback security tests before any real Local RAG connection or transport integration.
 - Kept this change documentation-only with no localhost, network, socket, named-pipe, filesystem, or
   real-document access.
+- Completed Phase A with loopback endpoint, caller-supplied resolution proof, bounded JSON request,
+  bounded ranked response, limit-plus-one, and safe HTTP error contracts.
+- Added contract tests for endpoint allowlisting, mixed resolution, timeouts, request/response size,
+  unknown fields, content type, status, item count, and secret/path non-disclosure.
+- Added no DNS lookup, HTTP client, socket connection, localhost traffic, redirect, proxy, or real
+  Local RAG connection.
 
 ### v0.7 Local RAG connection contract design
 

@@ -4,10 +4,12 @@
 
 ## RAG Benchmark Harness v0.8 secure local transport design
 
-v0.8 designs a real Local RAG transport boundary before any communication is implemented. The
-first transport candidate is loopback HTTP. Unix domain sockets and Windows named pipes remain
-future candidates. External hosts, private LAN targets, wildcard addresses, redirects, proxies,
-filesystem retrieval, and credential loading are excluded.
+v0.8 designs a real Local RAG transport boundary before any communication is implemented. Phase A
+codes the endpoint, caller-supplied resolution proof, JSON request/response, size, and safe error
+contracts without performing DNS lookup or I/O. The first transport candidate is loopback HTTP.
+Unix domain sockets and Windows named pipes remain future candidates. External hosts, private LAN
+targets, wildcard addresses, redirects, proxies, filesystem retrieval, and credential loading are
+excluded.
 
 The HTTP contract permits only validated loopback destinations (`127.0.0.1`, `::1`, or an explicit
 allowlist whose resolved addresses are all loopback). It requires fixed JSON content types, bounded
