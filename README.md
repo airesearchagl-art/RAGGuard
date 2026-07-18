@@ -11,6 +11,7 @@ existing `RankedResult` model. Phase B adds a deterministic `InMemoryLocalRetrie
 contract tests only. Phase C integrates that transport with the internal
 `LocalRAGRetrievalAdapter` client skeleton. Phase D adds an explicit CLI selector and bounded local
 configuration loading. Phase E fixes the complete synthetic local-rag path in end-to-end tests.
+Phase F completes the documentation, explicit CI coverage, and v0.7.0 release preparation.
 
 Only `in_memory` is allowlisted at this phase. Timeout, top-k, response size, capability flags,
 safe identifiers, metadata keys, and response ordering are validated without retaining or reporting
@@ -42,9 +43,35 @@ metadata and Markdown Inputs; they do not include config paths, timeout or respo
 credentials, raw responses, or long corpus content. The effective top-k remains visible as existing
 benchmark evaluation metadata.
 
+v0.7 Phase A-F now provides:
+
+- validated `LocalRetrievalConfig` and `LocalRetrievalTransport` contracts
+- deterministic `InMemoryLocalRetrievalTransport` with no filesystem or network I/O
+- one-shot `LocalRAGRetrievalAdapter` lifecycle integration with guaranteed cleanup
+- `--adapter synthetic|local-rag` and bounded `--adapter-config` JSON / YAML loading
+- safe JSON / YAML parsing, validation, and error mapping to CLI error `3`
+- synthetic end-to-end coverage for PASS `0`, WARNING `1`, FAIL `2`, and CLI error `3`
+- explicit CI coverage for both the Synthetic default and local-rag in-memory path
+
+The `local-rag` selector is synthetic-only and limited to `in_memory`. It is not a production Local
+RAG connector and performs no filesystem retrieval, localhost access, or network communication.
+Config values, credentials, real paths, raw responses, and long content are not reported.
+
 ```powershell
 python -m ragguard benchmark --corpus tests/fixtures/benchmark/corpus --queries tests/fixtures/benchmark/queries.jsonl --output outputs/local-benchmark --adapter local-rag --adapter-config local-rag.json
 ```
+
+### v0.7.0 release checklist
+
+- Python 3.11 and 3.12 test jobs pass.
+- Synthetic benchmark default execution returns PASS `0`.
+- Local-rag JSON and YAML synthetic E2E cases pass.
+- PASS `0`, WARNING `1`, FAIL `2`, and CLI error `3` remain stable.
+- Unsafe YAML, oversized config, invalid response, lifecycle, and close boundaries pass.
+- Reports expose only the safe `retrieval_adapter` identifier and existing bounded fields.
+- Real Local RAG transports, filesystem retrieval, localhost/network communication, Hermes,
+  LM Studio, embeddings, vector databases, LLM evaluation, external APIs, cloud, and external MCP
+  remain unimplemented.
 
 ## RAG Benchmark Harness v0.6 retrieval adapter boundary
 

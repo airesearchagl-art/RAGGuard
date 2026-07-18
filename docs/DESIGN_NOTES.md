@@ -211,12 +211,31 @@ real source paths, document content, response bodies, and stack traces are never
 
 ### Implementation phases
 
-- Phase A: configuration and transport contract.
-- Phase B: in-memory or fake transport.
-- Phase C: local adapter client skeleton.
+- Phase A: configuration and transport contract - completed.
+- Phase B: in-memory or fake transport - completed.
+- Phase C: local adapter client skeleton - completed.
 - Phase D: CLI selector and safe configuration loading - completed.
 - Phase E: synthetic end-to-end connection tests - completed.
-- Phase F: docs, CI, and release preparation.
+- Phase F: docs, CI, and release preparation - completed.
+
+### v0.7 completed responsibility boundary
+
+- Config loading parses bounded JSON or YAML and delegates field validation to
+  `LocalRetrievalConfig`; it never reports rejected values or config paths.
+- The transport owns initialize, health, capability, retrieve, and close operations only.
+- `LocalRAGRetrievalAdapter` is a one-shot orchestrator that validates requests and responses,
+  guarantees close after success or failure, and releases config and transport references.
+- The evaluator owns hit@k, source match, keyword coverage, no-result, unsafe-or-unknown, reports,
+  and PASS / WARNING / FAIL decisions.
+- Safe failures are normalized through `RetrievalAdapterError`, `BenchmarkError`, and CLI error `3`.
+- Reports identify the selected path only through the bounded `retrieval_adapter` value and do not
+  expose config values, credentials, real paths, raw responses, stack traces, or long content.
+
+### v0.7.0 release boundary
+
+The release covers the no-I/O `in_memory` synthetic path only. Real Local RAG transport, HTTP,
+socket, named pipe, filesystem retrieval, Hermes, LM Studio, embedding, vector database, LLM
+evaluation, external API, cloud, and external MCP integrations remain unimplemented.
 
 ### Non-goals
 

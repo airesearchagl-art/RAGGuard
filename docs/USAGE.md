@@ -1,6 +1,6 @@
 # Usage
 
-## v0.7 Phase A-D Local RAG contract
+## v0.7 Phase A-F Local RAG contract
 
 Phase A adds internal models and Protocols only. The current command continues to use Synthetic
 retrieval:
@@ -44,6 +44,20 @@ WARNING `1`, FAIL `2`, and CLI error `3`; Synthetic remains the default and its 
 The JSON `metadata.retrieval_adapter` field and Markdown Inputs identify `synthetic` or `local-rag`.
 No config path, timeout, response-size setting, credential, raw response, or long corpus content is
 added to reports. The effective top-k remains visible as existing benchmark evaluation metadata.
+
+### Exit-code interpretation
+
+- PASS `0`, WARNING `1`, and FAIL `2` describe benchmark evaluation outcomes from valid bounded
+  synthetic retrieval results.
+- CLI error `3` describes adapter selection, config parsing or validation, lifecycle, transport,
+  or response-contract failure. It is not a retrieval-quality FAIL.
+- A local-rag evaluation FAIL therefore means the in-memory transport completed successfully but
+  the synthetic result missed the benchmark expectation. A transport failure returns CLI error `3`
+  and does not produce a normal evaluation result.
+
+The only usable v0.7 local-rag transport is `in_memory`. It is synthetic-only and performs no
+filesystem retrieval, localhost access, network communication, credential loading, or real Local
+RAG access. JSON and YAML are loaded through bounded safe parsing and validated before adapter use.
 
 The internal Phase A contract currently allows only `in_memory` as a transport type. It validates
 positive bounded timeout, top-k, and response-size values; boolean capability flags; bounded query

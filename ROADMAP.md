@@ -1,10 +1,10 @@
 # RAGGuard Roadmap
 
-## In progress: RAG Benchmark Harness v0.7 local connection contract
+## Completed: RAG Benchmark Harness v0.7 local connection contract
 
 v0.7 designs a local-only connection boundary before any Local RAG integration. Synthetic retrieval
-remains the default and only operational adapter until the contract, safe configuration, and
-synthetic end-to-end tests are implemented and reviewed.
+remains the default operational retrieval path. The explicit `local-rag` path is limited to the
+no-I/O in-memory synthetic transport and is not a real Local RAG connection.
 
 ### Phase plan
 
@@ -13,7 +13,7 @@ synthetic end-to-end tests are implemented and reviewed.
 - Phase C: implement a local adapter client skeleton against the transport abstraction - completed.
 - Phase D: add an explicit CLI selector and safe configuration loading - completed.
 - Phase E: add synthetic end-to-end connection and error contract tests - completed.
-- Phase F: finalize docs, CI coverage, and release notes.
+- Phase F: finalize docs, CI coverage, and release notes - completed.
 
 ### Constraints and non-goals
 
