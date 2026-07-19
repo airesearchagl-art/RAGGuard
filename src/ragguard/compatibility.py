@@ -1,17 +1,34 @@
 from __future__ import annotations
 
+import json
+import math
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import Enum
+from types import MappingProxyType
+from typing import Any
 from urllib.parse import urlsplit
 
-from ragguard.retrieval import RetrievalAdapterError
+from ragguard.retrieval import (
+    LOCAL_RESPONSE_METADATA_KEYS,
+    MAX_LOCAL_IDENTIFIER_LENGTH,
+    MAX_LOCAL_KEYWORD_LENGTH,
+    MAX_LOCAL_KEYWORDS,
+    MAX_LOCAL_METADATA_VALUE_LENGTH,
+    MAX_LOCAL_QUERY_LENGTH,
+    MAX_LOCAL_TITLE_LENGTH,
+    MAX_LOCAL_TOP_K,
+    RankedResult,
+    RetrievalAdapterError,
+    validate_ranked_results,
+)
 
 
 MAX_PROFILE_IDENTIFIER_LENGTH = 64
 MAX_PROFILE_PATH_LENGTH = 128
 MAX_VERSION_COMPONENT = 9999
+MAX_MAPPED_REQUEST_SIZE = 65_536
 
 _PROFILE_FIELDS = frozenset(
     {
@@ -28,7 +45,9 @@ _PROFILE_FIELDS = frozenset(
         "optional_feature_flags",
     }
 )
-_REQUEST_FIELDS = frozenset({"query", "top_k", "query_id", "capability_version"})
+_REQUEST_FIELDS = frozenset(
+    {"query", "top_k", "query_id", "protocol_version", "requested_capabilities"}
+)
 _REQUIRED_REQUEST_FIELDS = frozenset({"query", "top_k"})
 _RESPONSE_FIELDS = frozenset(
     {
@@ -39,11 +58,10 @@ _RESPONSE_FIELDS = frozenset(
         "source_id",
         "matched_keywords",
         "adapter_metadata",
+        "query_id",
     }
 )
-_REQUIRED_RESPONSE_FIELDS = frozenset(
-    {"rank", "document_id", "title", "source_id", "matched_keywords"}
-)
+_REQUIRED_RESPONSE_FIELDS = frozenset({"rank", "document_id", "source_id"})
 _FEATURE_FIELDS = frozenset({"keyword_metadata", "title", "query_id_echo"})
 _HEALTH_FIELDS = frozenset({"status", "protocol_version", "service_available"})
 _REQUIRED_CAPABILITIES = frozenset(
@@ -63,6 +81,7 @@ _SAFE_PROFILE_IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}\Z")
 _SAFE_FIELD_IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]{0,63}\Z")
 _SAFE_RELATIVE_HTTP_PATH = re.compile(r"/[A-Za-z0-9_/-]{1,127}\Z")
 _SEMANTIC_VERSION = re.compile(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\Z")
+_SAFE_SOURCE_IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*\Z")
 
 
 class CompatibilityErrorCategory(str, Enum):
@@ -80,6 +99,12 @@ class CompatibilityErrorCategory(str, Enum):
     CAPABILITY_MISMATCH = "capability_mismatch"
     UNSUPPORTED_CAPABILITY = "unsupported_capability"
     INVALID_CAPABILITIES_RESPONSE = "invalid_capabilities_response"
+    REQUEST_MAPPING_ERROR = "request_mapping_error"
+    RESPONSE_MAPPING_ERROR = "response_mapping_error"
+    PRODUCT_RESPONSE_INVALID = "product_response_invalid"
+    UNSAFE_SOURCE_IDENTIFIER = "unsafe_source_identifier"
+    INVALID_MAPPED_REQUEST = "invalid_mapped_request"
+    INVALID_MAPPED_RESPONSE = "invalid_mapped_response"
 
 
 class ScoreSemantics(str, Enum):
@@ -542,6 +567,335 @@ class CompatibilityResult:
     __str__ = __repr__
 
 
+@dataclass(frozen=True, repr=False)
+class StandardRetrievalRequest:
+    """Product-neutral request data; raw mappings and query text are not retained."""
+
+    query: str = field(repr=False)
+    top_k: int
+    query_id: str | None = field(default=None, repr=False)
+    protocol_version: SemanticVersion | None = None
+    requested_capabilities: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.query, str) or not self.query.strip():
+            raise compatibility_error(CompatibilityErrorCategory.INVALID_MAPPED_REQUEST)
+        if len(self.query) > MAX_LOCAL_QUERY_LENGTH:
+            raise compatibility_error(CompatibilityErrorCategory.INVALID_MAPPED_REQUEST)
+        if type(self.top_k) is not int or not 1 <= self.top_k <= MAX_LOCAL_TOP_K:
+            raise compatibility_error(CompatibilityErrorCategory.INVALID_MAPPED_REQUEST)
+        if self.query_id is not None:
+            _validate_safe_mapping_identifier(
+                self.query_id, CompatibilityErrorCategory.INVALID_MAPPED_REQUEST
+            )
+        if self.protocol_version is not None and not isinstance(
+            self.protocol_version, SemanticVersion
+        ):
+            raise compatibility_error(CompatibilityErrorCategory.INVALID_MAPPED_REQUEST)
+        if (
+            not isinstance(self.requested_capabilities, tuple)
+            or any(name not in _OPTIONAL_CAPABILITIES for name in self.requested_capabilities)
+            or tuple(sorted(set(self.requested_capabilities)))
+            != self.requested_capabilities
+        ):
+            raise compatibility_error(CompatibilityErrorCategory.INVALID_MAPPED_REQUEST)
+
+    @classmethod
+    def from_mapping(cls, value: object) -> StandardRetrievalRequest:
+        if not isinstance(value, Mapping) or set(value) - _REQUEST_FIELDS:
+            raise compatibility_error(CompatibilityErrorCategory.INVALID_MAPPED_REQUEST)
+        if not _REQUIRED_REQUEST_FIELDS.issubset(value):
+            raise compatibility_error(CompatibilityErrorCategory.INVALID_MAPPED_REQUEST)
+        protocol_version = value.get("protocol_version")
+        if protocol_version is not None:
+            protocol_version = SemanticVersion.parse(
+                protocol_version,
+                category=CompatibilityErrorCategory.INVALID_MAPPED_REQUEST,
+            )
+        requested = value.get("requested_capabilities", ())
+        if isinstance(requested, list):
+            requested = tuple(requested)
+        return cls(
+            query=value["query"],  # type: ignore[arg-type]
+            top_k=value["top_k"],  # type: ignore[arg-type]
+            query_id=value.get("query_id"),  # type: ignore[arg-type]
+            protocol_version=protocol_version,
+            requested_capabilities=requested,  # type: ignore[arg-type]
+        )
+
+    def __repr__(self) -> str:
+        return (
+            "StandardRetrievalRequest("
+            f"query_length={len(self.query)}, top_k={self.top_k}, "
+            f"has_query_id={self.query_id is not None}, "
+            f"has_protocol_version={self.protocol_version is not None}, "
+            f"requested_capability_count={len(self.requested_capabilities)})"
+        )
+
+    __str__ = __repr__
+
+
+@dataclass(frozen=True, repr=False)
+class MappedRequest:
+    """Immutable mapped fields with a bounded, non-sensitive representation."""
+
+    fields: tuple[tuple[str, object], ...] = field(repr=False)
+    encoded_size: int = field(repr=False)
+
+    def __post_init__(self) -> None:
+        if (
+            not isinstance(self.fields, tuple)
+            or not all(
+                isinstance(item, tuple)
+                and len(item) == 2
+                and isinstance(item[0], str)
+                and _SAFE_FIELD_IDENTIFIER.fullmatch(item[0]) is not None
+                for item in self.fields
+            )
+            or len({name for name, _ in self.fields}) != len(self.fields)
+            or type(self.encoded_size) is not int
+            or not 0 <= self.encoded_size <= MAX_MAPPED_REQUEST_SIZE
+        ):
+            raise compatibility_error(CompatibilityErrorCategory.INVALID_MAPPED_REQUEST)
+
+    @property
+    def mapped_field_count(self) -> int:
+        return len(self.fields)
+
+    def as_mapping(self) -> Mapping[str, object]:
+        return MappingProxyType(dict(self.fields))
+
+    def __repr__(self) -> str:
+        return f"MappedRequest(mapped_field_count={self.mapped_field_count})"
+
+    __str__ = __repr__
+
+
+@dataclass(frozen=True, repr=False)
+class MappedResponse:
+    """Validated RankedResult values plus a bounded mapping summary."""
+
+    results: tuple[RankedResult, ...] = field(repr=False)
+    score_semantics: ScoreSemantics
+    enabled_optional_fields: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        if (
+            not isinstance(self.results, tuple)
+            or not all(isinstance(result, RankedResult) for result in self.results)
+            or not isinstance(self.score_semantics, ScoreSemantics)
+            or not isinstance(self.enabled_optional_fields, tuple)
+            or tuple(sorted(set(self.enabled_optional_fields)))
+            != self.enabled_optional_fields
+        ):
+            raise compatibility_error(CompatibilityErrorCategory.INVALID_MAPPED_RESPONSE)
+
+    @property
+    def result_count(self) -> int:
+        return len(self.results)
+
+    def __repr__(self) -> str:
+        return (
+            "MappedResponse("
+            f"result_count={self.result_count}, "
+            f"score_semantics={self.score_semantics.value!r}, "
+            f"enabled_optional_fields={self.enabled_optional_fields!r})"
+        )
+
+    __str__ = __repr__
+
+
+def map_standard_request(
+    profile: CompatibilityProfile,
+    request: StandardRetrievalRequest,
+    compatibility: CompatibilityResult | None = None,
+) -> MappedRequest:
+    """Apply only the profile's explicit flat request mapping."""
+    if not isinstance(profile, CompatibilityProfile) or not isinstance(
+        request, StandardRetrievalRequest
+    ):
+        raise compatibility_error(CompatibilityErrorCategory.INVALID_MAPPED_REQUEST)
+    enabled = _validate_mapping_compatibility(profile, compatibility)
+    if request.requested_capabilities and not set(request.requested_capabilities).issubset(
+        enabled
+    ):
+        raise compatibility_error(CompatibilityErrorCategory.CAPABILITY_MISMATCH)
+    if request.query_id is not None and compatibility is not None and "query_id_echo" not in enabled:
+        raise compatibility_error(CompatibilityErrorCategory.CAPABILITY_MISMATCH)
+
+    standard_values: dict[str, object] = {
+        "query": request.query,
+        "top_k": request.top_k,
+    }
+    if request.query_id is not None:
+        standard_values["query_id"] = request.query_id
+    if request.protocol_version is not None:
+        standard_values["protocol_version"] = str(request.protocol_version)
+    if request.requested_capabilities:
+        standard_values["requested_capabilities"] = request.requested_capabilities
+
+    mapped: list[tuple[str, object]] = []
+    for standard_field, value in standard_values.items():
+        product_field = _mapped_product_field(
+            profile.request_field_mapping,
+            standard_field,
+            CompatibilityErrorCategory.REQUEST_MAPPING_ERROR,
+        )
+        mapped.append((product_field, value))
+    mapped.sort(key=lambda item: item[0])
+    payload = dict(mapped)
+    try:
+        encoded_size = len(
+            json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        )
+    except (TypeError, ValueError) as exc:
+        raise compatibility_error(
+            CompatibilityErrorCategory.INVALID_MAPPED_REQUEST
+        ) from exc
+    if encoded_size > MAX_MAPPED_REQUEST_SIZE:
+        raise compatibility_error(CompatibilityErrorCategory.INVALID_MAPPED_REQUEST)
+    return MappedRequest(tuple(mapped), encoded_size)
+
+
+def map_product_response(
+    profile: CompatibilityProfile,
+    value: object,
+    *,
+    top_k: int,
+    compatibility: CompatibilityResult,
+    expected_query_id: str | None = None,
+) -> MappedResponse:
+    """Map a bounded product response into evaluator-ready RankedResult values."""
+    if not isinstance(profile, CompatibilityProfile):
+        raise compatibility_error(CompatibilityErrorCategory.RESPONSE_MAPPING_ERROR)
+    if type(top_k) is not int or not 1 <= top_k <= MAX_LOCAL_TOP_K:
+        raise compatibility_error(CompatibilityErrorCategory.INVALID_MAPPED_RESPONSE)
+    enabled = _validate_mapping_compatibility(profile, compatibility)
+    if compatibility is None:
+        raise compatibility_error(CompatibilityErrorCategory.CAPABILITY_MISMATCH)
+    mapped_by_standard = {
+        entry.standard_field: entry.product_field
+        for entry in profile.response_field_mapping.entries
+    }
+    query_id_field = mapped_by_standard.get("query_id")
+    allowed_root_fields = {"results"}
+    if query_id_field is not None:
+        allowed_root_fields.add(query_id_field)
+    if not isinstance(value, Mapping) or not set(value).issubset(allowed_root_fields):
+        raise compatibility_error(CompatibilityErrorCategory.PRODUCT_RESPONSE_INVALID)
+    if "results" not in value:
+        raise compatibility_error(CompatibilityErrorCategory.PRODUCT_RESPONSE_INVALID)
+    if "query_id_echo" in enabled:
+        if expected_query_id is None or query_id_field is None or query_id_field not in value:
+            raise compatibility_error(CompatibilityErrorCategory.CAPABILITY_MISMATCH)
+        _validate_safe_mapping_identifier(
+            expected_query_id, CompatibilityErrorCategory.CAPABILITY_MISMATCH
+        )
+        if value[query_id_field] != expected_query_id:
+            raise compatibility_error(CompatibilityErrorCategory.CAPABILITY_MISMATCH)
+
+    raw_results = value["results"]
+    if isinstance(raw_results, (str, bytes)) or not isinstance(raw_results, Sequence):
+        raise compatibility_error(CompatibilityErrorCategory.PRODUCT_RESPONSE_INVALID)
+    if len(raw_results) > top_k or len(raw_results) > MAX_LOCAL_TOP_K:
+        raise compatibility_error(CompatibilityErrorCategory.INVALID_MAPPED_RESPONSE)
+
+    allowed_product_fields = {
+        product_field
+        for standard_field, product_field in mapped_by_standard.items()
+        if standard_field != "query_id"
+    }
+    required = set(_REQUIRED_RESPONSE_FIELDS)
+    if profile.score_semantics is not ScoreSemantics.UNSCORED:
+        if "score" not in enabled:
+            raise compatibility_error(CompatibilityErrorCategory.CAPABILITY_MISMATCH)
+        required.add("score")
+    for capability, field_name in (
+        ("title", "title"),
+        ("matched_keywords", "matched_keywords"),
+    ):
+        if capability in enabled:
+            required.add(field_name)
+    if not required.issubset(mapped_by_standard):
+        raise compatibility_error(CompatibilityErrorCategory.RESPONSE_MAPPING_ERROR)
+
+    ranked: list[RankedResult] = []
+    seen_sources: set[str] = set()
+    for raw_item in raw_results:
+        if not isinstance(raw_item, Mapping) or not set(raw_item).issubset(
+            allowed_product_fields
+        ):
+            raise compatibility_error(CompatibilityErrorCategory.PRODUCT_RESPONSE_INVALID)
+        if any(mapped_by_standard[name] not in raw_item for name in required):
+            raise compatibility_error(CompatibilityErrorCategory.RESPONSE_MAPPING_ERROR)
+        if (
+            profile.score_semantics is ScoreSemantics.UNSCORED
+            and "score" in mapped_by_standard
+            and mapped_by_standard["score"] in raw_item
+        ):
+            raise compatibility_error(
+                CompatibilityErrorCategory.UNSUPPORTED_SCORE_SEMANTICS
+            )
+
+        rank = raw_item[mapped_by_standard["rank"]]
+        document_id = raw_item[mapped_by_standard["document_id"]]
+        source_id = raw_item[mapped_by_standard["source_id"]]
+        _validate_mapped_rank(rank)
+        _validate_safe_mapping_identifier(
+            document_id, CompatibilityErrorCategory.INVALID_MAPPED_RESPONSE
+        )
+        _validate_safe_mapping_identifier(
+            source_id, CompatibilityErrorCategory.UNSAFE_SOURCE_IDENTIFIER
+        )
+        if source_id in seen_sources:
+            raise compatibility_error(CompatibilityErrorCategory.INVALID_MAPPED_RESPONSE)
+        seen_sources.add(source_id)
+
+        score = 0.0
+        if profile.score_semantics is not ScoreSemantics.UNSCORED:
+            score = _validate_mapped_score(raw_item[mapped_by_standard["score"]])
+        title = "not_provided"
+        if "title" in enabled:
+            title = _validate_mapped_title(raw_item[mapped_by_standard["title"]])
+        matched_keywords: list[str] = []
+        if "matched_keywords" in enabled:
+            matched_keywords = _validate_mapped_keywords(
+                raw_item[mapped_by_standard["matched_keywords"]]
+            )
+        metadata = None
+        metadata_field = mapped_by_standard.get("adapter_metadata")
+        if metadata_field is not None and metadata_field in raw_item:
+            metadata = _validate_mapped_metadata(raw_item[metadata_field])
+
+        ranked.append(
+            RankedResult(
+                rank=rank,
+                document_id=document_id,
+                score=score,
+                matched_keywords=matched_keywords,
+                title=title,
+                source_path=source_id,
+                adapter_metadata=metadata,
+            )
+        )
+
+    _validate_score_order(ranked, profile.score_semantics)
+    try:
+        validated = validate_ranked_results(ranked, top_k)
+    except RetrievalAdapterError as exc:
+        raise compatibility_error(
+            CompatibilityErrorCategory.INVALID_MAPPED_RESPONSE
+        ) from exc
+    optional_fields = tuple(
+        sorted(
+            field_name
+            for field_name in ("score", "title", "matched_keywords")
+            if field_name in enabled
+        )
+    )
+    return MappedResponse(tuple(validated), profile.score_semantics, optional_fields)
+
+
 def negotiate_compatibility(
     supported_profile: SupportedCompatibilityProfile,
     health: HealthResponse,
@@ -673,3 +1027,113 @@ def _validate_requested_version(
         raise compatibility_error(category)
     if requested.minor != supported.minor and requested.minor not in allowed_minors:
         raise compatibility_error(category)
+
+
+def _validate_mapping_compatibility(
+    profile: CompatibilityProfile,
+    compatibility: CompatibilityResult | None,
+) -> set[str]:
+    if compatibility is None:
+        return set()
+    if (
+        not isinstance(compatibility, CompatibilityResult)
+        or compatibility.profile_id != profile.profile_id
+        or not compatibility.required_capabilities_satisfied
+    ):
+        raise compatibility_error(CompatibilityErrorCategory.CAPABILITY_MISMATCH)
+    return set(compatibility.enabled_optional_capabilities)
+
+
+def _mapped_product_field(
+    mapping: FieldMapping,
+    standard_field: str,
+    category: CompatibilityErrorCategory,
+) -> str:
+    for entry in mapping.entries:
+        if entry.standard_field == standard_field:
+            return entry.product_field
+    raise compatibility_error(category)
+
+
+def _validate_safe_mapping_identifier(
+    value: object,
+    category: CompatibilityErrorCategory,
+) -> None:
+    if (
+        not isinstance(value, str)
+        or len(value) > MAX_LOCAL_IDENTIFIER_LENGTH
+        or _SAFE_SOURCE_IDENTIFIER.fullmatch(value) is None
+    ):
+        raise compatibility_error(category)
+
+
+def _validate_mapped_rank(value: object) -> None:
+    if type(value) is not int or value < 1:
+        raise compatibility_error(CompatibilityErrorCategory.INVALID_MAPPED_RESPONSE)
+
+
+def _validate_mapped_score(value: object) -> int | float:
+    if type(value) not in (int, float) or not math.isfinite(float(value)):
+        raise compatibility_error(CompatibilityErrorCategory.INVALID_MAPPED_RESPONSE)
+    return value
+
+
+def _validate_mapped_title(value: object) -> str:
+    if (
+        not isinstance(value, str)
+        or not value.strip()
+        or len(value) > MAX_LOCAL_TITLE_LENGTH
+    ):
+        raise compatibility_error(CompatibilityErrorCategory.INVALID_MAPPED_RESPONSE)
+    return value
+
+
+def _validate_mapped_keywords(value: object) -> list[str]:
+    if isinstance(value, (str, bytes)) or not isinstance(value, Sequence):
+        raise compatibility_error(CompatibilityErrorCategory.INVALID_MAPPED_RESPONSE)
+    keywords = list(value)
+    if len(keywords) > MAX_LOCAL_KEYWORDS or not all(
+        isinstance(keyword, str)
+        and bool(keyword.strip())
+        and len(keyword) <= MAX_LOCAL_KEYWORD_LENGTH
+        for keyword in keywords
+    ):
+        raise compatibility_error(CompatibilityErrorCategory.INVALID_MAPPED_RESPONSE)
+    return keywords
+
+
+def _validate_mapped_metadata(value: object) -> Mapping[str, Any]:
+    if not isinstance(value, Mapping) or not set(value).issubset(
+        LOCAL_RESPONSE_METADATA_KEYS
+    ):
+        raise compatibility_error(CompatibilityErrorCategory.INVALID_MAPPED_RESPONSE)
+    metadata = dict(value)
+    if not all(_safe_mapping_metadata_value(item) for item in metadata.values()):
+        raise compatibility_error(CompatibilityErrorCategory.INVALID_MAPPED_RESPONSE)
+    return MappingProxyType(metadata)
+
+
+def _safe_mapping_metadata_value(value: object) -> bool:
+    if isinstance(value, bool):
+        return True
+    if type(value) in (int, float):
+        return math.isfinite(float(value))
+    return isinstance(value, str) and len(value) <= MAX_LOCAL_METADATA_VALUE_LENGTH
+
+
+def _validate_score_order(
+    results: Sequence[RankedResult], semantics: ScoreSemantics
+) -> None:
+    if semantics is ScoreSemantics.UNSCORED:
+        return
+    scores = [float(result.score) for result in results]
+    if semantics is ScoreSemantics.HIGHER_IS_BETTER:
+        valid = all(left >= right for left, right in zip(scores, scores[1:]))
+    elif semantics is ScoreSemantics.LOWER_IS_BETTER:
+        valid = all(left <= right for left, right in zip(scores, scores[1:]))
+    else:
+        raise compatibility_error(
+            CompatibilityErrorCategory.UNSUPPORTED_SCORE_SEMANTICS
+        )
+    if not valid:
+        raise compatibility_error(CompatibilityErrorCategory.INVALID_MAPPED_RESPONSE)

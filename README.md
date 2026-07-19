@@ -29,11 +29,18 @@ are enabled only when explicitly requested by the profile or caller and affirmed
 they are never silently downgraded. The result retains only a safe profile ID, protocol/health
 status, required-capability outcome, and enabled optional capability names.
 
+Phase C adds internal, communication-free request and response mapping execution. Standard requests
+are typed and bounded before explicit flat profile mappings produce a 64 KiB-limited payload.
+Product responses retain only explicitly mapped fields, revalidate safe identifiers, rank order,
+duplicates, top-k, metadata, and declared score semantics, then normalize to the existing
+`RankedResult` boundary. Negotiated optional fields fail closed when required and are ignored when
+not negotiated. Safe summaries contain only counts, score semantics, and enabled optional fields.
+
 Later v0.9 verification is planned around synthetic compatibility profiles and fixed health,
-capabilities, and retrieval responses. Phase B validates already bounded mappings only; HTTP
-health/capability communication is not implemented. A real product connection is not part of v0.9
-delivery: it
-requires a separately approved manual session using a loopback endpoint, synthetic queries, no
+capabilities, and retrieval responses. Phase C remains an internal contract: no CLI/config
+integration, HTTP health/capability communication, or product connection is implemented. A real
+product connection is not part of v0.9 delivery; it requires a separately approved manual session
+using a loopback endpoint, synthetic queries, no
 credentials, no real documents, no fallback connection, and safe summary output only.
 
 ## RAG Benchmark Harness v0.8 secure loopback transport

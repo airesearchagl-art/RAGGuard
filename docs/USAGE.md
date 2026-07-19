@@ -74,6 +74,25 @@ port, product name, path, query, and payload are not retained or displayed. Exis
 size limits apply before this boundary. Phase B adds no CLI loader, HTTP communication, real
 product connection, or request/response mapping execution.
 
+### Phase C request and response mapping contract
+
+Phase C executes the selected profile's internal flat field mapping only after compatibility
+negotiation. A standard request accepts `query`, `top_k`, optional `query_id`, optional strict
+`protocol_version`, and explicitly requested capabilities. It rejects unknown fields, booleans as
+top-k, unsafe query IDs, unmapped requested fields, and encoded product payloads over 64 KiB.
+
+The response boundary requires a root `results` list and explicit mappings for `rank`,
+`document_id`, and safe opaque `source_id`. Declared scored profiles also require finite numeric
+scores; higher/lower ordering is checked without inversion or normalization. `unscored` profiles do
+not require or accept a product score. Negotiated title and matched-keyword fields must be present;
+unnegotiated optional values are not copied. Unknown fields, duplicate IDs, rank gaps, unsafe source
+identifiers, invalid metadata, and top-k overflow fail closed.
+
+Mapping results expose only bounded summaries. Query text, product field values, endpoint, path,
+credential, raw request/response, and internal exception details are not displayed. This is an
+internal contract only: Phase C adds no CLI profile loader, transport integration, communication,
+fixture, or real-product connection. Phase D remains the synthetic compatibility harness.
+
 ## v0.8 secure transport design status
 
 v0.8 Phase A provides endpoint, resolution-proof, request, response, size, and safe error models for
