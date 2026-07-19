@@ -1,30 +1,44 @@
 # Usage
 
-## v0.9 synthetic compatibility profile concept
+## v0.9 Phase A compatibility profile contract
 
 v0.9 does not add a real-product command or configuration example. It defines an intermediate
 Compatibility Profile that maps a product-neutral RAGGuard request and response contract to fixed
-synthetic product shapes. A conceptual synthetic profile contains only safe metadata such as:
+synthetic product shapes. Phase A implements the typed contract but does not add a CLI profile
+loader. A synthetic profile mapping accepted by the internal constructor has this shape:
 
 ```yaml
 profile_id: synthetic-compat-v1
-profile_version: "1.0"
-protocol_version: "1.0"
-health_path: synthetic-health-v1
-capabilities_path: synthetic-capabilities-v1
-retrieve_path: synthetic-retrieve-v1
-score_semantics: higher-is-better
-source_identifier_policy: opaque-safe-id
-optional_features:
+profile_version: "1.0.0"
+protocol_version: "1.0.0"
+health_path: /health
+capabilities_path: /capabilities
+retrieve_path: /retrieve
+request_field_mapping:
+  query: query_text
+  top_k: result_limit
+  query_id: request_id
+response_field_mapping:
+  rank: position
+  document_id: item_id
+  score: relevance_score
+  title: display_title
+  source_id: safe_source_id
+  matched_keywords: keyword_matches
+score_semantics: higher_is_better
+source_identifier_policy: opaque_safe_id
+optional_feature_flags:
   keyword_metadata: true
   title: true
   query_id_echo: false
 ```
 
-This is a concept example, not a loadable production config. Endpoint, port, real path, credential,
-product name, and environment value are intentionally absent. Field mappings are explicitly
-allowlisted by a later contract implementation; unknown profiles, versions, fields, and required
-capability gaps return CLI error `3` before retrieval.
+This is a contract example, not a loadable production config. Endpoint, port, real path,
+credential, product name, and environment value are intentionally absent. Profile and protocol
+versions use exactly `major.minor.patch`; prerelease/build forms are rejected. Unknown fields,
+unknown profiles, major mismatches, unallowlisted minor versions, unsafe paths, duplicate mapping
+targets, unsupported score semantics, and unsafe source policies fail closed without echoing the
+rejected value. Patch differences inside an accepted minor are compatible.
 
 The standard request remains bounded to `query`, `top_k`, optional `query_id`, and explicit
 protocol/capability version. The 64 KiB body limit, 4,096-character query limit, and maximum top-k of
@@ -32,7 +46,9 @@ protocol/capability version. The 64 KiB body limit, 4,096-character query limit,
 document bodies, embeddings, filesystem paths, raw metadata, and full URLs are not accepted or
 reported.
 
-Compatibility verification will use synthetic health, capabilities, and retrieve responses only.
+Phase A stores mappings as typed immutable entries but does not execute them. Health/capability
+communication starts no earlier than Phase B. Compatibility verification will use synthetic
+health, capabilities, and retrieve responses only.
 There is no real product config or automatic product connection. Any future real-product check is a
 separate, explicitly approved manual session using loopback, synthetic queries, no credentials, no
 real documents, no raw-response persistence, safe summary output, and immediate stop without

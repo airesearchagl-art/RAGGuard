@@ -1,6 +1,6 @@
 # RAGGuard Roadmap
 
-## Planned: RAG Benchmark Harness v0.9 Local RAG compatibility
+## In progress: RAG Benchmark Harness v0.9 Local RAG compatibility
 
 v0.9 introduces a product-neutral compatibility boundary between the v0.8 loopback HTTP transport
 and any future Local RAG product. Product-specific versions and field names belong to an explicit
@@ -9,7 +9,7 @@ top-level keys, or existing exit codes.
 
 ### Phase plan
 
-- Phase A: compatibility profile and version contract.
+- Phase A: compatibility profile and version contract. Completed.
 - Phase B: health and capabilities contract.
 - Phase C: request and response mapping contract.
 - Phase D: synthetic compatibility harness.
@@ -26,6 +26,18 @@ top-level keys, or existing exit codes.
   drive-letter paths, home paths, and full URLs are rejected rather than rewritten.
 - Product-neutral failures map through `RetrievalAdapterError` and `BenchmarkError` to CLI error
   `3` without product, endpoint, query, path, or raw payload disclosure.
+
+### Phase A delivery
+
+- Added typed `CompatibilityProfile`, strict `SemanticVersion`, explicit field mappings, optional
+  feature flags, and allowlisted score/source policies.
+- Added exact profile registry selection with no fallback. Major mismatches fail closed, and minor
+  differences require an explicit allowlist; patch differences within an accepted minor are
+  compatible.
+- Added safe relative HTTP path validation and bounded compatibility error categories without
+  rejected values in exceptions or profile representations.
+- Added contract tests only. Profile mappings are not executed, and health/capability communication
+  remains Phase B work.
 
 ### Separate manual product gate
 

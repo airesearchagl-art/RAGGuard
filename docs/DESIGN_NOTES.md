@@ -3,32 +3,48 @@
 ## RAG Benchmark Harness v0.9 Local RAG compatibility design
 
 v0.9 defines a product-neutral compatibility boundary on top of the completed v0.8 loopback HTTP
-transport. This design adds no implementation, product adapter, configuration, test fixture,
-communication, filesystem access, or real-product validation.
+transport. Phase A implements only the profile/version models and contract tests. It adds no
+product adapter, configuration loader, communication, filesystem access, or real-product
+validation.
 
 ### Compatibility Profile
 
 A Compatibility Profile isolates product-specific differences from the core transport, adapter,
-evaluator, and report contracts. A profile may define:
+evaluator, and report contracts. The Phase A model requires exactly:
 
 - `profile_id`, `profile_version`, and the product-facing `protocol_version`.
-- Logical `health_path`, `capabilities_path`, and `retrieve_path` identifiers whose fixed relative
-  route mapping is owned by the profile implementation and is never emitted as metadata.
+- Relative HTTP `health_path`, `capabilities_path`, and `retrieve_path` values with no scheme,
+  authority, query, fragment, traversal, userinfo, or filesystem interpretation.
 - Explicit request and response field mappings.
 - Supported score semantics and source-identifier policy.
 - Allowlisted optional feature flags.
 
-`profile_id` and all path references are safe identifiers, not raw paths or URLs. Endpoint, port,
-filesystem path, credential, and environment values are neither profile metadata nor report data.
+`profile_id` is a bounded ASCII-oriented identifier. Paths are bounded route-only HTTP paths, not
+endpoints or filesystem paths. Endpoint, port, filesystem path, credential, and environment values
+are neither profile metadata nor report data.
 Unknown profile IDs or versions fail closed. A profile is selected explicitly; there is no
 auto-discovery or fallback selection.
 
 ### Version contract
 
-The RAGGuard contract version and product API version are separate values. Missing versions,
+The profile version and product-facing protocol version are separate strict `major.minor.patch`
+values. Prerelease and build forms are not accepted in Phase A. Missing versions,
 unknown major versions, and compatibility that cannot be proven are rejected before health or
-retrieval use. Minor-version differences require an explicit allowlist or an affirmative capability
-decision. Best-effort fallback, downgrade guessing, and raw version values in errors are forbidden.
+retrieval use. Minor-version differences require an explicit allowlist; patch changes within an
+accepted minor are compatible. Best-effort fallback, downgrade guessing, nearest-profile selection,
+and raw version values in errors are forbidden.
+
+### Phase A mapping and policy contract
+
+Request and response mappings are immutable typed entries from allowlisted standard fields to
+single safe product-field identifiers. Unknown standard fields, duplicate targets, nested paths,
+index expressions, and templates are rejected. Phase A validates and stores mappings but never
+executes them.
+
+Score semantics are exactly `higher_is_better`, `lower_is_better`, or `unscored`; there is no
+implicit normalization. Source identifiers use only `opaque_safe_id`; paths, URLs, and basename
+rewrites are forbidden. Optional flags are explicit booleans for `keyword_metadata`, `title`, and
+`query_id_echo` and have no Phase A runtime behavior.
 
 ### Health contract
 
@@ -76,18 +92,25 @@ hide an unsafe source. Only the already validated safe `source_id` may reach rep
 
 ### Error taxonomy and transport boundary
 
-Compatibility errors use these bounded categories:
+Phase A compatibility errors use these bounded categories:
 
 - `profile_not_configured`
 - `unknown_profile`
 - `unsupported_profile_version`
 - `protocol_version_mismatch`
+- `invalid_profile`
+- `invalid_profile_path`
+- `invalid_field_mapping`
+- `unsupported_score_semantics`
+- `unsafe_source_identifier_policy`
+
+Later phases reserve additional bounded health, capability, and mapping categories such as:
+
 - `health_unavailable`
 - `health_invalid`
 - `capability_mismatch`
 - `request_mapping_error`
 - `response_mapping_error`
-- `unsupported_score_semantics`
 - `unsafe_source_identifier`
 - `product_response_invalid`
 
