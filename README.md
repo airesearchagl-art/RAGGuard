@@ -22,10 +22,33 @@ a short-lived one-shot lifecycle with close after success or failure. Reports an
 adapter name, bounded duration, result count, status, and safe error category.
 
 The Phase C client does not follow redirects, consult proxy configuration, retry, pool connections,
-or permit non-loopback peers. It is not connected to the CLI, configuration loader, or Local RAG
-adapter yet. Verification communication remains confined to ephemeral `127.0.0.1` / `::1` test
-servers. Synthetic retrieval remains the default and `local-rag` remains limited to the existing
-no-I/O `in_memory` transport until later v0.8 phases are separately implemented and reviewed.
+or permit non-loopback peers. Phase D integrates it with the existing explicit `local-rag` selector
+and bounded JSON/YAML config loader through the `loopback_http` transport type. Synthetic retrieval
+remains the default, and the existing no-I/O `in_memory` behavior is unchanged.
+
+`loopback_http` is enabled only by explicit configuration. It accepts an HTTP loopback endpoint,
+connect/read/total timeouts, response-size and top-k limits, capability flags, and an optional
+hostname allowlist. Unknown fields and authentication, token, cookie, proxy, redirect, retry, or
+credential fields are rejected. Verification uses only ephemeral synthetic loopback servers; no
+real Local RAG product, real document, filesystem retrieval, or external/private-LAN connection is
+used.
+
+```json
+{
+  "transport_type": "loopback_http",
+  "endpoint": "http://127.0.0.1:8765/retrieve",
+  "connect_timeout": 1.0,
+  "read_timeout": 2.0,
+  "total_timeout": 3.0,
+  "default_top_k": 5,
+  "response_size_limit": 262144,
+  "capabilities": {
+    "ranked_results": true,
+    "matched_keywords": true,
+    "filters": false
+  }
+}
+```
 
 ## RAG Benchmark Harness v0.7 local connection contract
 

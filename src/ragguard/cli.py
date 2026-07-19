@@ -8,6 +8,7 @@ from ragguard.benchmark import DEFAULT_TOP_K, BenchmarkError, run_benchmark
 from ragguard.config_loader import ConfigError, load_rules_from_config
 from ragguard.detectors import RULES
 from ragguard.masked_document_checker import check_path, exit_code_for_status
+from ragguard.http_transport import LoopbackHTTPLocalRetrievalTransport
 from ragguard.report import write_reports
 from ragguard.retrieval import (
     InMemoryLocalRetrievalTransport,
@@ -99,9 +100,14 @@ def main(argv: list[str] | None = None) -> int:
                     raise BenchmarkError("local-rag adapter requires a config file")
                 local_config = load_local_retrieval_config(Path(args.adapter_config))
                 top_k = local_config.default_top_k
+                transport_factory = (
+                    InMemoryLocalRetrievalTransport
+                    if local_config.transport_type == "in_memory"
+                    else LoopbackHTTPLocalRetrievalTransport
+                )
                 adapter_factory = lambda _query: LocalRAGRetrievalAdapter(
                     local_config,
-                    InMemoryLocalRetrievalTransport(),
+                    transport_factory(),
                 )
             elif args.adapter_config:
                 raise BenchmarkError("adapter config requires the local-rag adapter")

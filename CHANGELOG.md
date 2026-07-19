@@ -41,6 +41,16 @@
   limit-plus-one sizes, invalid responses, no retry, cleanup, and sensitive-value non-disclosure.
 - Kept HTTP selection unavailable from CLI/config and added no real Local RAG integration, redirect
   following, proxy use, retries, filesystem retrieval, fixture changes, or workflow changes.
+- Completed Phase D by adding the explicit `loopback_http` local-rag transport selector and bounded
+  endpoint/timeout/top-k/response-size/capability configuration mapping.
+- Integrated `LocalRAGRetrievalAdapter` with a one-shot HTTP lifecycle wrapper that delegates all
+  communication to `BoundedLoopbackHTTPClient` and closes after success or failure.
+- Added synthetic loopback CLI/config coverage for PASS `0`, WARNING `1`, FAIL `2`, CLI error `3`,
+  redirect and invalid-response rejection, refusal, timeout, size limits, mixed resolution, proxy
+  isolation, no retry, safe reports, and non-disclosure.
+- Preserved Synthetic as the default, the existing `in_memory` behavior, report top-level keys,
+  benchmark exit codes, fixtures, and workflow. No real Local RAG or real-document connection was
+  added.
 
 ### v0.7 Local RAG connection contract design
 
