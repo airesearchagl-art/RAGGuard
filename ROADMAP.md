@@ -1,6 +1,6 @@
 # RAGGuard Roadmap
 
-## Planned: RAG Benchmark Harness v0.10 production profile governance
+## In progress: RAG Benchmark Harness v0.10 production profile governance
 
 v0.10 defines fail-closed governance around production Compatibility Profiles without adding a
 production profile or connecting to a real product. Profile approval and registry admission remain
@@ -8,8 +8,8 @@ separate from transport configuration, benchmark evaluation, reports, and CI.
 
 ### Phase plan
 
-- Phase A: profile approval metadata and maturity contract.
-- Phase B: validation report and approval decision contract.
+- Phase A: profile approval metadata and maturity contract. Completed.
+- Phase B: validation report and approval decision contract. Planned.
 - Phase C: trusted production registry contract.
 - Phase D: synthetic approval workflow harness.
 - Phase E: approval enforcement and security E2E.
@@ -25,6 +25,17 @@ separate from transport configuration, benchmark evaluation, reports, and CI.
   timeout/size, non-disclosure, and manual-validation evidence.
 - Missing or expired approval, unsupported product versions, revoked profiles, and required
   revalidation fail closed through safe categories and CLI error `3`.
+
+### Phase A delivery
+
+- Added immutable maturity, approval decision, approval/validation metadata, supported product
+  version range, bounded restriction, and safe summary contracts.
+- Added an explicit transition allowlist with no direct draft approval, automatic promotion,
+  reactivation of deprecated/revoked profiles, nearest-version selection, or fallback.
+- Added fail-closed consistency checks for profile/version identity, manual validation evidence,
+  required capabilities, score/source policy, expiration, revalidation, and supported versions.
+- Kept the contract disconnected from CLI/config, transport, production profiles, and any trusted
+  production registry. Phase B and later phases remain unimplemented.
 
 ### Separate manual product gate
 
