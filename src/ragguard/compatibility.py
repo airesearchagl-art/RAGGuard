@@ -82,6 +82,9 @@ _SAFE_FIELD_IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]{0,63}\Z")
 _SAFE_RELATIVE_HTTP_PATH = re.compile(r"/[A-Za-z0-9_/-]{1,127}\Z")
 _SEMANTIC_VERSION = re.compile(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\Z")
 _SAFE_SOURCE_IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*\Z")
+_SELECTION_FIELDS = frozenset(
+    {"profile_id", "profile_version", "protocol_version", "requested_optional_capabilities"}
+)
 
 
 class CompatibilityErrorCategory(str, Enum):
@@ -167,6 +170,58 @@ class SemanticVersion:
 
     def __str__(self) -> str:
         return f"{self.major}.{self.minor}.{self.patch}"
+
+
+@dataclass(frozen=True, repr=False)
+class CompatibilityProfileSelection:
+    """Bounded config selection; profile schemas remain in the trusted registry."""
+
+    profile_id: str
+    profile_version: SemanticVersion
+    protocol_version: SemanticVersion
+    requested_optional_capabilities: tuple[str, ...] = ()
+
+    @classmethod
+    def from_mapping(cls, value: object) -> CompatibilityProfileSelection:
+        required = {"profile_id", "profile_version", "protocol_version"}
+        if (
+            not isinstance(value, Mapping)
+            or not required.issubset(value)
+            or not set(value).issubset(_SELECTION_FIELDS)
+        ):
+            raise compatibility_error(CompatibilityErrorCategory.PROFILE_NOT_CONFIGURED)
+        requested = value.get("requested_optional_capabilities", ())
+        if isinstance(requested, list):
+            requested = tuple(requested)
+        if (
+            not isinstance(value["profile_id"], str)
+            or _SAFE_PROFILE_IDENTIFIER.fullmatch(value["profile_id"]) is None
+            or not isinstance(requested, tuple)
+            or any(name not in _OPTIONAL_CAPABILITIES for name in requested)
+            or tuple(sorted(set(requested))) != requested
+        ):
+            raise compatibility_error(CompatibilityErrorCategory.PROFILE_NOT_CONFIGURED)
+        return cls(
+            profile_id=value["profile_id"],
+            profile_version=SemanticVersion.parse(
+                value["profile_version"],
+                category=CompatibilityErrorCategory.UNSUPPORTED_PROFILE_VERSION,
+            ),
+            protocol_version=SemanticVersion.parse(
+                value["protocol_version"],
+                category=CompatibilityErrorCategory.PROTOCOL_VERSION_MISMATCH,
+            ),
+            requested_optional_capabilities=requested,
+        )
+
+    def __repr__(self) -> str:
+        return (
+            "CompatibilityProfileSelection("
+            f"profile_id={self.profile_id!r}, "
+            f"requested_capability_count={len(self.requested_optional_capabilities)})"
+        )
+
+    __str__ = __repr__
 
 
 @dataclass(frozen=True)
@@ -423,6 +478,53 @@ class CompatibilityProfileRegistry:
             CompatibilityErrorCategory.PROTOCOL_VERSION_MISMATCH,
         )
         return selected.profile
+
+    def supported(self, profile_id: str) -> SupportedCompatibilityProfile:
+        selected = next(
+            (entry for entry in self.profiles if entry.profile.profile_id == profile_id),
+            None,
+        )
+        if selected is None:
+            raise compatibility_error(CompatibilityErrorCategory.UNKNOWN_PROFILE)
+        return selected
+
+
+def synthetic_compatibility_registry() -> CompatibilityProfileRegistry:
+    """Return the product-neutral registry used only by synthetic compatibility E2E."""
+    profile = CompatibilityProfile.from_mapping(
+        {
+            "profile_id": "synthetic_loopback_v1",
+            "profile_version": "1.0.0",
+            "protocol_version": "1.0.0",
+            "health_path": "/health",
+            "capabilities_path": "/capabilities",
+            "retrieve_path": "/retrieve",
+            "request_field_mapping": {
+                "query": "query_text",
+                "top_k": "result_limit",
+                "query_id": "request_id",
+                "protocol_version": "protocol_version",
+                "requested_capabilities": "requested_capabilities",
+            },
+            "response_field_mapping": {
+                "rank": "position",
+                "document_id": "item_id",
+                "score": "relevance",
+                "title": "display_title",
+                "source_id": "safe_source",
+                "matched_keywords": "matches",
+                "query_id": "echo_request_id",
+            },
+            "score_semantics": "higher_is_better",
+            "source_identifier_policy": "opaque_safe_id",
+            "optional_feature_flags": {
+                "keyword_metadata": True,
+                "title": True,
+                "query_id_echo": True,
+            },
+        }
+    )
+    return CompatibilityProfileRegistry((SupportedCompatibilityProfile(profile),))
 
 
 @dataclass(frozen=True, repr=False)

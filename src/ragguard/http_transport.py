@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
+from dataclasses import replace
 
 from ragguard.http_client import BoundedLoopbackHTTPClient
 from ragguard.http_contract import (
@@ -19,6 +20,56 @@ from ragguard.retrieval import (
 )
 
 HTTPClientFactory = Callable[[LocalHTTPEndpoint], BoundedLoopbackHTTPClient]
+
+
+class CompatibilityLoopbackHTTPTransport:
+    """Short-lived bounded JSON transport for compatibility-profile operations."""
+
+    transport_type = "loopback_http"
+
+    def __init__(self, *, client_factory: HTTPClientFactory | None = None) -> None:
+        if client_factory is not None and not callable(client_factory):
+            raise http_transport_error(HTTPTransportErrorCategory.INVALID_ENDPOINT)
+        self._client_factory = client_factory or BoundedLoopbackHTTPClient
+        self._endpoint: LocalHTTPEndpoint | None = None
+        self._state = "created"
+
+    @property
+    def state(self) -> str:
+        return self._state
+
+    def initialize(self, config: LocalRetrievalConfig) -> None:
+        if self._state != "created":
+            raise http_transport_error(HTTPTransportErrorCategory.INVALID_ENDPOINT)
+        if (
+            not isinstance(config, LocalRetrievalConfig)
+            or config.transport_type != self.transport_type
+            or not config.configured
+            or not isinstance(config.http_endpoint, LocalHTTPEndpoint)
+        ):
+            raise http_transport_error(HTTPTransportErrorCategory.INVALID_ENDPOINT)
+        self._endpoint = config.http_endpoint
+        self._state = "initialized"
+
+    def request_json(
+        self,
+        path: str,
+        method: str,
+        payload: Mapping[str, object] | None = None,
+    ) -> Mapping[str, object]:
+        if self._state != "initialized" or self._endpoint is None:
+            raise http_transport_error(HTTPTransportErrorCategory.INVALID_ENDPOINT)
+        try:
+            client = self._client_factory(replace(self._endpoint, path=path))
+            return client.request_json(method, payload)
+        except RetrievalAdapterError:
+            raise
+        except Exception:
+            raise http_transport_error(HTTPTransportErrorCategory.INVALID_RESPONSE) from None
+
+    def close(self) -> None:
+        self._endpoint = None
+        self._state = "closed"
 
 
 class LoopbackHTTPLocalRetrievalTransport:

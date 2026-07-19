@@ -9,6 +9,8 @@ from ragguard.config_loader import ConfigError, load_rules_from_config
 from ragguard.detectors import RULES
 from ragguard.masked_document_checker import check_path, exit_code_for_status
 from ragguard.http_transport import LoopbackHTTPLocalRetrievalTransport
+from ragguard.compatibility import synthetic_compatibility_registry
+from ragguard.compatibility_integration import CompatibilityProfileRetrievalAdapter
 from ragguard.report import write_reports
 from ragguard.retrieval import (
     InMemoryLocalRetrievalTransport,
@@ -105,10 +107,17 @@ def main(argv: list[str] | None = None) -> int:
                     if local_config.transport_type == "in_memory"
                     else LoopbackHTTPLocalRetrievalTransport
                 )
-                adapter_factory = lambda _query: LocalRAGRetrievalAdapter(
-                    local_config,
-                    transport_factory(),
-                )
+                if local_config.compatibility_profile is not None:
+                    registry = synthetic_compatibility_registry()
+                    adapter_factory = lambda _query: CompatibilityProfileRetrievalAdapter(
+                        local_config,
+                        registry,
+                    )
+                else:
+                    adapter_factory = lambda _query: LocalRAGRetrievalAdapter(
+                        local_config,
+                        transport_factory(),
+                    )
             elif args.adapter_config:
                 raise BenchmarkError("adapter config requires the local-rag adapter")
             benchmark_args = (

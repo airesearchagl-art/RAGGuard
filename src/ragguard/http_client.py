@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import http.client
 import ipaddress
+import json
 import socket
 import time
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 
 from ragguard.http_contract import (
     HTTP_JSON_CONTENT_TYPE,
@@ -141,6 +142,93 @@ class BoundedLoopbackHTTPClient:
         if result is None:
             raise http_transport_error(HTTPTransportErrorCategory.INVALID_RESPONSE)
         return result
+
+    def request_json(
+        self,
+        method: str,
+        payload: Mapping[str, object] | None = None,
+    ) -> Mapping[str, object]:
+        """Perform one bounded product-neutral JSON request without retaining raw data."""
+        if method not in {"GET", "POST"} or (method == "GET" and payload is not None):
+            raise http_transport_error(HTTPTransportErrorCategory.INVALID_RESPONSE)
+        try:
+            body = (
+                None
+                if payload is None
+                else json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode(
+                    "utf-8"
+                )
+            )
+        except (TypeError, ValueError):
+            raise http_transport_error(HTTPTransportErrorCategory.INVALID_RESPONSE) from None
+        if body is not None and len(body) > 65_536:
+            raise http_transport_error(HTTPTransportErrorCategory.INVALID_RESPONSE)
+
+        deadline = self._clock() + self._endpoint.total_timeout
+        addresses = self._resolve_immediately_before_connect(deadline)
+        selected_address = _select_address(addresses)
+        connection: http.client.HTTPConnection | None = None
+        parsed: Mapping[str, object] | None = None
+        error: RetrievalAdapterError | None = None
+        try:
+            connection = self._connection_factory(
+                selected_address,
+                self._endpoint.port,
+                min(self._endpoint.connect_timeout, self._remaining(deadline)),
+            )
+            connection.connect()
+            socket_object = connection.sock
+            if socket_object is None:
+                raise http_transport_error(HTTPTransportErrorCategory.EXTERNAL_HOST_REJECTED)
+            try:
+                peer_address = socket_object.getpeername()[0]
+            except Exception:
+                raise http_transport_error(
+                    HTTPTransportErrorCategory.EXTERNAL_HOST_REJECTED
+                ) from None
+            LoopbackResolutionContract(
+                resolved_addresses=addresses,
+                peer_address=peer_address,
+                resolved_immediately_before_connect=True,
+            )
+            socket_object.settimeout(
+                min(self._endpoint.read_timeout, self._remaining(deadline))
+            )
+            headers = {"Accept": HTTP_JSON_CONTENT_TYPE}
+            if body is not None:
+                headers["Content-Type"] = HTTP_JSON_CONTENT_TYPE
+            connection.request(method, self._endpoint.path, body=body, headers=headers)
+            response = connection.getresponse()
+            validate_http_response_head(
+                response.status, response.getheader("Content-Type", "")
+            )
+            raw = response.read(response_read_limit(self._endpoint.response_size_limit))
+            if len(raw) > self._endpoint.response_size_limit:
+                raise http_transport_error(HTTPTransportErrorCategory.RESPONSE_TOO_LARGE)
+            self._remaining(deadline)
+            try:
+                value = json.loads(raw.decode("utf-8"))
+            except (UnicodeError, json.JSONDecodeError):
+                raise http_transport_error(HTTPTransportErrorCategory.INVALID_RESPONSE) from None
+            if not isinstance(value, Mapping):
+                raise http_transport_error(HTTPTransportErrorCategory.INVALID_RESPONSE)
+            parsed = dict(value)
+        except Exception as exc:
+            error = _safe_client_error(exc)
+        finally:
+            if connection is not None:
+                try:
+                    connection.close()
+                except Exception:
+                    if error is None:
+                        error = http_transport_error(
+                            HTTPTransportErrorCategory.INVALID_RESPONSE
+                        )
+        if error is not None:
+            raise error from None
+        if parsed is None:
+            raise http_transport_error(HTTPTransportErrorCategory.INVALID_RESPONSE)
+        return parsed
 
     def _resolve_immediately_before_connect(
         self,

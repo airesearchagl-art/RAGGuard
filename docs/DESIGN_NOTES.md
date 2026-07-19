@@ -155,6 +155,19 @@ bounded summary fields; raw inputs and mapped payloads are discarded before retu
 
 ### Real-product manual gate
 
+Phase E integrates the trusted synthetic profile registry with the bounded loopback transport. The
+fixed order is profile/version resolution, health GET, health validation, capabilities GET,
+capability negotiation, standard request creation, explicit flat mapping, bounded retrieve POST,
+response mapping, ranked-result normalization, evaluator, report, and exit-code selection. Each
+HTTP operation uses the existing loopback resolution, peer verification, timeout, response limit,
+no-redirect, no-proxy, and no-retry boundaries.
+
+The config contains only a profile ID, profile/protocol versions, and an allowlisted optional
+capability list. Endpoint, port, credential, and schema are not profile data. Raw config mappings,
+health/capability/retrieve bodies, mapped payloads, product field names, and internal exceptions are
+not persisted or added to reports. Tests use an ephemeral fake loopback server and synthetic values
+only; real-product compatibility remains unverified.
+
 CI and normal CLI flows must never auto-connect to a real product. A future compatibility session is
 a separately approved task and must record, before connection, the product under test, version,
 explicit profile, synthetic query set, and stop conditions. The session is loopback-only, uses no
@@ -175,7 +188,7 @@ report top-level keys remain unchanged.
 - Phase B: health and capabilities contract - completed.
 - Phase C: request and response mapping contract - completed.
 - Phase D: synthetic compatibility harness - completed.
-- Phase E: profile integration and security E2E.
+- Phase E: profile integration and security E2E - completed.
 - Phase F: docs, CI, and release preparation.
 
 Real-product manual validation is deliberately outside these phases and requires a separate
