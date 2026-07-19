@@ -12,7 +12,7 @@ top-level keys, or existing exit codes.
 - Phase A: compatibility profile and version contract. Completed.
 - Phase B: health and capabilities contract. Completed.
 - Phase C: request and response mapping contract. Completed.
-- Phase D: synthetic compatibility harness.
+- Phase D: synthetic compatibility harness. Completed.
 - Phase E: profile integration and security E2E.
 - Phase F: docs, CI, and release preparation.
 
@@ -64,6 +64,18 @@ top-level keys, or existing exit codes.
   semantics, and enabled optional fields.
 - Kept the work contract-only. Synthetic compatibility harness execution, CLI/config integration,
   health/capability HTTP communication, and real-product access remain unimplemented.
+
+### Phase D delivery
+
+- Added a deterministic test-oriented harness that directly composes the Phase A-C production
+  profile, health, capability, request-mapping, response-mapping, and ranked-result contracts.
+- Added an immutable safe result containing only profile/protocol/health status, enabled optional
+  capabilities, mapped request and result counts, score semantics, and normalized ranked results.
+- Added happy-path coverage for all score semantics and fail-closed coverage for profile/version,
+  health, capabilities, mappings, identifiers, ranks, duplicates, top-k, malformed responses, and
+  query-ID echo.
+- Kept the harness free of network, filesystem, sleep, timeout, randomness, product schema,
+  fixtures, CLI/config integration, and real-product access. Phase E remains unimplemented.
 
 ### Separate manual product gate
 

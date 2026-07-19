@@ -36,8 +36,16 @@ duplicates, top-k, metadata, and declared score semantics, then normalize to the
 `RankedResult` boundary. Negotiated optional fields fail closed when required and are ignored when
 not negotiated. Safe summaries contain only counts, score semantics, and enabled optional fields.
 
+Phase D adds a deterministic no-I/O synthetic compatibility harness. It executes the Phase A-C
+production contracts in order: profile/version resolution, health validation, capability
+negotiation, request mapping, synthetic response mapping, and `RankedResult` normalization. The
+immutable result retains only safe compatibility status, mapping/result counts, score semantics,
+enabled optional capabilities, and normalized ranked results. Raw mappings, query text, routes,
+credentials, endpoints, product identity, and internal exception details are not retained or
+rendered.
+
 Later v0.9 verification is planned around synthetic compatibility profiles and fixed health,
-capabilities, and retrieval responses. Phase C remains an internal contract: no CLI/config
+capabilities, and retrieval responses. Phase D remains internal and synthetic-only: no CLI/config
 integration, HTTP health/capability communication, or product connection is implemented. A real
 product connection is not part of v0.9 delivery; it requires a separately approved manual session
 using a loopback endpoint, synthetic queries, no

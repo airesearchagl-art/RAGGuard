@@ -33,6 +33,16 @@
   payload, endpoint, path, credential, product value, or raw exception disclosure.
 - Kept synthetic harness execution, CLI/config and transport integration, HTTP communication,
   fixtures, config, workflow, real-product access, and real documents unimplemented.
+- Completed Phase D with a deterministic no-I/O synthetic compatibility harness that directly
+  composes the Phase A-C production contracts.
+- Added immutable safe harness results containing compatibility status, enabled optional
+  capabilities, mapping/result counts, score semantics, and normalized ranked results without raw
+  input retention or sensitive-value rendering.
+- Added complete-path and fail-closed harness coverage for profile/version, health, capabilities,
+  request/response mappings, score semantics, identifiers, ranks, duplicates, top-k, malformed
+  responses, and query-ID echo.
+- Kept CLI/config and HTTP integration, product adapters, fixtures, config, workflow, network,
+  filesystem, credentials, real products, and real documents unchanged and unimplemented.
 
 - Started a product-neutral compatibility design before any real Local RAG product connection.
 - Isolated product-specific versions, health/capability shapes, field mappings, score semantics, and

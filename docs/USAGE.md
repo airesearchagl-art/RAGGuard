@@ -93,6 +93,23 @@ credential, raw request/response, and internal exception details are not display
 internal contract only: Phase C adds no CLI profile loader, transport integration, communication,
 fixture, or real-product connection. Phase D remains the synthetic compatibility harness.
 
+### Phase D synthetic compatibility harness
+
+Phase D provides an internal test-only harness for fixed synthetic values. It resolves an explicit
+profile/version, validates typed synthetic health and capabilities, negotiates optional features,
+maps a bounded standard request, maps a fixed product-shaped response, and returns normalized
+ranked results. It uses the production Phase A-C contracts directly and adds no separate mapping or
+fallback logic.
+
+The returned safe result exposes only the profile ID, protocol and health status, enabled optional
+capabilities, mapped request field count, result count, score semantics, and normalized
+`RankedResult` values. It does not retain raw health/capability/product mappings, query text,
+profile routes, endpoints, paths, credentials, product names, or internal exception details.
+
+The harness has no CLI command or loadable config. It performs no HTTP, localhost, network,
+filesystem, sleep, timeout, random, or real-product operation. Phase E profile integration and
+security E2E remain unimplemented.
+
 ## v0.8 secure transport design status
 
 v0.8 Phase A provides endpoint, resolution-proof, request, response, size, and safe error models for
