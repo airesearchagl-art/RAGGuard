@@ -11,7 +11,7 @@ top-level keys, or existing exit codes.
 
 - Phase A: compatibility profile and version contract. Completed.
 - Phase B: health and capabilities contract. Completed.
-- Phase C: request and response mapping contract.
+- Phase C: request and response mapping contract. Completed.
 - Phase D: synthetic compatibility harness.
 - Phase E: profile integration and security E2E.
 - Phase F: docs, CI, and release preparation.
@@ -51,6 +51,19 @@ top-level keys, or existing exit codes.
   status, version, capability value, endpoint, path, product, or payload disclosure.
 - Added contract tests only. HTTP communication, bounded-client integration, request/response
   mapping execution, and CLI/config integration remain unimplemented Phase C-or-later work.
+
+### Phase C delivery
+
+- Added typed bounded standard requests and explicit flat mapping execution with a 64 KiB encoded
+  request limit and no raw mapping retention.
+- Added product-response mapping to existing `RankedResult` values with required-field, safe source
+  identifier, rank continuity, duplicate ID, top-k, metadata, and score-semantics validation.
+- Tied score, title, matched-keyword, and query-ID behavior to the negotiated capability result;
+  requested missing fields fail closed and unnegotiated optional fields are not retained.
+- Added bounded mapping error categories and safe summaries containing only counts, declared score
+  semantics, and enabled optional fields.
+- Kept the work contract-only. Synthetic compatibility harness execution, CLI/config integration,
+  health/capability HTTP communication, and real-product access remain unimplemented.
 
 ### Separate manual product gate
 

@@ -109,7 +109,7 @@ hide an unsafe source. Only the already validated safe `source_id` may reach rep
 
 ### Error taxonomy and transport boundary
 
-Phase A and B compatibility errors use these bounded categories:
+Phase A-C compatibility errors use these bounded categories:
 
 - `profile_not_configured`
 - `unknown_profile`
@@ -125,13 +125,12 @@ Phase A and B compatibility errors use these bounded categories:
 - `capability_mismatch`
 - `unsupported_capability`
 - `invalid_capabilities_response`
-
-Later phases reserve additional bounded health, capability, and mapping categories such as:
-
 - `request_mapping_error`
 - `response_mapping_error`
 - `unsafe_source_identifier`
 - `product_response_invalid`
+- `invalid_mapped_request`
+- `invalid_mapped_response`
 
 Endpoint validation, refusal, timeout, HTTP status/content type, size, and transport schema failures
 remain existing transport categories. Compatibility begins only after a bounded transport response
@@ -167,8 +166,7 @@ report top-level keys remain unchanged.
 
 - Phase A: compatibility profile and version contract - completed.
 - Phase B: health and capabilities contract - completed.
-- Phase C: request and response mapping contract - not implemented.
-- Phase C: request and response mapping contract.
+- Phase C: request and response mapping contract - completed.
 - Phase D: synthetic compatibility harness.
 - Phase E: profile integration and security E2E.
 - Phase F: docs, CI, and release preparation.

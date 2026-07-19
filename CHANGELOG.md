@@ -22,6 +22,17 @@
   response, endpoint, path, product identity, credential, or protocol value in safe summaries.
 - Kept HTTP communication, bounded-client integration, request/response mapping execution,
   CLI/config integration, fixtures, config, and workflow unchanged.
+- Completed Phase C with typed bounded standard requests and explicit immutable flat request
+  mapping execution.
+- Added product-response mapping to existing ranked results with fail-closed required fields,
+  safe identifiers, rank continuity, duplicate IDs, top-k, allowlisted metadata, and score
+  semantics checks.
+- Added negotiated optional-field enforcement, unscored handling without product score inference,
+  and no score inversion or normalization.
+- Added bounded request/response mapping error categories and safe mapping summaries without query,
+  payload, endpoint, path, credential, product value, or raw exception disclosure.
+- Kept synthetic harness execution, CLI/config and transport integration, HTTP communication,
+  fixtures, config, workflow, real-product access, and real documents unimplemented.
 
 - Started a product-neutral compatibility design before any real Local RAG product connection.
 - Isolated product-specific versions, health/capability shapes, field mappings, score semantics, and
