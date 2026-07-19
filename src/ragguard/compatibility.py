@@ -45,6 +45,20 @@ _REQUIRED_RESPONSE_FIELDS = frozenset(
     {"rank", "document_id", "title", "source_id", "matched_keywords"}
 )
 _FEATURE_FIELDS = frozenset({"keyword_metadata", "title", "query_id_echo"})
+_HEALTH_FIELDS = frozenset({"status", "protocol_version", "service_available"})
+_REQUIRED_CAPABILITIES = frozenset(
+    {
+        "retrieval",
+        "bounded_top_k",
+        "deterministic_result_schema",
+        "safe_source_identifier",
+        "response_size_compliance",
+    }
+)
+_OPTIONAL_CAPABILITIES = frozenset(
+    {"score", "title", "matched_keywords", "query_id_echo", "protocol_version_echo"}
+)
+_CAPABILITY_FIELDS = _REQUIRED_CAPABILITIES | _OPTIONAL_CAPABILITIES
 _SAFE_PROFILE_IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}\Z")
 _SAFE_FIELD_IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]{0,63}\Z")
 _SAFE_RELATIVE_HTTP_PATH = re.compile(r"/[A-Za-z0-9_/-]{1,127}\Z")
@@ -61,6 +75,11 @@ class CompatibilityErrorCategory(str, Enum):
     INVALID_FIELD_MAPPING = "invalid_field_mapping"
     UNSUPPORTED_SCORE_SEMANTICS = "unsupported_score_semantics"
     UNSAFE_SOURCE_IDENTIFIER_POLICY = "unsafe_source_identifier_policy"
+    HEALTH_UNAVAILABLE = "health_unavailable"
+    HEALTH_INVALID = "health_invalid"
+    CAPABILITY_MISMATCH = "capability_mismatch"
+    UNSUPPORTED_CAPABILITY = "unsupported_capability"
+    INVALID_CAPABILITIES_RESPONSE = "invalid_capabilities_response"
 
 
 class ScoreSemantics(str, Enum):
@@ -71,6 +90,19 @@ class ScoreSemantics(str, Enum):
 
 class SourceIdentifierPolicy(str, Enum):
     OPAQUE_SAFE_ID = "opaque_safe_id"
+
+
+class HealthStatus(str, Enum):
+    HEALTHY = "healthy"
+    DEGRADED = "degraded"
+    UNAVAILABLE = "unavailable"
+    INCOMPATIBLE = "incompatible"
+
+
+class ProtocolStatus(str, Enum):
+    EXACT = "exact"
+    COMPATIBLE_PATCH = "compatible_patch"
+    COMPATIBLE_MINOR = "compatible_minor"
 
 
 def compatibility_error(category: CompatibilityErrorCategory) -> RetrievalAdapterError:
@@ -311,6 +343,8 @@ class SupportedCompatibilityProfile:
     allowed_protocol_minor_versions: tuple[int, ...] = ()
 
     def __post_init__(self) -> None:
+        if not isinstance(self.profile, CompatibilityProfile):
+            raise compatibility_error(CompatibilityErrorCategory.PROFILE_NOT_CONFIGURED)
         _validate_minor_allowlist(self.allowed_profile_minor_versions)
         _validate_minor_allowlist(self.allowed_protocol_minor_versions)
 
@@ -364,6 +398,240 @@ class CompatibilityProfileRegistry:
             CompatibilityErrorCategory.PROTOCOL_VERSION_MISMATCH,
         )
         return selected.profile
+
+
+@dataclass(frozen=True, repr=False)
+class HealthResponse:
+    """Validated product-neutral health data without retaining its raw response."""
+
+    status: HealthStatus
+    protocol_version: SemanticVersion
+    service_available: bool
+
+    def __post_init__(self) -> None:
+        if (
+            not isinstance(self.status, HealthStatus)
+            or not isinstance(self.protocol_version, SemanticVersion)
+            or type(self.service_available) is not bool
+        ):
+            raise compatibility_error(CompatibilityErrorCategory.HEALTH_INVALID)
+
+    @classmethod
+    def from_mapping(cls, value: object) -> HealthResponse:
+        if not isinstance(value, Mapping) or set(value) != _HEALTH_FIELDS:
+            raise compatibility_error(CompatibilityErrorCategory.HEALTH_INVALID)
+        try:
+            status = HealthStatus(value["status"])
+            protocol_version = SemanticVersion.parse(
+                value["protocol_version"],
+                category=CompatibilityErrorCategory.HEALTH_INVALID,
+            )
+        except (TypeError, ValueError):
+            raise compatibility_error(
+                CompatibilityErrorCategory.HEALTH_INVALID
+            ) from None
+        if type(value["service_available"]) is not bool:
+            raise compatibility_error(CompatibilityErrorCategory.HEALTH_INVALID)
+        return cls(status, protocol_version, value["service_available"])
+
+    def __repr__(self) -> str:
+        return (
+            "HealthResponse("
+            f"status={self.status.value!r}, "
+            f"service_available={self.service_available!r})"
+        )
+
+    __str__ = __repr__
+
+
+@dataclass(frozen=True)
+class CapabilitiesResponse:
+    """Typed capability flags; unknown and raw metadata are never retained."""
+
+    retrieval: bool
+    bounded_top_k: bool
+    deterministic_result_schema: bool
+    safe_source_identifier: bool
+    response_size_compliance: bool
+    score: bool = False
+    title: bool = False
+    matched_keywords: bool = False
+    query_id_echo: bool = False
+    protocol_version_echo: bool = False
+
+    def __post_init__(self) -> None:
+        if not all(type(value) is bool for value in self._values()):
+            raise compatibility_error(
+                CompatibilityErrorCategory.INVALID_CAPABILITIES_RESPONSE
+            )
+
+    @classmethod
+    def from_mapping(cls, value: object) -> CapabilitiesResponse:
+        if not isinstance(value, Mapping):
+            raise compatibility_error(
+                CompatibilityErrorCategory.INVALID_CAPABILITIES_RESPONSE
+            )
+        fields = set(value)
+        if (
+            not _REQUIRED_CAPABILITIES.issubset(fields)
+            or not fields.issubset(_CAPABILITY_FIELDS)
+            or not all(type(flag) is bool for flag in value.values())
+        ):
+            raise compatibility_error(
+                CompatibilityErrorCategory.INVALID_CAPABILITIES_RESPONSE
+            )
+        return cls(**dict(value))
+
+    def enabled(self, capability: str) -> bool:
+        if capability not in _CAPABILITY_FIELDS:
+            raise compatibility_error(CompatibilityErrorCategory.UNSUPPORTED_CAPABILITY)
+        return bool(getattr(self, capability))
+
+    def _values(self) -> tuple[bool, ...]:
+        return (
+            self.retrieval,
+            self.bounded_top_k,
+            self.deterministic_result_schema,
+            self.safe_source_identifier,
+            self.response_size_compliance,
+            self.score,
+            self.title,
+            self.matched_keywords,
+            self.query_id_echo,
+            self.protocol_version_echo,
+        )
+
+
+@dataclass(frozen=True, repr=False)
+class CompatibilityResult:
+    """Safe negotiation summary containing no endpoint, path, or raw response."""
+
+    profile_id: str
+    protocol_status: ProtocolStatus
+    health_status: HealthStatus
+    required_capabilities_satisfied: bool
+    enabled_optional_capabilities: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        if (
+            not isinstance(self.profile_id, str)
+            or _SAFE_PROFILE_IDENTIFIER.fullmatch(self.profile_id) is None
+            or not isinstance(self.protocol_status, ProtocolStatus)
+            or not isinstance(self.health_status, HealthStatus)
+            or type(self.required_capabilities_satisfied) is not bool
+            or not isinstance(self.enabled_optional_capabilities, tuple)
+            or any(
+                capability not in _OPTIONAL_CAPABILITIES
+                for capability in self.enabled_optional_capabilities
+            )
+            or tuple(sorted(set(self.enabled_optional_capabilities)))
+            != self.enabled_optional_capabilities
+        ):
+            raise compatibility_error(CompatibilityErrorCategory.INVALID_PROFILE)
+
+    def __repr__(self) -> str:
+        return (
+            "CompatibilityResult("
+            f"profile_id={self.profile_id!r}, "
+            f"protocol_status={self.protocol_status.value!r}, "
+            f"health_status={self.health_status.value!r}, "
+            f"required_capabilities_satisfied={self.required_capabilities_satisfied!r}, "
+            f"enabled_optional_capabilities={self.enabled_optional_capabilities!r})"
+        )
+
+    __str__ = __repr__
+
+
+def negotiate_compatibility(
+    supported_profile: SupportedCompatibilityProfile,
+    health: HealthResponse,
+    capabilities: CapabilitiesResponse,
+    *,
+    requested_optional_capabilities: tuple[str, ...] = (),
+) -> CompatibilityResult:
+    """Validate health and capabilities before any retrieval or mapping execution."""
+    if not isinstance(supported_profile, SupportedCompatibilityProfile):
+        raise compatibility_error(CompatibilityErrorCategory.PROFILE_NOT_CONFIGURED)
+    if not isinstance(health, HealthResponse):
+        raise compatibility_error(CompatibilityErrorCategory.HEALTH_INVALID)
+    if not isinstance(capabilities, CapabilitiesResponse):
+        raise compatibility_error(
+            CompatibilityErrorCategory.INVALID_CAPABILITIES_RESPONSE
+        )
+
+    profile = supported_profile.profile
+    protocol_status = _protocol_status(
+        health.protocol_version,
+        profile.protocol_version,
+        supported_profile.allowed_protocol_minor_versions,
+    )
+    if health.status is not HealthStatus.HEALTHY or not health.service_available:
+        raise compatibility_error(CompatibilityErrorCategory.HEALTH_UNAVAILABLE)
+
+    if any(not capabilities.enabled(name) for name in _REQUIRED_CAPABILITIES):
+        raise compatibility_error(CompatibilityErrorCategory.CAPABILITY_MISMATCH)
+
+    requested = _profile_requested_optional_capabilities(profile)
+    if not isinstance(requested_optional_capabilities, tuple) or not all(
+        isinstance(name, str) for name in requested_optional_capabilities
+    ):
+        raise compatibility_error(CompatibilityErrorCategory.UNSUPPORTED_CAPABILITY)
+    if (
+        len(set(requested_optional_capabilities)) != len(requested_optional_capabilities)
+        or any(name not in _OPTIONAL_CAPABILITIES for name in requested_optional_capabilities)
+    ):
+        raise compatibility_error(CompatibilityErrorCategory.UNSUPPORTED_CAPABILITY)
+    requested.update(requested_optional_capabilities)
+    if any(not capabilities.enabled(name) for name in requested):
+        raise compatibility_error(CompatibilityErrorCategory.UNSUPPORTED_CAPABILITY)
+
+    enabled = tuple(
+        sorted(
+            name
+            for name in _OPTIONAL_CAPABILITIES
+            if capabilities.enabled(name) and name in requested
+        )
+    )
+    return CompatibilityResult(
+        profile_id=profile.profile_id,
+        protocol_status=protocol_status,
+        health_status=health.status,
+        required_capabilities_satisfied=True,
+        enabled_optional_capabilities=enabled,
+    )
+
+
+def _profile_requested_optional_capabilities(
+    profile: CompatibilityProfile,
+) -> set[str]:
+    requested: set[str] = set()
+    if profile.score_semantics is not ScoreSemantics.UNSCORED:
+        requested.add("score")
+    if profile.optional_feature_flags.keyword_metadata:
+        requested.add("matched_keywords")
+    if profile.optional_feature_flags.title:
+        requested.add("title")
+    if profile.optional_feature_flags.query_id_echo:
+        requested.add("query_id_echo")
+    return requested
+
+
+def _protocol_status(
+    requested: SemanticVersion,
+    supported: SemanticVersion,
+    allowed_minors: tuple[int, ...],
+) -> ProtocolStatus:
+    _validate_requested_version(
+        requested,
+        supported,
+        allowed_minors,
+        CompatibilityErrorCategory.PROTOCOL_VERSION_MISMATCH,
+    )
+    if requested == supported:
+        return ProtocolStatus.EXACT
+    if requested.minor == supported.minor:
+        return ProtocolStatus.COMPATIBLE_PATCH
+    return ProtocolStatus.COMPATIBLE_MINOR
 
 
 def _validate_profile_path(value: object) -> str:

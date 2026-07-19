@@ -3,9 +3,9 @@
 ## RAG Benchmark Harness v0.9 Local RAG compatibility design
 
 v0.9 defines a product-neutral compatibility boundary on top of the completed v0.8 loopback HTTP
-transport. Phase A implements only the profile/version models and contract tests. It adds no
-product adapter, configuration loader, communication, filesystem access, or real-product
-validation.
+transport. Phase A implements the profile/version models, and Phase B implements health,
+capabilities, and safe negotiation-result models. Both phases are contract-only and add no product
+adapter, configuration loader, communication, filesystem access, or real-product validation.
 
 ### Compatibility Profile
 
@@ -54,6 +54,12 @@ text, document content, real source paths, or other product data. HTTP success a
 the body must pass schema validation and produce one of `healthy`, `degraded`, `unavailable`, or
 `incompatible`. Raw health bodies are never persisted.
 
+The Phase B `HealthResponse` requires exactly `status`, `protocol_version`, and boolean
+`service_available`. Unknown or missing fields, malformed versions, and numeric values used as
+booleans are rejected. Protocol major mismatches and unallowlisted minor versions fail closed before
+capability negotiation. Distinct non-healthy statuses remain typed values, but none permits the
+retrieve stage.
+
 ### Capabilities negotiation
 
 Required capabilities are retrieval, bounded top-k, deterministic result schema, safe source
@@ -62,6 +68,17 @@ score, title, query-ID echo, and an explicit protocol version. Missing required 
 the lifecycle before retrieve. Missing optional capabilities are omitted safely. Unknown capability
 names are rejected unless a later profile contract explicitly allowlists them. A mismatch maps to
 CLI error `3`.
+
+The Phase B `CapabilitiesResponse` requires boolean `retrieval`, `bounded_top_k`,
+`deterministic_result_schema`, `safe_source_identifier`, and `response_size_compliance`. Optional
+booleans are `score`, `title`, `matched_keywords`, `query_id_echo`, and
+`protocol_version_echo`. Unknown fields and non-boolean values are rejected rather than retained.
+Profile score semantics and feature flags determine requested optional capabilities; an explicitly
+requested feature that is false is an error, while an unrequested absent feature is omitted safely.
+
+Successful negotiation produces only `profile_id`, safe protocol and health status,
+`required_capabilities_satisfied`, and a sorted tuple of enabled optional capability names. It does
+not retain raw mappings, versions, routes, endpoint details, product identity, or payload data.
 
 ### Retrieve request mapping
 
@@ -92,7 +109,7 @@ hide an unsafe source. Only the already validated safe `source_id` may reach rep
 
 ### Error taxonomy and transport boundary
 
-Phase A compatibility errors use these bounded categories:
+Phase A and B compatibility errors use these bounded categories:
 
 - `profile_not_configured`
 - `unknown_profile`
@@ -103,12 +120,14 @@ Phase A compatibility errors use these bounded categories:
 - `invalid_field_mapping`
 - `unsupported_score_semantics`
 - `unsafe_source_identifier_policy`
-
-Later phases reserve additional bounded health, capability, and mapping categories such as:
-
 - `health_unavailable`
 - `health_invalid`
 - `capability_mismatch`
+- `unsupported_capability`
+- `invalid_capabilities_response`
+
+Later phases reserve additional bounded health, capability, and mapping categories such as:
+
 - `request_mapping_error`
 - `response_mapping_error`
 - `unsafe_source_identifier`
@@ -146,8 +165,9 @@ report top-level keys remain unchanged.
 
 ### v0.9 implementation phases
 
-- Phase A: compatibility profile and version contract.
-- Phase B: health and capabilities contract.
+- Phase A: compatibility profile and version contract - completed.
+- Phase B: health and capabilities contract - completed.
+- Phase C: request and response mapping contract - not implemented.
 - Phase C: request and response mapping contract.
 - Phase D: synthetic compatibility harness.
 - Phase E: profile integration and security E2E.

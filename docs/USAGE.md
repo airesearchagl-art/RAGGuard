@@ -54,6 +54,26 @@ separate, explicitly approved manual session using loopback, synthetic queries, 
 real documents, no raw-response persistence, safe summary output, and immediate stop without
 fallback on error.
 
+### Phase B health and capabilities contract
+
+Phase B accepts only already bounded synthetic mappings at an internal validation boundary. A
+health mapping must contain exactly `status`, `protocol_version`, and `service_available`.
+`status` is one of `healthy`, `degraded`, `unavailable`, or `incompatible`; only `healthy` with
+boolean `service_available: true` may proceed. The protocol major must match the selected profile,
+and a minor difference requires the profile's explicit allowlist.
+
+A capabilities mapping must include boolean `retrieval`, `bounded_top_k`,
+`deterministic_result_schema`, `safe_source_identifier`, and `response_size_compliance`. Optional
+boolean fields are `score`, `title`, `matched_keywords`, `query_id_echo`, and
+`protocol_version_echo`. Missing optional fields are false and safely omitted unless the profile or
+caller explicitly requested them; a requested but unsupported feature fails closed.
+
+The resulting summary contains only the safe profile ID, protocol status, health status, required
+capability outcome, and enabled optional capability names. Raw mappings, protocol values, endpoint,
+port, product name, path, query, and payload are not retained or displayed. Existing HTTP response
+size limits apply before this boundary. Phase B adds no CLI loader, HTTP communication, real
+product connection, or request/response mapping execution.
+
 ## v0.8 secure transport design status
 
 v0.8 Phase A provides endpoint, resolution-proof, request, response, size, and safe error models for
