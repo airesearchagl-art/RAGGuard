@@ -2,6 +2,29 @@
 
 [![Tests](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml)
 
+## RAG Benchmark Harness v0.10 production profile governance design
+
+v0.9 completed the product-neutral Compatibility Profile contracts and synthetic fake-loopback
+integration. v0.10 designs the governance required before any production Compatibility Profile can
+be created, approved, changed, or revoked. This design does not add a production profile, product
+configuration, real endpoint, credential, real document, or real-product connection.
+
+Profiles move explicitly through `draft`, `synthetic_validated`, `manually_validated`, `approved`,
+`deprecated`, and `revoked`. Promotion is never automatic, and `draft` cannot move directly to
+`approved`. Synthetic validation is not evidence of real-product compatibility; manual validation
+is limited to the reviewed product version, isolated environment, and validation date. Only an
+explicitly approved version range is eligible for a future production registry.
+
+The profile author, reviewer, approver, validation operator, and release operator have separate
+responsibilities. A profile author cannot self-approve a profile. Profile changes require a new
+version or explicit reapproval, and profiles with unknown ownership are unusable.
+
+Any future real-product compatibility check is a separately approved manual gate, not a v0.10
+implementation phase or CI job. It must use a loopback-only isolated environment, synthetic corpus
+and queries, no credentials, no external/private-LAN traffic, no raw-response persistence, no
+fallback, and immediate stop on unexpected behavior. Production profiles and real-product
+compatibility remain unavailable until that gate and a separate approval workflow are completed.
+
 ## RAG Benchmark Harness v0.9 compatibility contract
 
 v0.8 completed the bounded loopback HTTP transport and synthetic security verification. v0.9
