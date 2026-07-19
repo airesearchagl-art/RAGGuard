@@ -51,6 +51,14 @@
 - Preserved Synthetic as the default, the existing `in_memory` behavior, report top-level keys,
   benchmark exit codes, fixtures, and workflow. No real Local RAG or real-document connection was
   added.
+- Completed Phase E with a dedicated synthetic HTTP security E2E suite from CLI and bounded
+  JSON/YAML config through the local adapter, loopback transport/client, fake server, evaluator,
+  reports, and exit codes.
+- Added CLI-boundary coverage for PASS `0`, WARNING `1`, FAIL `2`, CLI error `3`, unsafe config and
+  endpoints, redirect/refusal/timeout/peer failures, malformed or oversized responses, deterministic
+  results, one attempt, guaranteed close, report compatibility, and sensitive-value non-disclosure.
+- Kept all verification on ephemeral synthetic loopback servers with no fixture, workflow,
+  production implementation, real Local RAG, real-document, filesystem, or external-network change.
 
 ### v0.7 Local RAG connection contract design
 

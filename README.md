@@ -33,6 +33,13 @@ credential fields are rejected. Verification uses only ephemeral synthetic loopb
 real Local RAG product, real document, filesystem retrieval, or external/private-LAN connection is
 used.
 
+Phase E fixes the complete synthetic-only HTTP path from CLI and safe JSON/YAML config loading
+through the local adapter, bounded loopback client, evaluator, reports, and exit codes. Security E2E
+coverage rejects unsafe config, endpoints, peer/resolution outcomes, timeouts, redirects, malformed
+or oversized responses, and sensitive-value disclosure while requiring one attempt and close after
+success or failure. This remains fake-server verification only; real Local RAG products and real
+documents are not connected.
+
 ```json
 {
   "transport_type": "loopback_http",
