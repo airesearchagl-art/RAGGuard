@@ -189,10 +189,30 @@ report top-level keys remain unchanged.
 - Phase C: request and response mapping contract - completed.
 - Phase D: synthetic compatibility harness - completed.
 - Phase E: profile integration and security E2E - completed.
-- Phase F: docs, CI, and release preparation.
+- Phase F: docs, CI, and release preparation - completed.
 
 Real-product manual validation is deliberately outside these phases and requires a separate
 approval task.
+
+### Phase F completion and release gate
+
+Phase F adds no production behavior. It consolidates the responsibility split across Compatibility
+Profile and registry selection, separate profile/protocol versions, health schema validation,
+capability negotiation, explicit request/response mapping, declared score semantics, safe source
+identifiers, evaluator ownership, and report compatibility. The fail-closed lifecycle remains
+profile resolution, health, capabilities, request mapping, retrieval, response mapping,
+normalization, evaluation, and guaranteed close after success or failure.
+
+CI explicitly runs the profile integration E2E suite on Python 3.11 and 3.12 in addition to the full
+suite, HTTP security E2E, local-rag E2E, and benchmark exit-code checks. The release gate also
+requires synthetic default exit `0`, profile integration exits `0`/`1`/`2`/`3`, both CLI help
+commands, valid workflow YAML, diff/Unicode/line-ending/fixture scans, and a clean synchronized
+`main` before tagging.
+
+The compatibility error taxonomy remains bounded and non-disclosing. Reports retain existing
+top-level keys and do not include endpoints, query text, raw mappings, raw responses, credentials,
+product details, or internal exceptions. Real-product validation remains a separately approved
+manual gate and is not an automated v0.9 phase or CI job.
 
 ### v0.9 non-goals
 

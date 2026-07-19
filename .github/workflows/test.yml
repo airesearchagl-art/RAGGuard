@@ -60,6 +60,9 @@ jobs:
       - name: Check HTTP transport security end-to-end
         run: python -m pytest tests/test_http_transport_security_e2e.py
 
+      - name: Check compatibility profile integration end-to-end
+        run: python -m pytest tests/test_compatibility_profile_integration_e2e.py
+
       - name: Check benchmark exit codes
         run: |
           mkdir -p outputs/ci_benchmark_cases

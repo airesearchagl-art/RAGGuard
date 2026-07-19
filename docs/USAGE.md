@@ -125,6 +125,22 @@ port, credential, or product schema, and reports add no raw config or HTTP value
 verified only with an ephemeral fake loopback server and synthetic responses; it is not a real
 Local RAG product configuration or compatibility claim.
 
+The selection is always explicit. Omitting it, selecting an unknown profile, requesting an
+unsupported profile or protocol version, or encountering a health, capability, request-mapping, or
+response-mapping error fails closed with CLI error `3`. There is no automatic fallback, nearest
+version choice, schema inference, or product discovery.
+
+For valid retrieval and evaluation, exit codes remain PASS `0`, WARNING `1`, and FAIL `2`; config,
+transport, and compatibility failures remain CLI error `3`. Reports do not add the endpoint, config
+path, query text, raw mapping, raw response, credential, or internal exception. The only supported
+profile example is synthetic and product-neutral. No production profile, real product name, real
+endpoint, or credential example is provided.
+
+The v0.9 release gate requires the full suite plus compatibility contract/mapping/harness, profile
+integration E2E, HTTP security E2E, local-rag E2E, synthetic default exit `0`, profile integration
+exits `0`/`1`/`2`/`3`, both CLI help commands, repository hygiene scans, and Python 3.11/3.12 CI.
+Tag and Release creation are separate from the documentation PR.
+
 ## v0.8 secure transport design status
 
 v0.8 Phase A provides endpoint, resolution-proof, request, response, size, and safe error models for
