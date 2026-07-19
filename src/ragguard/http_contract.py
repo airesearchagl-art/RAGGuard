@@ -210,6 +210,14 @@ def response_read_limit(response_size_limit: int) -> int:
     return response_size_limit + 1
 
 
+def validate_http_response_head(status_code: int, content_type: str) -> None:
+    """Reject status and content type before a client reads a response body."""
+    if type(status_code) is not int or status_code != 200:
+        raise http_transport_error(HTTPTransportErrorCategory.INVALID_STATUS)
+    if not _is_json_content_type(content_type):
+        raise http_transport_error(HTTPTransportErrorCategory.INVALID_CONTENT_TYPE)
+
+
 def parse_http_retrieval_response(
     body: bytes,
     *,
@@ -224,10 +232,7 @@ def parse_http_retrieval_response(
         raise http_transport_error(HTTPTransportErrorCategory.INVALID_RESPONSE)
     if len(body) > response_size_limit:
         raise http_transport_error(HTTPTransportErrorCategory.RESPONSE_TOO_LARGE)
-    if type(status_code) is not int or status_code != 200:
-        raise http_transport_error(HTTPTransportErrorCategory.INVALID_STATUS)
-    if not _is_json_content_type(content_type):
-        raise http_transport_error(HTTPTransportErrorCategory.INVALID_CONTENT_TYPE)
+    validate_http_response_head(status_code, content_type)
     if type(top_k) is not int or not 1 <= top_k <= MAX_HTTP_RESULTS:
         raise http_transport_error(HTTPTransportErrorCategory.INVALID_RESPONSE)
 

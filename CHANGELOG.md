@@ -32,6 +32,15 @@
   connection refusal, connect/read/total timeout boundaries, no retry, and safe error disclosure.
 - Kept the production package free of an HTTP client, DNS lookup, proxy handling, real Local RAG
   access, external/private-LAN traffic, fixture changes, and workflow changes.
+- Completed Phase C with a bounded one-request loopback HTTP client using the Phase A contracts.
+- Added immediate hostname re-resolution, complete loopback-set validation, deterministic IP-literal
+  connection, actual peer verification, bounded POST/read, total deadline checks, and guaranteed
+  connection cleanup.
+- Added production-client coverage for IPv4 and optional IPv6, mixed/private/external resolution,
+  peer mismatch, redirects, proxy isolation, refusal, connect/read/total timeout, exact and
+  limit-plus-one sizes, invalid responses, no retry, cleanup, and sensitive-value non-disclosure.
+- Kept HTTP selection unavailable from CLI/config and added no real Local RAG integration, redirect
+  following, proxy use, retries, filesystem retrieval, fixture changes, or workflow changes.
 
 ### v0.7 Local RAG connection contract design
 

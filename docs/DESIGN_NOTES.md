@@ -38,6 +38,23 @@ access, or real Local RAG integration.
 - Added no production HTTP client, DNS lookup implementation, proxy behavior, real Local RAG
   integration, external/private-LAN communication, fixture data, or workflow changes.
 
+### Phase C implementation status
+
+- Added `BoundedLoopbackHTTPClient` as a standard-library, one-request client independent of CLI,
+  config loading, benchmark orchestration, and `LocalRAGRetrievalAdapter` integration.
+- Resolve allowlisted hostnames immediately before each connection, reject empty, mixed, private, or
+  external address sets, choose a deterministic loopback IP literal, and validate the actual peer.
+- Send one bounded UTF-8 JSON `POST` with the Phase A request model and normalize the validated Phase
+  A response through the existing `RankedResult` boundary.
+- Enforce connect and read socket timeouts plus a total deadline across resolution, connection,
+  request, bounded limit-plus-one response read, parsing, normalization, and cleanup checks.
+- Use `http.client.HTTPConnection` directly, which does not consult environment or system proxy
+  settings. Do not follow redirects, retry, pool, tunnel, persist raw traffic, or reuse connections.
+- Map resolution, connection, timeout, HTTP, schema, size, and cleanup failures to bounded categories
+  without endpoint, query, header, cookie, credential, raw body, socket, or stack-trace disclosure.
+- Added production-client tests over test-only IPv4 and optional IPv6 loopback servers, plus injected
+  resolution, peer, connect, timeout, and cleanup seams. No real Local RAG endpoint is contacted.
+
 ### Transport selection and order
 
 1. Loopback HTTP is the first implementation candidate because its request, response, timeout, and
@@ -189,7 +206,7 @@ use real documents.
 
 - Phase A: endpoint and HTTP transport contract - completed.
 - Phase B: fake loopback server tests with fixed synthetic responses - completed.
-- Phase C: bounded loopback HTTP client.
+- Phase C: bounded loopback HTTP client - completed.
 - Phase D: CLI and safe config integration.
 - Phase E: synthetic end-to-end and security tests.
 - Phase F: docs, CI, and release preparation.
