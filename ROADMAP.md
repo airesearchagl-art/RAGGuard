@@ -1,5 +1,47 @@
 # RAGGuard Roadmap
 
+## Planned: RAG Benchmark Harness v0.9 Local RAG compatibility
+
+v0.9 introduces a product-neutral compatibility boundary between the v0.8 loopback HTTP transport
+and any future Local RAG product. Product-specific versions and field names belong to an explicit
+Compatibility Profile. They must not alter transport security, evaluator behavior, report
+top-level keys, or existing exit codes.
+
+### Phase plan
+
+- Phase A: compatibility profile and version contract.
+- Phase B: health and capabilities contract.
+- Phase C: request and response mapping contract.
+- Phase D: synthetic compatibility harness.
+- Phase E: profile integration and security E2E.
+- Phase F: docs, CI, and release preparation.
+
+### Compatibility boundary
+
+- Unknown profile IDs, profile versions, and protocol major versions fail closed.
+- Required capabilities are checked before retrieval; optional capabilities are omitted safely.
+- Request and response mapping is explicit. Schema guessing, automatic fallback profiles, and
+  implicit score normalization are forbidden.
+- Only safe opaque source identifiers may reach existing reports. Filesystem paths, UNC values,
+  drive-letter paths, home paths, and full URLs are rejected rather than rewritten.
+- Product-neutral failures map through `RetrievalAdapterError` and `BenchmarkError` to CLI error
+  `3` without product, endpoint, query, path, or raw payload disclosure.
+
+### Separate manual product gate
+
+Real-product validation is not a v0.9 implementation phase and is never run from CI. A separately
+approved manual task must identify the product, version, selected profile, synthetic query set, and
+stop conditions before connecting. It is limited to loopback, uses no credentials or real data,
+stores no raw response, emits only a safe summary, and stops immediately without fallback on any
+unexpected result.
+
+### Non-goals
+
+- Real Local RAG or product-specific adapter integration.
+- Product auto-discovery, fallback profile selection, or response-schema inference.
+- Filesystem retrieval, external/private-LAN traffic, credentials, real documents, embeddings,
+  vector databases, LLM evaluation, external APIs, cloud services, or external MCP.
+
 ## Completed: RAG Benchmark Harness v0.8 secure Local RAG transport
 
 v0.8 defines and incrementally verifies a loopback-only HTTP transport without connecting to a real

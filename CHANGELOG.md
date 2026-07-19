@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### v0.9 Local RAG compatibility design
+
+- Started a product-neutral compatibility design before any real Local RAG product connection.
+- Isolated product-specific versions, health/capability shapes, field mappings, score semantics, and
+  source-identifier policy in an explicit Compatibility Profile.
+- Defined fail-closed profile and protocol version handling with no auto-discovery, schema guessing,
+  best-effort downgrade, or fallback profile.
+- Defined bounded health and capability negotiation before retrieval.
+- Defined explicit standard request/response mapping while excluding document bodies, embeddings,
+  real paths, credentials, raw metadata, and unsafe source identifiers.
+- Defined compatibility error categories that preserve the existing adapter, benchmark, and CLI
+  error `3` boundary without sensitive-value disclosure.
+- Planned a synthetic compatibility harness for profile, version, capability, mapping, score,
+  identifier, size, and malformed-response cases.
+- Separated any future real-product validation into an explicitly approved loopback-only manual
+  gate using synthetic queries, no credentials or real data, no raw-response persistence, and no
+  fallback connection.
+- Kept this change documentation-only. No source, tests, fixtures, config, workflow, communication,
+  filesystem access, product adapter, tag, or Release was added.
+
 ### v0.8 secure Local RAG transport design
 
 Phase delivery:

@@ -1,5 +1,147 @@
 # Design Notes
 
+## RAG Benchmark Harness v0.9 Local RAG compatibility design
+
+v0.9 defines a product-neutral compatibility boundary on top of the completed v0.8 loopback HTTP
+transport. This design adds no implementation, product adapter, configuration, test fixture,
+communication, filesystem access, or real-product validation.
+
+### Compatibility Profile
+
+A Compatibility Profile isolates product-specific differences from the core transport, adapter,
+evaluator, and report contracts. A profile may define:
+
+- `profile_id`, `profile_version`, and the product-facing `protocol_version`.
+- Logical `health_path`, `capabilities_path`, and `retrieve_path` identifiers whose fixed relative
+  route mapping is owned by the profile implementation and is never emitted as metadata.
+- Explicit request and response field mappings.
+- Supported score semantics and source-identifier policy.
+- Allowlisted optional feature flags.
+
+`profile_id` and all path references are safe identifiers, not raw paths or URLs. Endpoint, port,
+filesystem path, credential, and environment values are neither profile metadata nor report data.
+Unknown profile IDs or versions fail closed. A profile is selected explicitly; there is no
+auto-discovery or fallback selection.
+
+### Version contract
+
+The RAGGuard contract version and product API version are separate values. Missing versions,
+unknown major versions, and compatibility that cannot be proven are rejected before health or
+retrieval use. Minor-version differences require an explicit allowlist or an affirmative capability
+decision. Best-effort fallback, downgrade guessing, and raw version values in errors are forbidden.
+
+### Health contract
+
+Health checks determine only connection readiness and compatibility. A valid response contains a
+bounded status, protocol version, and service-capability availability. It must not contain query
+text, document content, real source paths, or other product data. HTTP success alone is not health:
+the body must pass schema validation and produce one of `healthy`, `degraded`, `unavailable`, or
+`incompatible`. Raw health bodies are never persisted.
+
+### Capabilities negotiation
+
+Required capabilities are retrieval, bounded top-k, deterministic result schema, safe source
+identifiers, and response-size compliance. Optional capabilities may include keyword metadata,
+score, title, query-ID echo, and an explicit protocol version. Missing required capabilities stop
+the lifecycle before retrieve. Missing optional capabilities are omitted safely. Unknown capability
+names are rejected unless a later profile contract explicitly allowlists them. A mismatch maps to
+CLI error `3`.
+
+### Retrieve request mapping
+
+The standard request contains `query`, `top_k`, optional `query_id`, and explicit protocol or
+capability version. A profile maps only these allowlisted fields to product-specific names. It cannot
+inject credentials, filesystem paths, collection secrets, or environment values. The existing
+64 KiB body limit, 4,096-character query limit, and top-k maximum of 100 remain mandatory. Missing
+required fields and unknown mapping fields are rejected before transmission.
+
+### Retrieve response mapping
+
+The mapped standard response contains `rank`, `document_id`, `score`, `title`, safe `source_id`,
+`matched_keywords`, and allowlisted metadata. Product document bodies, embeddings, real paths, and
+raw metadata are discarded at the mapping boundary and never retained. Unknown product fields are
+not copied silently. Rank continuity, duplicate IDs, top-k, item count, byte size, and existing
+ranked-result validation are applied again after mapping.
+
+Score semantics are declared by the profile. Unknown semantics are rejected; values are not
+silently converted to a normalized score. Optional score absence must be explicitly supported by
+the profile and evaluator contract rather than guessed.
+
+### Source identifier policy
+
+The preferred source identifier is a product-generated opaque safe ID. Full filesystem paths, UNC
+paths, drive-letter paths, home-directory forms, and URLs with schemes, authorities, paths, or query
+strings are rejected. Basename extraction or other lossy rewriting is also forbidden because it can
+hide an unsafe source. Only the already validated safe `source_id` may reach reports.
+
+### Error taxonomy and transport boundary
+
+Compatibility errors use these bounded categories:
+
+- `profile_not_configured`
+- `unknown_profile`
+- `unsupported_profile_version`
+- `protocol_version_mismatch`
+- `health_unavailable`
+- `health_invalid`
+- `capability_mismatch`
+- `request_mapping_error`
+- `response_mapping_error`
+- `unsupported_score_semantics`
+- `unsafe_source_identifier`
+- `product_response_invalid`
+
+Endpoint validation, refusal, timeout, HTTP status/content type, size, and transport schema failures
+remain existing transport categories. Compatibility begins only after a bounded transport response
+is available and ends before evaluator input. Every failure is normalized through
+`RetrievalAdapterError`, `BenchmarkError`, and CLI error `3`. Product name, endpoint, port, raw
+field, query, path, payload, and internal exception detail are excluded.
+
+### Synthetic compatibility harness
+
+Before any product connection, a synthetic harness will execute profile-specific fixed health,
+capabilities, and retrieve responses. It must cover the happy path plus unknown version, missing
+capability, invalid field mapping, unsafe source ID, duplicate document ID, unsupported score
+semantics, oversized response, missing optional fields, and malformed product response. It uses no
+production endpoint, product name, real document, credential, filesystem, or external network.
+
+### Real-product manual gate
+
+CI and normal CLI flows must never auto-connect to a real product. A future compatibility session is
+a separately approved task and must record, before connection, the product under test, version,
+explicit profile, synthetic query set, and stop conditions. The session is loopback-only, uses no
+credentials or real names/data, persists no raw response, and reports only a safe summary. Any
+unexpected version, capability, mapping, source ID, response, or transport condition stops the
+session immediately; no fallback endpoint or profile is attempted.
+
+### Observability
+
+Allowed observations are `profile_id`, safe protocol status, capability result, bounded duration,
+result count, and safe error category. Product endpoint, port, query text, raw request/response,
+source path, document content, credential, product name, and stack trace are forbidden. Existing
+report top-level keys remain unchanged.
+
+### v0.9 implementation phases
+
+- Phase A: compatibility profile and version contract.
+- Phase B: health and capabilities contract.
+- Phase C: request and response mapping contract.
+- Phase D: synthetic compatibility harness.
+- Phase E: profile integration and security E2E.
+- Phase F: docs, CI, and release preparation.
+
+Real-product manual validation is deliberately outside these phases and requires a separate
+approval task.
+
+### v0.9 non-goals
+
+- Real Local RAG or product-specific adapter integration.
+- Real document search, filesystem retrieval, or external/private-LAN communication.
+- Credentials, API keys, bearer tokens, product auto-discovery, automatic fallback profiles, or
+  response-schema inference.
+- Embeddings, vector databases, LLM evaluation, external APIs, cloud services, external MCP, or CI
+  product connections.
+
 ## RAG Benchmark Harness v0.8 secure Local RAG transport design
 
 v0.8 introduces a design boundary for a future real Local RAG transport. This section is normative
