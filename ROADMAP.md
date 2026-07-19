@@ -1,6 +1,6 @@
 # RAGGuard Roadmap
 
-## In progress: RAG Benchmark Harness v0.9 Local RAG compatibility
+## Completed: RAG Benchmark Harness v0.9 Local RAG compatibility
 
 v0.9 introduces a product-neutral compatibility boundary between the v0.8 loopback HTTP transport
 and any future Local RAG product. Product-specific versions and field names belong to an explicit
@@ -14,7 +14,7 @@ top-level keys, or existing exit codes.
 - Phase C: request and response mapping contract. Completed.
 - Phase D: synthetic compatibility harness. Completed.
 - Phase E: profile integration and security E2E. Completed.
-- Phase F: docs, CI, and release preparation.
+- Phase F: docs, CI, and release preparation. Completed.
 
 ### Compatibility boundary
 
@@ -87,6 +87,28 @@ top-level keys, or existing exit codes.
   failures, deterministic lifecycle ordering, and sensitive-value non-disclosure.
 - Kept real-product profiles, real endpoints, credentials, real documents, filesystem retrieval,
   external/private-LAN traffic, fixtures, config, and workflow unchanged and unsupported.
+
+### Phase F delivery
+
+- Consolidated the Phase A-E compatibility profile, health/capabilities, mapping, harness, and
+  loopback integration boundaries in README, usage, design notes, and changelog.
+- Added an explicit Python 3.11/3.12 CI step for compatibility profile integration E2E while
+  preserving the full suite, HTTP security E2E, local-rag E2E, and benchmark exit-code checks.
+- Added the v0.9.0 release checklist without creating a tag or Release.
+
+### v0.9 endpoint
+
+v0.9 provides an explicitly selected, fail-closed, product-neutral Compatibility Profile path that
+has been verified only against deterministic synthetic fake-loopback responses. It does not provide
+a production profile, product configuration, compatibility claim, credential path, or real-product
+connection.
+
+Next candidates are deliberately separate from v0.9 delivery:
+
+- production profile approval procedure
+- product-specific compatibility harnesses using synthetic values
+- an explicitly approved manual connection checklist
+- safe observability limited to bounded status, counts, duration, and error category
 
 ### Separate manual product gate
 

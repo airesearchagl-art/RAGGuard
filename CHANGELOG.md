@@ -51,6 +51,20 @@
   lifecycle order, PASS/WARNING/FAIL, CLI error `3`, and sensitive-value non-disclosure.
 - Preserved the existing evaluator, report top-level keys, synthetic default, `in_memory` behavior,
   fixtures, workflow, and exit codes. Real-product compatibility remains unverified.
+- Completed Phase F documentation, release preparation, and a dedicated compatibility profile
+  integration E2E CI step while preserving the Python 3.11/3.12 matrix and existing checks.
+- Documented that production profiles/configuration, real-product compatibility, credentials,
+  automatic fallback, nearest-version selection, and schema inference remain unsupported.
+
+Phase delivery:
+
+- PR #45: designed the product-neutral v0.9 compatibility boundary.
+- PR #46 / Phase A: added the compatibility profile and version contract.
+- PR #47 / Phase B: added health and capabilities contracts.
+- PR #48 / Phase C: added explicit request and response mapping contracts.
+- PR #49 / Phase D: added the deterministic synthetic compatibility harness.
+- PR #50 / Phase E: integrated explicit profiles with bounded loopback transport and security E2E.
+- Phase F: finalized docs, CI coverage, changelog, and the v0.9.0 release checklist.
 
 - Started a product-neutral compatibility design before any real Local RAG product connection.
 - Isolated product-specific versions, health/capability shapes, field mappings, score semantics, and

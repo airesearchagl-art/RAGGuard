@@ -53,8 +53,29 @@ non-disclosure are verified against an ephemeral fake loopback server.
 This integration remains synthetic-only. There is one product-neutral built-in test profile, no
 profile discovery or fallback, and no real product schema, endpoint, credential, or document. A real
 product connection is not part of v0.9 delivery; it requires a separately approved manual session
-using a loopback endpoint, synthetic queries, no
-credentials, no real documents, no fallback connection, and safe summary output only.
+using a loopback endpoint, synthetic queries, no credentials, no real documents, no fallback
+connection, and safe summary output only.
+
+Phase F completes the v0.9 documentation, changelog, release checklist, and explicit Python
+3.11/3.12 CI coverage for compatibility profile integration E2E. The verified order is explicit
+profile/version selection, health validation, capability negotiation, request mapping, bounded
+retrieval, response mapping, ranked-result normalization, evaluation, report generation, and close.
+Both successful and failed synthetic fake-loopback paths close safely.
+
+No production profile or product configuration is provided. Real Local RAG product compatibility
+remains unverified, and automatic profile fallback, nearest-version selection, and response-schema
+inference remain unsupported.
+
+### v0.9.0 release checklist
+
+- Full pytest, compatibility contract/mapping/harness, profile integration E2E, HTTP security E2E,
+  and local-rag E2E suites pass.
+- Synthetic default returns `0`; profile integration covers PASS `0`, WARNING `1`, FAIL `2`, and
+  CLI error `3`.
+- `check-mask --help` and `benchmark --help` succeed.
+- Workflow YAML, `git diff --check`, bidi controls, CR-only endings, and fixture markers pass.
+- GitHub Actions succeeds on Python 3.11 and 3.12 from a clean synchronized `main`.
+- Tag and GitHub Release creation remain separate post-merge operations.
 
 ## RAG Benchmark Harness v0.8 secure loopback transport
 
