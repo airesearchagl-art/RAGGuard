@@ -140,11 +140,18 @@ field, query, path, payload, and internal exception detail are excluded.
 
 ### Synthetic compatibility harness
 
-Before any product connection, a synthetic harness will execute profile-specific fixed health,
-capabilities, and retrieve responses. It must cover the happy path plus unknown version, missing
+Phase D implements a deterministic no-I/O harness that executes profile-specific fixed health,
+capabilities, and retrieve responses through the Phase A-C production contracts. It covers the
+happy path plus unknown version, missing
 capability, invalid field mapping, unsafe source ID, duplicate document ID, unsupported score
 semantics, oversized response, missing optional fields, and malformed product response. It uses no
 production endpoint, product name, real document, credential, filesystem, or external network.
+
+Execution order is fixed: explicit profile/version resolution, health validation, capability
+negotiation, bounded request mapping, fixed synthetic response receipt, response mapping, and
+ranked-result normalization. The harness adds no product schema, transformation fallback, I/O,
+sleep, timeout, or random dependency. Its safe immutable result retains only normalized output and
+bounded summary fields; raw inputs and mapped payloads are discarded before return.
 
 ### Real-product manual gate
 
@@ -167,7 +174,7 @@ report top-level keys remain unchanged.
 - Phase A: compatibility profile and version contract - completed.
 - Phase B: health and capabilities contract - completed.
 - Phase C: request and response mapping contract - completed.
-- Phase D: synthetic compatibility harness.
+- Phase D: synthetic compatibility harness - completed.
 - Phase E: profile integration and security E2E.
 - Phase F: docs, CI, and release preparation.
 
