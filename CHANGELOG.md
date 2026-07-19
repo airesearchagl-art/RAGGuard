@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### v0.10 production profile governance design
+
+- Started a documentation-only governance design before any production Compatibility Profile is
+  implemented or admitted to a trusted registry.
+- Defined explicit maturity states from draft through synthetic/manual validation, approval,
+  deprecation, and revocation, with no direct draft approval or automatic promotion.
+- Separated profile author, reviewer, approver, validation operator, and release operator duties.
+- Defined approval evidence for schema, synthetic harness, security E2E, capabilities, mappings,
+  score/source policy, timeout/size limits, non-disclosure, and manual validation.
+- Designed a separately approved, isolated, loopback-only, credential-free, synthetic-only manual
+  product validation gate with immediate stop and bounded safe summaries.
+- Defined approval decisions, explicit restrictions, revalidation triggers, revocation/rollback
+  behavior, immutable production registry governance, CI boundaries, and safe CLI error categories.
+- Planned v0.10 Phase A-F while keeping real-product validation outside the implementation phases.
+- Added no production profile/config, real-product connection, credential, real endpoint, real
+  document, source/test/fixture/config/workflow change, tag, or Release.
+
 ### v0.9 Local RAG compatibility design
 
 - Completed Phase A with a typed Compatibility Profile and strict profile/protocol version

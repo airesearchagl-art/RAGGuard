@@ -1,5 +1,41 @@
 # Usage
 
+## v0.10 production profile approval design
+
+No production Compatibility Profile is currently provided. Do not add a real product name,
+endpoint, port, credential, customer identifier, project identifier, person name, or real document
+path to RAGGuard configuration or documentation. Existing synthetic profiles are not production
+compatibility claims.
+
+A future manual compatibility validation requires a separately approved task that records only the
+safe profile ID/version, normalized product version, operator and approver IDs, validation time,
+approved test cases, and stop conditions. Before connecting, confirm an isolated local environment,
+a loopback-only endpoint, no authentication requirement, synthetic corpus and queries only, no
+external/private-LAN route, no proxy/redirect/retry/fallback, and no raw-response persistence.
+
+The standard manual sequence is:
+
+1. Confirm the selected profile/version and normalized target product version.
+2. Confirm the loopback destination and synthetic-only corpus/query inputs.
+3. Validate health and negotiate required and optional capabilities.
+4. Run synthetic PASS, WARNING, and FAIL cases.
+5. Check malformed, timeout, and oversized responses.
+6. Confirm close/cleanup and report non-disclosure.
+7. Stop the connection immediately and create a bounded safe summary.
+
+The operator must not search real documents or perform exploratory retrieval. The safe summary may
+contain protocol/health status, capability summary, per-case outcomes, bounded duration, result
+count, safe error category, pass/fail decision, reviewer/approver IDs, and validation date. It must
+not contain endpoints, ports, query text, raw requests/responses, source paths, document content,
+credentials, headers, cookies, stack traces, or internal exception text.
+
+Approval outcomes are `approved`, `approved_with_restrictions`, `rejected`, or
+`needs_revalidation`. Restrictions must be explicit, such as an approved minor-version range,
+disabled optional capability, unscored-only operation, or reduced top-k. Ambiguous temporary
+approval, undocumented workarounds, indefinite exceptions, and automatic fallback are forbidden.
+Unapproved, revoked, expired, unsupported, or revalidation-required profiles fail closed as CLI
+error `3`; normal evaluated results remain PASS `0`, WARNING `1`, and FAIL `2`.
+
 ## v0.9 Phase A compatibility profile contract
 
 v0.9 does not add a real-product command or configuration example. It defines an intermediate

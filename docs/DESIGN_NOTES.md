@@ -1,5 +1,129 @@
 # Design Notes
 
+## RAG Benchmark Harness v0.10 production profile governance design
+
+v0.10 defines the approval and audit boundary that must exist before a production Compatibility
+Profile is implemented. The design is product-neutral and documentation-only. It does not create a
+production registry entry, contact a product, load credentials, or access real documents.
+
+### Maturity contract
+
+- `draft`: authored but not trusted for execution or registry admission.
+- `synthetic_validated`: schema, synthetic harness, and security tests passed; this does not prove
+  real-product compatibility.
+- `manually_validated`: a separately approved manual check passed for one bounded product version,
+  environment, and date.
+- `approved`: an approver accepted an explicit supported version range and restrictions.
+- `deprecated`: retained for audit or migration but unavailable for automatic selection.
+- `revoked`: immediately unusable for new or resumed sessions.
+
+`draft` cannot move directly to `approved`. No state is promoted automatically. Deprecation and
+revocation are never bypassed by fallback, and manually validated evidence cannot be generalized
+beyond its recorded version, environment, or date.
+
+### Production profile identity and ownership
+
+An approval record identifies only `profile_id`, `profile_version`, supported protocol version,
+supported product-version range, validation status, approval status, approved capability set,
+approved score semantics, approved source-identifier policy, and a safe approval record ID. It must
+not retain endpoint, port, credential, API key, token, cookie, real path, customer/project/person
+name, or document content.
+
+The profile author, reviewer, approver, validation operator, and release operator are distinct
+roles. The author cannot self-approve. Ownership must be explicit, profile changes require a new
+version or explicit reapproval, and profiles with missing ownership metadata are unusable.
+
+### Approval requirements
+
+Approval requires successful schema validation, synthetic compatibility harness, security E2E,
+explicit supported version range, required and optional capability review, request/response mapping
+review, score semantics and safe source policy review, timeout/size boundary checks, error
+non-disclosure checks, confirmation of no fallback or schema inference, and an approved manual
+validation report. Any missing condition leaves the profile unapproved; temporary automatic use is
+not permitted.
+
+### Manual validation gate and environment
+
+Real-product validation is a separately approved manual task. Its preflight record contains a safe
+profile ID/version, normalized target product version, operator, approver, date/time, proof of a
+loopback-only destination, confirmation that credentials are unnecessary, synthetic corpus/query
+identifiers, completion criteria, and immediate-stop criteria.
+
+The only allowed environment is isolated and local, with a loopback endpoint and an ephemeral or
+explicitly approved port, fixed synthetic corpus and queries, no dedicated account, and manual
+execution. CI product connections, external/private-LAN/cloud endpoints, credentials, customer or
+production data, real paths, personal data, fallback endpoints, proxies, redirects, retries, and
+automatic reconnection are prohibited.
+
+The fixed procedure is profile/version check, target-version check, loopback and synthetic-input
+check, health validation, capability negotiation, PASS/WARNING/FAIL cases, malformed response,
+timeout, oversized response, close/cleanup, report non-disclosure, immediate disconnect, and safe
+summary creation. It never performs real-document search or exploratory retrieval.
+
+### Validation result and decision
+
+A validation result may retain profile ID/version, a safe normalized product version, protocol and
+health status, capability summary, validation-case outcomes, bounded duration, result count, safe
+error category, pass/fail, reviewer/approver IDs, and validation date. Endpoint, port, query text,
+raw traffic, source/document content, credentials, headers/cookies, stack traces, and internal
+exceptions are forbidden.
+
+Decisions are exactly `approved`, `approved_with_restrictions`, `rejected`, or
+`needs_revalidation`. Restrictions must be explicit and bounded, such as a minor-version range,
+disabled optional capability, unscored-only use, or a reduced top-k. Ambiguous temporary approval,
+indefinite exceptions, undocumented workarounds, and fallback-based continuation are invalid.
+
+### Revalidation, revocation, and rollback
+
+Revalidation is mandatory after product major/minor changes, profile mapping changes, protocol or
+health schema changes, capability-set changes, score/source policy changes, timeout/response-limit
+changes, security-boundary changes, serious compatibility defects, or dependent RAGGuard contract
+changes. A product patch may retain compatibility only when the approved record explicitly permits
+patches in that minor range, all protocol/schema/capability mappings remain unchanged, and no
+revalidation trigger is present.
+
+A revoked profile is immediately blocked and cannot be selected for a new or resumed session.
+Automatic fallback, automatic rollback to a prior approved version, and reuse of an active session
+are forbidden. Any rollback requires separate approval; serious failures record only a safe error
+category.
+
+### Registry governance
+
+A future trusted production registry accepts only approved immutable profile artifacts. Draft and
+synthetic-validated profiles remain in a separate test registry. Profile ID collisions and version
+overwrites are rejected, and every registry change requires PR review. Deprecation/revocation state
+is authoritative and cannot trigger automatic substitution.
+
+CI may run schema validation, synthetic harnesses, security E2E, regressions, and approval-metadata
+completeness checks. It must not connect to a real product, depend on an external localhost process,
+use credentials, communicate through a production profile, or access real data.
+
+### Safe error and audit policy
+
+Safe categories are `profile_unapproved`, `profile_revoked`, `profile_validation_expired`,
+`product_version_unsupported`, `manual_validation_required`, `approval_metadata_invalid`, and
+`revalidation_required`. They normalize through the existing adapter/benchmark boundary to CLI
+error `3` without exposing raw product/version values or internal information.
+
+### v0.10 implementation phases
+
+- Phase A: profile approval metadata and maturity contract.
+- Phase B: validation report and approval decision contract.
+- Phase C: trusted production registry contract.
+- Phase D: synthetic approval workflow harness.
+- Phase E: approval enforcement and security E2E.
+- Phase F: docs, CI, and release preparation.
+
+Real-product manual validation is excluded from these phases and requires explicit user approval as
+a separate task.
+
+### v0.10 non-goals
+
+Production profiles, real production-registry entries, real-product connections, real-document
+search, credentials, external/private-LAN/cloud communication, automatic discovery/approval/
+fallback, schema inference, CI product validation, and product-specific adapters are not part of
+this design.
+
 ## RAG Benchmark Harness v0.9 Local RAG compatibility design
 
 v0.9 defines a product-neutral compatibility boundary on top of the completed v0.8 loopback HTTP

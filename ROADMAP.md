@@ -1,5 +1,44 @@
 # RAGGuard Roadmap
 
+## Planned: RAG Benchmark Harness v0.10 production profile governance
+
+v0.10 defines fail-closed governance around production Compatibility Profiles without adding a
+production profile or connecting to a real product. Profile approval and registry admission remain
+separate from transport configuration, benchmark evaluation, reports, and CI.
+
+### Phase plan
+
+- Phase A: profile approval metadata and maturity contract.
+- Phase B: validation report and approval decision contract.
+- Phase C: trusted production registry contract.
+- Phase D: synthetic approval workflow harness.
+- Phase E: approval enforcement and security E2E.
+- Phase F: docs, CI, and release preparation.
+
+### Delivery boundary
+
+- Maturity is explicit: `draft`, `synthetic_validated`, `manually_validated`, `approved`,
+  `deprecated`, or `revoked`; no state is promoted automatically.
+- Only approved immutable profile versions may enter a future production registry. Test and
+  production registries remain separate, IDs may not collide, and versions may not be overwritten.
+- Approval requires schema, synthetic harness, security E2E, capability, mapping, score/source,
+  timeout/size, non-disclosure, and manual-validation evidence.
+- Missing or expired approval, unsupported product versions, revoked profiles, and required
+  revalidation fail closed through safe categories and CLI error `3`.
+
+### Separate manual product gate
+
+Real-product validation is outside the v0.10 phases and requires explicit user approval as a
+separate task. It is manual, isolated, loopback-only, credential-free, and synthetic-only. CI must
+not connect to a product, depend on an external localhost process, or access real documents.
+
+Future candidates after the governance phases are complete:
+
+- production profile approval procedures
+- product-specific synthetic compatibility harnesses
+- manual connection checklists
+- safe observability for bounded status, counts, duration, and error category only
+
 ## Completed: RAG Benchmark Harness v0.9 Local RAG compatibility
 
 v0.9 introduces a product-neutral compatibility boundary between the v0.8 loopback HTTP transport
