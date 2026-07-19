@@ -44,9 +44,14 @@ enabled optional capabilities, and normalized ranked results. Raw mappings, quer
 credentials, endpoints, product identity, and internal exception details are not retained or
 rendered.
 
-Later v0.9 verification is planned around synthetic compatibility profiles and fixed health,
-capabilities, and retrieval responses. Phase D remains internal and synthetic-only: no CLI/config
-integration, HTTP health/capability communication, or product connection is implemented. A real
+Phase E integrates an explicit `compatibility_profile` selection with `loopback_http`. The CLI now
+resolves the trusted synthetic profile, validates bounded health and capabilities responses, applies
+the Phase C request/response mappings, and passes only normalized `RankedResult` values to the
+evaluator. JSON/YAML config, PASS/WARNING/FAIL, compatibility error `3`, lifecycle ordering, and
+non-disclosure are verified against an ephemeral fake loopback server.
+
+This integration remains synthetic-only. There is one product-neutral built-in test profile, no
+profile discovery or fallback, and no real product schema, endpoint, credential, or document. A real
 product connection is not part of v0.9 delivery; it requires a separately approved manual session
 using a loopback endpoint, synthetic queries, no
 credentials, no real documents, no fallback connection, and safe summary output only.

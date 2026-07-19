@@ -106,9 +106,24 @@ capabilities, mapped request field count, result count, score semantics, and nor
 `RankedResult` values. It does not retain raw health/capability/product mappings, query text,
 profile routes, endpoints, paths, credentials, product names, or internal exception details.
 
-The harness has no CLI command or loadable config. It performs no HTTP, localhost, network,
-filesystem, sleep, timeout, random, or real-product operation. Phase E profile integration and
-security E2E remain unimplemented.
+The Phase D harness itself has no CLI command or I/O. Phase E reuses those contracts through the
+existing benchmark CLI only when `--adapter local-rag` selects a bounded `loopback_http` config
+containing an explicit `compatibility_profile` selection:
+
+```yaml
+compatibility_profile:
+  profile_id: synthetic_loopback_v1
+  profile_version: "1.0.0"
+  protocol_version: "1.0.0"
+  requested_optional_capabilities: []
+```
+
+This selection is added to the existing fictional loopback config. Unknown fields, profiles,
+versions, protocol mismatches, health/capability failures, and mapping failures return CLI error
+`3`. Valid evaluation remains PASS `0`, WARNING `1`, or FAIL `2`. The profile stores no endpoint,
+port, credential, or product schema, and reports add no raw config or HTTP values. Phase E is
+verified only with an ephemeral fake loopback server and synthetic responses; it is not a real
+Local RAG product configuration or compatibility claim.
 
 ## v0.8 secure transport design status
 

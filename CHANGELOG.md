@@ -43,6 +43,14 @@
   responses, and query-ID echo.
 - Kept CLI/config and HTTP integration, product adapters, fixtures, config, workflow, network,
   filesystem, credentials, real products, and real documents unchanged and unimplemented.
+- Completed Phase E by integrating explicit compatibility-profile selection with bounded
+  `loopback_http` health, capabilities, request mapping, retrieval, and response mapping.
+- Added one trusted product-neutral synthetic profile registry with exact selection and no
+  discovery, nearest-version choice, schema inference, or fallback.
+- Added synthetic fake-loopback security E2E coverage for JSON/YAML configuration, deterministic
+  lifecycle order, PASS/WARNING/FAIL, CLI error `3`, and sensitive-value non-disclosure.
+- Preserved the existing evaluator, report top-level keys, synthetic default, `in_memory` behavior,
+  fixtures, workflow, and exit codes. Real-product compatibility remains unverified.
 
 - Started a product-neutral compatibility design before any real Local RAG product connection.
 - Isolated product-specific versions, health/capability shapes, field mappings, score semantics, and

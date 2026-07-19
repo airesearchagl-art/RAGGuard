@@ -57,6 +57,7 @@ _LOCAL_HTTP_CONFIG_KEYS = frozenset(
         "response_size_limit",
         "capabilities",
         "allowlisted_hostnames",
+        "compatibility_profile",
     }
 )
 _LOCAL_CAPABILITY_KEYS = frozenset(
@@ -94,6 +95,7 @@ class LocalRetrievalConfig:
         default_factory=LocalRetrievalCapabilities
     )
     http_endpoint: LocalHTTPEndpoint | None = field(default=None, repr=False)
+    compatibility_profile: Any | None = field(default=None, repr=False)
     configured: bool = False
 
     def __post_init__(self) -> None:
@@ -122,6 +124,15 @@ class LocalRetrievalConfig:
 
             if not isinstance(self.http_endpoint, LocalHTTPEndpoint):
                 raise RetrievalAdapterError("loopback HTTP transport requires an endpoint")
+            if self.compatibility_profile is not None:
+                from ragguard.compatibility import CompatibilityProfileSelection
+
+                if not isinstance(
+                    self.compatibility_profile, CompatibilityProfileSelection
+                ):
+                    raise RetrievalAdapterError("compatibility profile is invalid")
+        elif self.compatibility_profile is not None:
+            raise RetrievalAdapterError("compatibility profile requires loopback HTTP")
         if type(self.configured) is not bool:
             raise RetrievalAdapterError("configured must be boolean")
 
@@ -174,6 +185,7 @@ def load_local_retrieval_config(path: Path) -> LocalRetrievalConfig:
     try:
         capabilities = LocalRetrievalCapabilities(**capability_values)
         if transport_type == "loopback_http":
+            from ragguard.compatibility import CompatibilityProfileSelection
             from ragguard.http_contract import parse_local_http_endpoint
 
             required_fields = {
@@ -196,6 +208,12 @@ def load_local_retrieval_config(path: Path) -> LocalRetrievalConfig:
                     "allowlisted_hostnames", ()
                 ),
             )
+            raw_profile = config_values.get("compatibility_profile")
+            profile_selection = (
+                None
+                if raw_profile is None
+                else CompatibilityProfileSelection.from_mapping(raw_profile)
+            )
             return LocalRetrievalConfig(
                 transport_type=transport_type,
                 timeout_seconds=config_values["total_timeout"],
@@ -205,6 +223,7 @@ def load_local_retrieval_config(path: Path) -> LocalRetrievalConfig:
                 ),
                 capabilities=capabilities,
                 http_endpoint=endpoint,
+                compatibility_profile=profile_selection,
                 configured=True,
             )
         return LocalRetrievalConfig(

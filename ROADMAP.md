@@ -13,7 +13,7 @@ top-level keys, or existing exit codes.
 - Phase B: health and capabilities contract. Completed.
 - Phase C: request and response mapping contract. Completed.
 - Phase D: synthetic compatibility harness. Completed.
-- Phase E: profile integration and security E2E.
+- Phase E: profile integration and security E2E. Completed.
 - Phase F: docs, CI, and release preparation.
 
 ### Compatibility boundary
@@ -75,7 +75,18 @@ top-level keys, or existing exit codes.
   health, capabilities, mappings, identifiers, ranks, duplicates, top-k, malformed responses, and
   query-ID echo.
 - Kept the harness free of network, filesystem, sleep, timeout, randomness, product schema,
-  fixtures, CLI/config integration, and real-product access. Phase E remains unimplemented.
+  fixtures, CLI/config integration, and real-product access.
+
+### Phase E delivery
+
+- Added explicit bounded `compatibility_profile` selection for `loopback_http`, resolved only by the
+  trusted registry with no auto-selection, nearest-version choice, or fallback.
+- Integrated health, capabilities, negotiated request mapping, bounded HTTP retrieval, response
+  mapping, ranked-result normalization, evaluator, report, and exit-code boundaries.
+- Added fake-loopback synthetic E2E coverage for JSON/YAML, exits `0`/`1`/`2`/`3`, compatibility
+  failures, deterministic lifecycle ordering, and sensitive-value non-disclosure.
+- Kept real-product profiles, real endpoints, credentials, real documents, filesystem retrieval,
+  external/private-LAN traffic, fixtures, config, and workflow unchanged and unsupported.
 
 ### Separate manual product gate
 
