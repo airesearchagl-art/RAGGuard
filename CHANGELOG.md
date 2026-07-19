@@ -4,6 +4,16 @@
 
 ### v0.9 Local RAG compatibility design
 
+- Completed Phase A with a typed Compatibility Profile and strict profile/protocol version
+  contract.
+- Added bounded ASCII profile identifiers, relative HTTP path validation, explicit immutable field
+  mappings, allowlisted score semantics/source policy, and explicit boolean feature flags.
+- Added exact profile resolution with no fallback, fail-closed major handling, explicit minor
+  allowlists, patch compatibility within accepted minors, and no prerelease/build version support.
+- Added safe compatibility error categories and contract coverage without endpoint, rejected value,
+  path, credential, raw profile, communication, filesystem access, or product integration.
+- Kept mapping execution and health/capability communication for later phases.
+
 - Started a product-neutral compatibility design before any real Local RAG product connection.
 - Isolated product-specific versions, health/capability shapes, field mappings, score semantics, and
   source-identifier policy in an explicit Compatibility Profile.

@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml)
 
-## RAG Benchmark Harness v0.9 compatibility design
+## RAG Benchmark Harness v0.9 compatibility contract
 
 v0.8 completed the bounded loopback HTTP transport and synthetic security verification. v0.9
 designs a product-neutral compatibility layer before any real Local RAG product is contacted.
@@ -16,8 +16,15 @@ field mappings fail closed as CLI error `3`. There is no best-effort profile sel
 schema inference. Existing request limits, ranked-result validation, report top-level keys, and
 PASS `0` / WARNING `1` / FAIL `2` / CLI error `3` remain unchanged.
 
-v0.9 verification is planned around synthetic compatibility profiles and fixed health,
-capabilities, and retrieval responses. A real product connection is not part of v0.9 delivery: it
+Phase A implements a communication-free compatibility contract: strict three-component profile and
+protocol versions, safe profile identifiers and relative HTTP paths, typed request/response field
+mappings, allowlisted score semantics and source policy, explicit optional feature flags, and exact
+profile selection. Unknown major versions and unallowlisted minor versions fail closed. Prerelease
+and build version forms are not accepted, and no mapping is executed in this phase.
+
+Later v0.9 verification is planned around synthetic compatibility profiles and fixed health,
+capabilities, and retrieval responses. Health/capability communication is not implemented in Phase
+A. A real product connection is not part of v0.9 delivery: it
 requires a separately approved manual session using a loopback endpoint, synthetic queries, no
 credentials, no real documents, no fallback connection, and safe summary output only.
 
