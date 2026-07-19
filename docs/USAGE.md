@@ -6,8 +6,16 @@ v0.8 Phase A provides endpoint, resolution-proof, request, response, size, and s
 a future loopback HTTP transport. Phase B verifies these models through test-only ephemeral loopback
 servers with fixed synthetic responses. The fake servers bind only to `127.0.0.1` or `::1`, do not
 contact a real Local RAG system, and are always shut down after each test. No production HTTP client,
-DNS lookup, redirect following, proxy use, or filesystem retrieval is available. Continue to use the
-Synthetic default or the existing synthetic-only `in_memory` local-rag path documented below.
+redirect following, proxy use, or filesystem retrieval is available in Phase B. Phase C adds the
+internal bounded loopback HTTP client, but it is not selectable from the CLI and is not wired to the
+Local RAG adapter or config loader. Continue to use the Synthetic default or the existing
+synthetic-only `in_memory` local-rag path documented below.
+
+The Phase C client performs one short-lived request. It resolves an allowlisted hostname immediately
+before connection, requires every resolved address and the actual peer to be loopback, connects to a
+validated IP literal, sends bounded UTF-8 JSON, reads only the configured limit plus one byte, and
+always closes. Redirects, environment or system proxies, retries, connection pooling, external or
+private-LAN destinations, and raw traffic persistence are not supported.
 
 Planned HTTP use will require an explicit local-rag selection and explicit safe endpoint config.
 Only `127.0.0.1`, `::1`, or a separately reviewed allowlisted name resolving exclusively to

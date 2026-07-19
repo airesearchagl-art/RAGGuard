@@ -8,7 +8,9 @@ v0.8 designs a real Local RAG transport boundary before any production communica
 Phase A codes the endpoint, caller-supplied resolution proof, JSON request/response, size, and safe
 error contracts without performing DNS lookup or I/O. Phase B verifies those contracts against a
 test-only fake loopback server with fixed synthetic responses. The first production transport
-candidate is loopback HTTP.
+candidate is loopback HTTP. Phase C adds a bounded one-request HTTP client that resolves immediately
+before connecting, connects to a verified loopback IP literal, validates the actual peer, performs
+one bounded POST, and always closes the connection.
 Unix domain sockets and Windows named pipes remain future candidates. External hosts, private LAN
 targets, wildcard addresses, redirects, proxies, filesystem retrieval, and credential loading are
 excluded.
@@ -19,11 +21,11 @@ requests and responses, connect/read/total timeouts, no automatic retry, no conn
 a short-lived one-shot lifecycle with close after success or failure. Reports and logs retain only
 adapter name, bounded duration, result count, status, and safe error category.
 
-No production HTTP client, DNS lookup, redirect handling, proxy use, or real Local RAG access is
-added. Phase B communication is confined to ephemeral `127.0.0.1` / `::1` test servers that always
-close after each test. Synthetic retrieval remains the default and `local-rag` remains limited to
-the existing no-I/O `in_memory` transport until later v0.8 phases are separately implemented and
-reviewed.
+The Phase C client does not follow redirects, consult proxy configuration, retry, pool connections,
+or permit non-loopback peers. It is not connected to the CLI, configuration loader, or Local RAG
+adapter yet. Verification communication remains confined to ephemeral `127.0.0.1` / `::1` test
+servers. Synthetic retrieval remains the default and `local-rag` remains limited to the existing
+no-I/O `in_memory` transport until later v0.8 phases are separately implemented and reviewed.
 
 ## RAG Benchmark Harness v0.7 local connection contract
 

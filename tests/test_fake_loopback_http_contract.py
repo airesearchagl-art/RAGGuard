@@ -13,6 +13,10 @@ from typing import Any
 
 import pytest
 
+from ragguard.http_client import (
+    BoundedLoopbackHTTPClient,
+    resolve_loopback_addresses,
+)
 from ragguard.http_contract import (
     HTTP_JSON_CONTENT_TYPE,
     HTTP_REQUEST_SIZE_LIMIT,
@@ -37,6 +41,7 @@ class _ScriptedResponse:
     status: int = 200
     content_type: str = HTTP_JSON_CONTENT_TYPE
     delay_seconds: float = 0.0
+    body_delay_seconds: float = 0.0
     location: str | None = None
 
 
@@ -106,6 +111,8 @@ class _FakeLoopbackHandler(BaseHTTPRequestHandler):
         if response.location is not None:
             self.send_header("Location", response.location)
         self.end_headers()
+        if response.body_delay_seconds:
+            time.sleep(response.body_delay_seconds)
         try:
             self.wfile.write(response.body)
         except (BrokenPipeError, ConnectionResetError):
@@ -524,6 +531,11 @@ class _ConnectTimeoutConnection(http.client.HTTPConnection):
         raise TimeoutError("private connect detail")
 
 
+class _UnsafeAdapterErrorConnection(http.client.HTTPConnection):
+    def connect(self) -> None:
+        raise RetrievalAdapterError("private raw adapter detail")
+
+
 def test_connect_timeout_maps_safely_without_network_retry() -> None:
     endpoint = LocalHTTPEndpoint(
         scheme="http",
@@ -565,3 +577,362 @@ def test_read_and_total_timeout_map_safely_without_retry() -> None:
     assert len(server.requests) == 1
     assert str(exc_info.value) == "timeout"
     assert "private-timeout-query" not in str(exc_info.value)
+
+
+def test_bounded_client_ipv4_round_trip_returns_ranked_results() -> None:
+    with _running_server(_ScriptedResponse(body=_response_body())) as server:
+        results = BoundedLoopbackHTTPClient(_endpoint(server)).retrieve(
+            HTTPRetrievalRequest(query="synthetic", top_k=1)
+        )
+
+    assert [(result.rank, result.document_id) for result in results] == [
+        (1, "synthetic-doc-001")
+    ]
+    assert results[0].source_path == "synthetic-source-001"
+    assert len(server.requests) == 1
+    assert server.requests[0].method == "POST"
+    assert server.requests[0].content_type == HTTP_JSON_CONTENT_TYPE
+
+
+def test_bounded_client_ipv6_round_trip_when_available() -> None:
+    try:
+        context = _running_server(_ScriptedResponse(body=_response_body()), ipv6=True)
+        with context as server:
+            results = BoundedLoopbackHTTPClient(
+                _endpoint(server, host="::1")
+            ).retrieve(HTTPRetrievalRequest(query="synthetic", top_k=1))
+    except OSError as exc:
+        pytest.skip(f"IPv6 loopback is unavailable: {type(exc).__name__}")
+
+    assert results[0].document_id == "synthetic-doc-001"
+
+
+def test_bounded_client_resolves_allowlisted_hostname_for_each_request() -> None:
+    calls: list[tuple[str, int]] = []
+    with _running_server(_ScriptedResponse(body=_response_body())) as server:
+        endpoint = LocalHTTPEndpoint(
+            scheme="http",
+            host="localhost",
+            port=server.server_address[1],
+            path="/retrieve",
+            connect_timeout=1.0,
+            read_timeout=1.0,
+            total_timeout=1.0,
+            allowlisted_hostnames=frozenset({"localhost"}),
+        )
+
+        def resolver(host: str, port: int) -> tuple[str, ...]:
+            calls.append((host, port))
+            return ("127.0.0.1",)
+
+        client = BoundedLoopbackHTTPClient(endpoint, resolver=resolver)
+        first = client.retrieve(HTTPRetrievalRequest(query="first", top_k=1))
+        second = client.retrieve(HTTPRetrievalRequest(query="second", top_k=1))
+
+    assert first == second
+    assert calls == [
+        ("localhost", endpoint.port),
+        ("localhost", endpoint.port),
+    ]
+    assert len(server.requests) == 2
+
+
+@pytest.mark.parametrize(
+    "addresses",
+    [
+        ("127.0.0.1", "192.168.1.10"),
+        ("10.0.0.10",),
+        ("203.0.113.10",),
+        (),
+    ],
+)
+def test_bounded_client_rejects_non_loopback_resolution_before_connect(
+    addresses: tuple[str, ...],
+) -> None:
+    endpoint = LocalHTTPEndpoint(
+        scheme="http",
+        host="localhost",
+        port=8765,
+        path="/retrieve",
+        connect_timeout=1.0,
+        read_timeout=1.0,
+        total_timeout=1.0,
+        allowlisted_hostnames=frozenset({"localhost"}),
+    )
+    connection_attempts = 0
+
+    def factory(host: str, port: int, timeout: float) -> http.client.HTTPConnection:
+        nonlocal connection_attempts
+        connection_attempts += 1
+        return http.client.HTTPConnection(host, port, timeout=timeout)
+
+    with pytest.raises(RetrievalAdapterError, match="external_host_rejected"):
+        BoundedLoopbackHTTPClient(
+            endpoint,
+            resolver=lambda host, port: addresses,
+            connection_factory=factory,
+        ).retrieve(HTTPRetrievalRequest(query="private-query", top_k=1))
+
+    assert connection_attempts == 0
+
+
+def test_default_resolver_rejects_mixed_addresses_without_connecting(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def mixed_getaddrinfo(*args: object, **kwargs: object) -> list[tuple[object, ...]]:
+        return [
+            (socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP, "", ("127.0.0.1", 8765)),
+            (socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP, "", ("192.168.1.10", 8765)),
+        ]
+
+    monkeypatch.setattr(socket, "getaddrinfo", mixed_getaddrinfo)
+
+    with pytest.raises(RetrievalAdapterError, match="external_host_rejected"):
+        resolve_loopback_addresses("localhost", 8765)
+
+
+def test_default_resolver_maps_timeout_without_raw_details(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def timed_out_getaddrinfo(*args: object, **kwargs: object) -> list[tuple[object, ...]]:
+        raise socket.timeout("private resolver detail")
+
+    monkeypatch.setattr(socket, "getaddrinfo", timed_out_getaddrinfo)
+
+    with pytest.raises(RetrievalAdapterError, match="timeout") as exc_info:
+        resolve_loopback_addresses("localhost", 8765)
+
+    assert str(exc_info.value) == "timeout"
+
+
+class _PeerSocket:
+    def __init__(self, peer: str | None) -> None:
+        self._peer = peer
+        self.closed = False
+
+    def getpeername(self) -> tuple[str, int]:
+        if self._peer is None:
+            raise OSError("private peer detail")
+        return self._peer, 8765
+
+    def close(self) -> None:
+        self.closed = True
+
+
+class _PeerConnection(http.client.HTTPConnection):
+    def __init__(self, host: str, port: int, timeout: float, peer: str | None) -> None:
+        super().__init__(host, port, timeout=timeout)
+        self.peer_socket = _PeerSocket(peer)
+
+    def connect(self) -> None:
+        self.sock = self.peer_socket  # type: ignore[assignment]
+
+
+@pytest.mark.parametrize("peer", ["192.0.2.10", None])
+def test_bounded_client_rejects_changed_or_unconfirmed_peer(
+    peer: str | None,
+) -> None:
+    endpoint = LocalHTTPEndpoint(
+        scheme="http",
+        host="127.0.0.1",
+        port=8765,
+        path="/retrieve",
+        connect_timeout=1.0,
+        read_timeout=1.0,
+        total_timeout=1.0,
+    )
+    connections: list[_PeerConnection] = []
+
+    def factory(host: str, port: int, timeout: float) -> http.client.HTTPConnection:
+        connection = _PeerConnection(host, port, timeout, peer)
+        connections.append(connection)
+        return connection
+
+    with pytest.raises(RetrievalAdapterError, match="external_host_rejected"):
+        BoundedLoopbackHTTPClient(
+            endpoint,
+            connection_factory=factory,
+        ).retrieve(HTTPRetrievalRequest(query="private-query", top_k=1))
+
+    assert connections[0].peer_socket.closed is True
+
+
+def test_bounded_client_ignores_environment_proxy_configuration(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("HTTP_PROXY", "http://proxy.invalid:9999")
+    monkeypatch.setenv("HTTPS_PROXY", "http://proxy.invalid:9999")
+    monkeypatch.setenv("ALL_PROXY", "http://proxy.invalid:9999")
+    with _running_server(_ScriptedResponse(body=_response_body())) as server:
+        results = BoundedLoopbackHTTPClient(_endpoint(server)).retrieve(
+            HTTPRetrievalRequest(query="synthetic", top_k=1)
+        )
+
+    assert results[0].document_id == "synthetic-doc-001"
+    assert len(server.requests) == 1
+
+
+@pytest.mark.parametrize(
+    ("script", "category"),
+    [
+        (_ScriptedResponse(body=b"", status=307, location="http://127.0.0.1:1/private"), "invalid_status"),
+        (_ScriptedResponse(body=b"", status=500), "invalid_status"),
+        (_ScriptedResponse(body=_response_body(), content_type="text/plain"), "invalid_content_type"),
+        (_ScriptedResponse(body=b"not-json"), "invalid_response"),
+    ],
+)
+def test_bounded_client_rejects_invalid_response_without_retry(
+    script: _ScriptedResponse,
+    category: str,
+) -> None:
+    connections: list[http.client.HTTPConnection] = []
+    with _running_server(script) as server:
+
+        def factory(host: str, port: int, timeout: float) -> http.client.HTTPConnection:
+            connection = http.client.HTTPConnection(host, port, timeout=timeout)
+            connections.append(connection)
+            return connection
+
+        with pytest.raises(RetrievalAdapterError, match=category) as exc_info:
+            BoundedLoopbackHTTPClient(
+                _endpoint(server),
+                connection_factory=factory,
+            ).retrieve(
+                HTTPRetrievalRequest(query="private-query-value", top_k=1)
+            )
+
+    assert str(exc_info.value) == category
+    assert "private-query-value" not in str(exc_info.value)
+    assert "127.0.0.1" not in str(exc_info.value)
+    assert len(server.requests) == 1
+    assert len(connections) == 1
+    assert connections[0].sock is None
+
+
+def test_bounded_client_rejects_redirect_before_reading_delayed_body() -> None:
+    script = _ScriptedResponse(
+        body=b"private-delayed-redirect-body",
+        status=302,
+        body_delay_seconds=0.2,
+        location="http://127.0.0.1:1/private",
+    )
+    with _running_server(script) as server:
+        with pytest.raises(RetrievalAdapterError, match="invalid_status") as exc_info:
+            BoundedLoopbackHTTPClient(
+                _endpoint(server, timeout=0.05)
+            ).retrieve(HTTPRetrievalRequest(query="private-query", top_k=1))
+
+    assert str(exc_info.value) == "invalid_status"
+    assert len(server.requests) == 1
+
+
+def test_bounded_client_accepts_exact_limit_and_rejects_limit_plus_one() -> None:
+    body = _response_body()
+    with _running_server(_ScriptedResponse(body=body)) as exact_server:
+        exact_results = BoundedLoopbackHTTPClient(
+            _endpoint(exact_server, response_size_limit=len(body))
+        ).retrieve(HTTPRetrievalRequest(query="synthetic", top_k=1))
+
+    with _running_server(_ScriptedResponse(body=body + b" ")) as oversized_server:
+        with pytest.raises(
+            RetrievalAdapterError,
+            match="response_too_large",
+        ) as exc_info:
+            BoundedLoopbackHTTPClient(
+                _endpoint(oversized_server, response_size_limit=len(body))
+            ).retrieve(HTTPRetrievalRequest(query="private-query", top_k=1))
+
+    assert exact_results[0].document_id == "synthetic-doc-001"
+    assert str(exc_info.value) == "response_too_large"
+
+
+@pytest.mark.parametrize(
+    ("connection_type", "category"),
+    [
+        (_ConnectionRefusedConnection, "connection_refused"),
+        (_ConnectTimeoutConnection, "timeout"),
+        (_UnsafeAdapterErrorConnection, "invalid_response"),
+    ],
+)
+def test_bounded_client_maps_connect_errors_without_retry(
+    connection_type: type[http.client.HTTPConnection],
+    category: str,
+) -> None:
+    endpoint = LocalHTTPEndpoint(
+        scheme="http",
+        host="127.0.0.1",
+        port=8765,
+        path="/retrieve",
+        connect_timeout=0.1,
+        read_timeout=0.1,
+        total_timeout=0.1,
+    )
+    attempts = 0
+
+    def factory(host: str, port: int, timeout: float) -> http.client.HTTPConnection:
+        nonlocal attempts
+        attempts += 1
+        return connection_type(host, port, timeout=timeout)
+
+    with pytest.raises(RetrievalAdapterError, match=category) as exc_info:
+        BoundedLoopbackHTTPClient(
+            endpoint,
+            connection_factory=factory,
+        ).retrieve(HTTPRetrievalRequest(query="private-query", top_k=1))
+
+    assert attempts == 1
+    assert str(exc_info.value) == category
+
+
+def test_bounded_client_maps_read_timeout_and_closes_connection() -> None:
+    connections: list[http.client.HTTPConnection] = []
+    with _running_server(
+        _ScriptedResponse(body=_response_body(), delay_seconds=0.2)
+    ) as server:
+
+        def factory(host: str, port: int, timeout: float) -> http.client.HTTPConnection:
+            connection = http.client.HTTPConnection(host, port, timeout=timeout)
+            connections.append(connection)
+            return connection
+
+        with pytest.raises(RetrievalAdapterError, match="timeout") as exc_info:
+            BoundedLoopbackHTTPClient(
+                _endpoint(server, timeout=0.05),
+                connection_factory=factory,
+            ).retrieve(
+                HTTPRetrievalRequest(query="private-timeout-query", top_k=1)
+            )
+
+    assert str(exc_info.value) == "timeout"
+    assert "private-timeout-query" not in str(exc_info.value)
+    assert len(server.requests) == 1
+    assert connections[0].sock is None
+
+
+def test_bounded_client_enforces_total_deadline_after_resolution() -> None:
+    endpoint = LocalHTTPEndpoint(
+        scheme="http",
+        host="127.0.0.1",
+        port=8765,
+        path="/retrieve",
+        connect_timeout=1.0,
+        read_timeout=1.0,
+        total_timeout=1.0,
+    )
+    clock_values = iter((0.0, 2.0))
+    connection_attempts = 0
+
+    def factory(host: str, port: int, timeout: float) -> http.client.HTTPConnection:
+        nonlocal connection_attempts
+        connection_attempts += 1
+        return http.client.HTTPConnection(host, port, timeout=timeout)
+
+    with pytest.raises(RetrievalAdapterError, match="timeout"):
+        BoundedLoopbackHTTPClient(
+            endpoint,
+            resolver=lambda host, port: ("127.0.0.1",),
+            connection_factory=factory,
+            clock=lambda: next(clock_values),
+        ).retrieve(HTTPRetrievalRequest(query="private-query", top_k=1))
+
+    assert connection_attempts == 0
