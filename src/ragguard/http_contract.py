@@ -8,6 +8,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
+from urllib.parse import urlsplit
 
 from ragguard.retrieval import (
     LOCAL_RESPONSE_METADATA_KEYS,
@@ -67,6 +68,68 @@ def http_transport_error(
     if not isinstance(category, HTTPTransportErrorCategory):
         return RetrievalAdapterError(HTTPTransportErrorCategory.INVALID_RESPONSE.value)
     return RetrievalAdapterError(category.value)
+
+
+def parse_local_http_endpoint(
+    endpoint: Any,
+    *,
+    connect_timeout: Any,
+    read_timeout: Any,
+    total_timeout: Any,
+    response_size_limit: Any = DEFAULT_HTTP_RESPONSE_SIZE_LIMIT,
+    allowlisted_hostnames: Any = (),
+) -> LocalHTTPEndpoint:
+    """Build a validated endpoint without exposing the supplied value on failure."""
+    if (
+        not isinstance(endpoint, str)
+        or not endpoint
+        or len(endpoint) > 2_048
+        or endpoint != endpoint.strip()
+        or any(
+            character.isspace() or ord(character) < 0x20 or ord(character) == 0x7F
+            for character in endpoint
+        )
+    ):
+        raise http_transport_error(HTTPTransportErrorCategory.INVALID_ENDPOINT)
+    try:
+        parsed = urlsplit(endpoint)
+        port = parsed.port
+    except (TypeError, ValueError):
+        raise http_transport_error(HTTPTransportErrorCategory.INVALID_ENDPOINT) from None
+    if (
+        parsed.scheme != "http"
+        or not parsed.netloc
+        or parsed.hostname is None
+        or port is None
+        or parsed.username is not None
+        or parsed.password is not None
+        or bool(parsed.query)
+        or bool(parsed.fragment)
+        or not parsed.path
+        or "%" in parsed.path
+    ):
+        raise http_transport_error(HTTPTransportErrorCategory.INVALID_ENDPOINT)
+    if isinstance(allowlisted_hostnames, (str, bytes)) or not isinstance(
+        allowlisted_hostnames, Sequence
+    ):
+        raise http_transport_error(HTTPTransportErrorCategory.INVALID_ENDPOINT)
+    try:
+        allowlist = frozenset(allowlisted_hostnames)
+        return LocalHTTPEndpoint(
+            scheme=parsed.scheme,
+            host=parsed.hostname,
+            port=port,
+            path=parsed.path,
+            connect_timeout=connect_timeout,
+            read_timeout=read_timeout,
+            total_timeout=total_timeout,
+            response_size_limit=response_size_limit,
+            allowlisted_hostnames=allowlist,
+        )
+    except RetrievalAdapterError:
+        raise
+    except (TypeError, ValueError):
+        raise http_transport_error(HTTPTransportErrorCategory.INVALID_ENDPOINT) from None
 
 
 @dataclass(frozen=True)

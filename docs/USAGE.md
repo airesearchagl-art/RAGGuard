@@ -7,9 +7,8 @@ a future loopback HTTP transport. Phase B verifies these models through test-onl
 servers with fixed synthetic responses. The fake servers bind only to `127.0.0.1` or `::1`, do not
 contact a real Local RAG system, and are always shut down after each test. No production HTTP client,
 redirect following, proxy use, or filesystem retrieval is available in Phase B. Phase C adds the
-internal bounded loopback HTTP client, but it is not selectable from the CLI and is not wired to the
-Local RAG adapter or config loader. Continue to use the Synthetic default or the existing
-synthetic-only `in_memory` local-rag path documented below.
+internal bounded loopback HTTP client. Phase D makes that client selectable only through explicit
+`local-rag` configuration while preserving the Synthetic default and existing `in_memory` path.
 
 The Phase C client performs one short-lived request. It resolves an allowlisted hostname immediately
 before connection, requires every resolved address and the actual peer to be loopback, connects to a
@@ -17,7 +16,7 @@ validated IP literal, sends bounded UTF-8 JSON, reads only the configured limit 
 always closes. Redirects, environment or system proxies, retries, connection pooling, external or
 private-LAN destinations, and raw traffic persistence are not supported.
 
-Planned HTTP use will require an explicit local-rag selection and explicit safe endpoint config.
+HTTP use requires an explicit local-rag selection and explicit safe endpoint config.
 Only `127.0.0.1`, `::1`, or a separately reviewed allowlisted name resolving exclusively to
 loopback addresses may be accepted. Private LAN addresses, external addresses, `0.0.0.0`, wildcard
 binds, redirects, and proxy routing are rejected. Endpoint changes must come from explicit config;
@@ -39,6 +38,39 @@ Transport failures are operational CLI errors, not benchmark quality results. In
 external host, refusal, timeout, status, content type, response size, response schema, or capability
 maps through a bounded `RetrievalAdapterError` and `BenchmarkError` to CLI error `3`. Valid retrieval
 continues to use PASS `0`, WARNING `1`, and FAIL `2` for evaluator outcomes.
+
+Phase D loopback HTTP example:
+
+```json
+{
+  "transport_type": "loopback_http",
+  "endpoint": "http://127.0.0.1:8765/retrieve",
+  "connect_timeout": 1.0,
+  "read_timeout": 2.0,
+  "total_timeout": 3.0,
+  "default_top_k": 5,
+  "response_size_limit": 262144,
+  "capabilities": {
+    "ranked_results": true,
+    "matched_keywords": true,
+    "filters": false
+  }
+}
+```
+
+The config remains bounded to 64 KiB and is loaded with JSON parsing or `yaml.safe_load`. HTTP uses
+`http` only, literal `127.0.0.1` / `::1`, or an explicitly allowlisted hostname whose complete
+resolution set is loopback. Unknown fields are rejected. API keys, bearer tokens, credentials,
+cookies, custom headers, proxy, redirect, and retry settings are not accepted.
+
+The HTTP path performs initialize, local health/capability checks, one bounded request, response
+normalization, and close for every query. PASS `0`, WARNING `1`, and FAIL `2` remain evaluator
+outcomes. Config, endpoint, lifecycle, or transport failures return CLI error `3` without writing a
+normal report. Existing JSON/Markdown top-level fields and `metadata.retrieval_adapter` remain
+unchanged; endpoint, port, config path, headers, raw bodies, and credentials are not added.
+
+Only synthetic fake loopback servers have been verified. A real Local RAG product and real documents
+remain unsupported, and Phase E security end-to-end coverage is still pending.
 
 ## v0.7 Phase A-F Local RAG contract
 

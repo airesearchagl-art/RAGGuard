@@ -55,6 +55,26 @@ access, or real Local RAG integration.
 - Added production-client tests over test-only IPv4 and optional IPv6 loopback servers, plus injected
   resolution, peer, connect, timeout, and cleanup seams. No real Local RAG endpoint is contacted.
 
+### Phase D implementation status
+
+- Added `loopback_http` beside the existing `in_memory` transport type. Synthetic remains the CLI
+  default, and HTTP is constructed only after explicit `--adapter local-rag --adapter-config` use.
+- Extended bounded JSON/YAML loading with an HTTP endpoint, connect/read/total timeouts, default
+  top-k, response-size limit, capability flags, and an optional explicit hostname allowlist.
+- Reject unknown fields and all auth, token, cookie, proxy, redirect, retry, credential, non-HTTP,
+  external, private-LAN, wildcard, user-info, query, fragment, encoded-path, and traversal values.
+- Added `LoopbackHTTPLocalRetrievalTransport` as the lifecycle wrapper around the single production
+  communication boundary, `BoundedLoopbackHTTPClient`. It performs initialize, local health and
+  capability checks, one retrieve, normalization, and close through the existing one-shot adapter.
+- Preserve PASS `0`, WARNING `1`, FAIL `2`, CLI error `3`, report top-level keys, and
+  `metadata.retrieval_adapter`. No endpoint, port, config path, headers, raw body, or credential is
+  added to reports or bounded errors.
+- Added synthetic fake-loopback integration coverage for evaluation outcomes, invalid config,
+  redirect/status/content-type/JSON rejection, response limit, timeout, refusal, mixed resolution,
+  proxy isolation, no retry, safe error disclosure, and close after success or failure.
+- Added no real Local RAG product integration, filesystem retrieval, external/private-LAN traffic,
+  credential handling, fixture changes, or workflow changes. Phase E remains pending.
+
 ### Transport selection and order
 
 1. Loopback HTTP is the first implementation candidate because its request, response, timeout, and
@@ -207,7 +227,7 @@ use real documents.
 - Phase A: endpoint and HTTP transport contract - completed.
 - Phase B: fake loopback server tests with fixed synthetic responses - completed.
 - Phase C: bounded loopback HTTP client - completed.
-- Phase D: CLI and safe config integration.
+- Phase D: CLI and safe config integration - completed.
 - Phase E: synthetic end-to-end and security tests.
 - Phase F: docs, CI, and release preparation.
 

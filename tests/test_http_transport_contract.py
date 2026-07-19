@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -14,10 +15,11 @@ from ragguard.http_contract import (
     LocalHTTPEndpoint,
     LoopbackResolutionContract,
     http_transport_error,
+    parse_local_http_endpoint,
     parse_http_retrieval_response,
     response_read_limit,
 )
-from ragguard.retrieval import RetrievalAdapterError
+from ragguard.retrieval import RetrievalAdapterError, load_local_retrieval_config
 
 
 def _endpoint(**overrides: object) -> LocalHTTPEndpoint:
@@ -312,3 +314,126 @@ def test_http_error_categories_are_bounded_and_do_not_expose_sensitive_values() 
         error = http_transport_error(category)
         assert str(error) == category.value
         assert all(value not in str(error) for value in sensitive_values)
+
+
+def test_loopback_http_config_maps_to_validated_endpoint(tmp_path: Path) -> None:
+    config_path = tmp_path / "loopback.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "transport_type": "loopback_http",
+                "endpoint": "http://127.0.0.1:8765/retrieve",
+                "connect_timeout": 1.0,
+                "read_timeout": 2.0,
+                "total_timeout": 3.0,
+                "default_top_k": 7,
+                "response_size_limit": 65_536,
+                "capabilities": {
+                    "ranked_results": True,
+                    "matched_keywords": True,
+                    "filters": False,
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    config = load_local_retrieval_config(config_path)
+
+    assert config.transport_type == "loopback_http"
+    assert config.default_top_k == 7
+    assert config.http_endpoint is not None
+    assert config.http_endpoint.host == "127.0.0.1"
+    assert config.http_endpoint.port == 8765
+    assert config.http_endpoint.path == "/retrieve"
+
+
+def test_loopback_http_config_accepts_only_explicitly_allowlisted_hostname(
+    tmp_path: Path,
+) -> None:
+    config_path = tmp_path / "loopback.yaml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "transport_type: loopback_http",
+                "endpoint: http://localhost:8765/retrieve",
+                "connect_timeout: 1",
+                "read_timeout: 2",
+                "total_timeout: 3",
+                "allowlisted_hostnames:",
+                "  - localhost",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    config = load_local_retrieval_config(config_path)
+
+    assert config.http_endpoint is not None
+    assert config.http_endpoint.host == "localhost"
+
+    config_path.write_text(
+        config_path.read_text(encoding="utf-8").replace(
+            "allowlisted_hostnames:\n  - localhost", "allowlisted_hostnames: []"
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(RetrievalAdapterError, match="external_host_rejected"):
+        load_local_retrieval_config(config_path)
+
+
+@pytest.mark.parametrize(
+    "field",
+    ["auth", "token", "cookie", "proxy", "redirect", "retry", "credential"],
+)
+def test_loopback_http_config_rejects_security_sensitive_and_unknown_fields(
+    tmp_path: Path,
+    field: str,
+) -> None:
+    config_path = tmp_path / "private.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "transport_type": "loopback_http",
+                "endpoint": "http://127.0.0.1:8765/retrieve",
+                "connect_timeout": 1,
+                "read_timeout": 1,
+                "total_timeout": 1,
+                field: "private-value",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(RetrievalAdapterError) as exc_info:
+        load_local_retrieval_config(config_path)
+
+    assert "private-value" not in str(exc_info.value)
+    assert str(config_path) not in str(exc_info.value)
+
+
+@pytest.mark.parametrize(
+    "endpoint",
+    [
+        "https://127.0.0.1:8765/retrieve",
+        "http://127.0.0.1:8765/retrieve?query=private",
+        "http://127.0.0.1:8765/retrieve#private",
+        "http://user:secret@127.0.0.1:8765/retrieve",
+        "http://127.0.0.1:8765/../private",
+        "http://127.0.0.1:8765/%2e%2e/private",
+        "http://192.168.1.10:8765/retrieve",
+        "http://0.0.0.0:8765/retrieve",
+    ],
+)
+def test_http_config_endpoint_parser_rejects_unsafe_values_without_disclosure(
+    endpoint: str,
+) -> None:
+    with pytest.raises(RetrievalAdapterError) as exc_info:
+        parse_local_http_endpoint(
+            endpoint,
+            connect_timeout=1,
+            read_timeout=1,
+            total_timeout=1,
+        )
+
+    assert endpoint not in str(exc_info.value)

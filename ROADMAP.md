@@ -11,7 +11,7 @@ transport phase must preserve the existing adapter, evaluator, report, and exit-
 - Phase A: define endpoint validation and HTTP transport contracts - completed.
 - Phase B: add fake loopback server contract tests with fixed synthetic responses - completed.
 - Phase C: implement the bounded loopback HTTP client - completed.
-- Phase D: integrate the transport with safe CLI and config selection.
+- Phase D: integrate the transport with safe CLI and config selection - completed.
 - Phase E: add synthetic end-to-end and transport security tests.
 - Phase F: finalize docs, CI coverage, and release notes.
 

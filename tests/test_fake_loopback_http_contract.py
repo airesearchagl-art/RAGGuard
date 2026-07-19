@@ -9,10 +9,13 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from typing import Any
 
 import pytest
+import yaml
 
+from ragguard.cli import main
 from ragguard.http_client import (
     BoundedLoopbackHTTPClient,
     resolve_loopback_addresses,
@@ -29,8 +32,14 @@ from ragguard.http_contract import (
     parse_http_retrieval_response,
     response_read_limit,
 )
+from ragguard.http_transport import LoopbackHTTPLocalRetrievalTransport
 from ragguard.retrieval import (
+    LocalRAGRetrievalAdapter,
+    LocalRetrievalConfig,
+    LocalRetrievalRequest,
+    LocalRetrievalTransport,
     RetrievalAdapterError,
+    load_local_retrieval_config,
     normalize_local_response,
 )
 
@@ -59,7 +68,7 @@ class _FakeLoopbackServer(ThreadingHTTPServer):
     def __init__(
         self,
         address: tuple[str, int],
-        response: _ScriptedResponse,
+        response: _ScriptedResponse | Callable[[_RecordedRequest], _ScriptedResponse],
     ) -> None:
         self.scripted_response = response
         self.requests: list[_RecordedRequest] = []
@@ -103,6 +112,8 @@ class _FakeLoopbackHandler(BaseHTTPRequestHandler):
             return
 
         response = self.server.scripted_response
+        if callable(response):
+            response = response(self.server.requests[-1])
         if response.delay_seconds:
             time.sleep(response.delay_seconds)
         self.send_response(response.status)
@@ -137,7 +148,7 @@ class _FakeLoopbackHandler(BaseHTTPRequestHandler):
 
 @contextmanager
 def _running_server(
-    response: _ScriptedResponse,
+    response: _ScriptedResponse | Callable[[_RecordedRequest], _ScriptedResponse],
     *,
     ipv6: bool = False,
 ) -> Iterator[_FakeLoopbackServer]:
@@ -936,3 +947,393 @@ def test_bounded_client_enforces_total_deadline_after_resolution() -> None:
         ).retrieve(HTTPRetrievalRequest(query="private-query", top_k=1))
 
     assert connection_attempts == 0
+
+
+BENCHMARK_FIXTURES = Path(__file__).parent / "fixtures" / "benchmark"
+
+
+def _write_loopback_config(
+    path: Path,
+    server: _FakeLoopbackServer,
+    **overrides: object,
+) -> Path:
+    config: dict[str, object] = {
+        "transport_type": "loopback_http",
+        "endpoint": f"http://127.0.0.1:{server.server_address[1]}/retrieve",
+        "connect_timeout": 0.5,
+        "read_timeout": 0.5,
+        "total_timeout": 1.0,
+        "default_top_k": 5,
+        "response_size_limit": 262_144,
+        "capabilities": {
+            "ranked_results": True,
+            "matched_keywords": True,
+            "filters": False,
+        },
+    }
+    config.update(overrides)
+    if path.suffix in {".yaml", ".yml"}:
+        path.write_text(yaml.safe_dump(config, sort_keys=True), encoding="utf-8")
+    else:
+        path.write_text(json.dumps(config), encoding="utf-8")
+    return path
+
+
+def _benchmark_cli_args(output: Path, config: Path) -> list[str]:
+    return [
+        "benchmark",
+        "--corpus",
+        str(BENCHMARK_FIXTURES / "corpus"),
+        "--queries",
+        str(BENCHMARK_FIXTURES / "queries.jsonl"),
+        "--output",
+        str(output),
+        "--adapter",
+        "local-rag",
+        "--adapter-config",
+        str(config),
+    ]
+
+
+def _benchmark_http_response(
+    request: _RecordedRequest,
+    *,
+    first_status: str = "pass",
+) -> _ScriptedResponse:
+    payload = json.loads(request.body.decode("utf-8"))
+    query = payload["query"]
+    if query.startswith("Where are sample policy"):
+        if first_status == "fail":
+            document_id = "sample-faq-001"
+            title = "Synthetic FAQ Result"
+            source_id = "sample-faq-source"
+            keywords = ["fictional support windows"]
+        else:
+            document_id = "sample-policy-001"
+            title = "Synthetic Policy Result"
+            source_id = "sample-policy-source"
+            keywords = ["sample", "archive"] if first_status == "pass" else ["sample"]
+        results = [
+            {
+                "rank": 1,
+                "document_id": document_id,
+                "score": 1.0,
+                "title": title,
+                "source_id": source_id,
+                "matched_keywords": keywords,
+                "adapter_metadata": {"transport": "loopback_http"},
+            }
+        ]
+    elif query.startswith("What kind of support windows"):
+        results = [
+            {
+                "rank": 1,
+                "document_id": "sample-faq-001",
+                "score": 1.0,
+                "title": "Synthetic FAQ Result",
+                "source_id": "sample-faq-source",
+                "matched_keywords": ["fictional", "support", "windows"],
+                "adapter_metadata": {"transport": "loopback_http"},
+            }
+        ]
+    else:
+        results = []
+    return _ScriptedResponse(body=_response_body(results=results))
+
+
+class _RecordingLoopbackHTTPTransport(LoopbackHTTPLocalRetrievalTransport):
+    def __init__(self) -> None:
+        super().__init__()
+        self.events: list[str] = []
+
+    def initialize(self, config: LocalRetrievalConfig) -> None:
+        self.events.append("initialize")
+        super().initialize(config)
+
+    def health_check(self) -> bool:
+        self.events.append("health_check")
+        return super().health_check()
+
+    def capabilities(self):  # type: ignore[no-untyped-def]
+        self.events.append("capabilities")
+        return super().capabilities()
+
+    def retrieve(self, request: LocalRetrievalRequest):  # type: ignore[no-untyped-def]
+        self.events.append("retrieve")
+        return super().retrieve(request)
+
+    def close(self) -> None:
+        self.events.append("close")
+        super().close()
+
+
+def test_loopback_http_transport_conforms_and_closes_after_adapter_retrieve(
+    tmp_path: Path,
+) -> None:
+    with _running_server(_benchmark_http_response) as server:
+        config = load_local_retrieval_config(
+            _write_loopback_config(tmp_path / "loopback.json", server)
+        )
+        transport = _RecordingLoopbackHTTPTransport()
+        query = type(
+            "Query",
+            (),
+            {"question": "Where are sample policy documents stored?", "query_id": "q001"},
+        )()
+        results = LocalRAGRetrievalAdapter(config, transport).retrieve(query, 5)
+
+    assert isinstance(transport, LocalRetrievalTransport)
+    assert transport.events == [
+        "initialize",
+        "health_check",
+        "capabilities",
+        "retrieve",
+        "close",
+    ]
+    assert transport.state == "closed"
+    assert results[0].document_id == "sample-policy-001"
+
+
+def test_local_adapter_closes_http_transport_when_config_type_mismatches() -> None:
+    transport = _RecordingLoopbackHTTPTransport()
+    query = type("Query", (), {"question": "synthetic", "query_id": "q001"})()
+
+    with pytest.raises(RetrievalAdapterError, match="does not match config"):
+        LocalRAGRetrievalAdapter(
+            LocalRetrievalConfig(configured=True), transport
+        ).retrieve(query, 1)
+
+    assert transport.events == ["close"]
+    assert transport.state == "closed"
+
+
+@pytest.mark.parametrize(
+    ("first_status", "expected_code", "expected_result"),
+    [("pass", 0, "PASS"), ("warning", 1, "WARNING"), ("fail", 2, "FAIL")],
+)
+def test_loopback_http_cli_e2e_preserves_evaluation_exit_codes_and_report(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    first_status: str,
+    expected_code: int,
+    expected_result: str,
+) -> None:
+    transports: list[_RecordingLoopbackHTTPTransport] = []
+
+    def create_transport() -> _RecordingLoopbackHTTPTransport:
+        transport = _RecordingLoopbackHTTPTransport()
+        transports.append(transport)
+        return transport
+
+    monkeypatch.setattr(
+        "ragguard.cli.LoopbackHTTPLocalRetrievalTransport", create_transport
+    )
+    monkeypatch.setenv("HTTP_PROXY", "http://proxy.invalid:9999")
+    monkeypatch.setenv("HTTPS_PROXY", "http://proxy.invalid:9999")
+    with _running_server(
+        lambda request: _benchmark_http_response(request, first_status=first_status)
+    ) as server:
+        config = _write_loopback_config(tmp_path / "private-loopback.json", server)
+        output = tmp_path / "report"
+        code = main(_benchmark_cli_args(output, config))
+
+    report_text = (output / "benchmark_report.json").read_text(encoding="utf-8")
+    markdown = (output / "benchmark_report.md").read_text(encoding="utf-8")
+    report = json.loads(report_text)
+    assert code == expected_code
+    assert report["result"] == expected_result
+    assert report["metadata"]["retrieval_adapter"] == "local-rag"
+    assert set(report) == {
+        "result", "status", "corpus_count", "query_count", "summary", "corpus",
+        "queries", "per_query_results", "results", "warnings", "errors", "metadata",
+    }
+    assert all(transport.state == "closed" for transport in transports)
+    assert all(transport.events[-1] == "close" for transport in transports)
+    combined = report_text + markdown
+    assert str(config) not in combined
+    assert f"127.0.0.1:{server.server_address[1]}" not in combined
+    assert "proxy.invalid" not in combined
+
+
+def test_loopback_http_cli_accepts_safe_yaml_config(tmp_path: Path) -> None:
+    with _running_server(_benchmark_http_response) as server:
+        config = _write_loopback_config(tmp_path / "loopback.yaml", server)
+        output = tmp_path / "report"
+        code = main(_benchmark_cli_args(output, config))
+
+    report = json.loads((output / "benchmark_report.json").read_text(encoding="utf-8"))
+    assert code == 0
+    assert report["result"] == "PASS"
+    assert report["metadata"]["retrieval_adapter"] == "local-rag"
+
+
+@pytest.mark.parametrize(
+    ("script", "category"),
+    [
+        (_ScriptedResponse(body=b"", status=302, location="http://127.0.0.1:1/private"), "invalid_status"),
+        (_ScriptedResponse(body=b"", status=500), "invalid_status"),
+        (_ScriptedResponse(body=b"{}", content_type="text/plain"), "invalid_content_type"),
+        (_ScriptedResponse(body=b"private-invalid-json"), "invalid_response"),
+    ],
+)
+def test_loopback_http_cli_transport_errors_are_exit_three_and_safe(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    script: _ScriptedResponse,
+    category: str,
+) -> None:
+    transports: list[_RecordingLoopbackHTTPTransport] = []
+
+    def create_transport() -> _RecordingLoopbackHTTPTransport:
+        transport = _RecordingLoopbackHTTPTransport()
+        transports.append(transport)
+        return transport
+
+    monkeypatch.setattr(
+        "ragguard.cli.LoopbackHTTPLocalRetrievalTransport", create_transport
+    )
+    with _running_server(script) as server:
+        config = _write_loopback_config(tmp_path / "private-loopback.json", server)
+        output = tmp_path / "report"
+        code = main(_benchmark_cli_args(output, config))
+
+    error = capsys.readouterr().err
+    assert code == 3
+    assert category in error
+    assert str(config) not in error
+    assert f"127.0.0.1:{server.server_address[1]}" not in error
+    assert "private-invalid-json" not in error
+    assert len(server.requests) == 1
+    assert transports[0].events[-1] == "close"
+    assert transports[0].state == "closed"
+    assert not (output / "benchmark_report.json").exists()
+
+
+def test_loopback_http_cli_rejects_limit_plus_one_and_timeout_safely(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    body = _response_body() + b" "
+    with _running_server(_ScriptedResponse(body=body)) as oversized_server:
+        config = _write_loopback_config(
+            tmp_path / "oversized.json",
+            oversized_server,
+            response_size_limit=len(body) - 1,
+        )
+        oversized_code = main(
+            _benchmark_cli_args(tmp_path / "oversized-report", config)
+        )
+    oversized_error = capsys.readouterr().err
+
+    with _running_server(
+        _ScriptedResponse(body=_response_body(), delay_seconds=0.2)
+    ) as timeout_server:
+        config = _write_loopback_config(
+            tmp_path / "timeout.json",
+            timeout_server,
+            connect_timeout=0.05,
+            read_timeout=0.05,
+            total_timeout=0.05,
+        )
+        timeout_code = main(_benchmark_cli_args(tmp_path / "timeout-report", config))
+    timeout_error = capsys.readouterr().err
+
+    assert oversized_code == timeout_code == 3
+    assert "response_too_large" in oversized_error
+    assert "timeout" in timeout_error
+    assert len(oversized_server.requests) == len(timeout_server.requests) == 1
+
+
+def test_loopback_http_cli_rejects_mixed_resolution_before_connect(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def mixed_getaddrinfo(*args: object, **kwargs: object) -> list[tuple[object, ...]]:
+        return [
+            (socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP, "", ("127.0.0.1", 1)),
+            (socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP, "", ("192.168.1.10", 1)),
+        ]
+
+    monkeypatch.setattr(socket, "getaddrinfo", mixed_getaddrinfo)
+    with _running_server(_benchmark_http_response) as server:
+        config = _write_loopback_config(
+            tmp_path / "mixed.json",
+            server,
+            endpoint=f"http://localhost:{server.server_address[1]}/retrieve",
+            allowlisted_hostnames=["localhost"],
+        )
+        code = main(_benchmark_cli_args(tmp_path / "report", config))
+
+    error = capsys.readouterr().err
+    assert code == 3
+    assert "external_host_rejected" in error
+    assert len(server.requests) == 0
+
+
+def test_loopback_http_cli_connection_refused_is_exit_three_without_retry(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    calls = 0
+
+    class RefusingClient:
+        def __init__(self, endpoint: LocalHTTPEndpoint) -> None:
+            assert isinstance(endpoint, LocalHTTPEndpoint)
+
+        def retrieve(self, request: HTTPRetrievalRequest):  # type: ignore[no-untyped-def]
+            nonlocal calls
+            calls += 1
+            raise http_transport_error(HTTPTransportErrorCategory.CONNECTION_REFUSED)
+
+    monkeypatch.setattr(
+        "ragguard.http_transport.BoundedLoopbackHTTPClient", RefusingClient
+    )
+    config_path = tmp_path / "refused.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "transport_type": "loopback_http",
+                "endpoint": "http://127.0.0.1:8765/retrieve",
+                "connect_timeout": 0.1,
+                "read_timeout": 0.1,
+                "total_timeout": 0.1,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    code = main(_benchmark_cli_args(tmp_path / "report", config_path))
+
+    error = capsys.readouterr().err
+    assert code == 3
+    assert "connection_refused" in error
+    assert "127.0.0.1:8765" not in error
+    assert str(config_path) not in error
+    assert calls == 1
+
+
+def test_loopback_http_cli_incomplete_config_is_exit_three_without_disclosure(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    config_path = tmp_path / "private-incomplete.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "transport_type": "loopback_http",
+                "endpoint": "http://127.0.0.1:8765/private",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    code = main(_benchmark_cli_args(tmp_path / "report", config_path))
+
+    error = capsys.readouterr().err
+    assert code == 3
+    assert "incomplete" in error
+    assert str(config_path) not in error
+    assert "127.0.0.1:8765" not in error

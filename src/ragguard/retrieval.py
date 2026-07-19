@@ -7,16 +7,19 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, Protocol, cast, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, cast, runtime_checkable
 
 import yaml
+
+if TYPE_CHECKING:
+    from ragguard.http_contract import LocalHTTPEndpoint
 
 
 class RetrievalAdapterError(ValueError):
     """Raised when an adapter violates the retrieval contract."""
 
 
-LOCAL_TRANSPORT_TYPES = frozenset({"in_memory"})
+LOCAL_TRANSPORT_TYPES = frozenset({"in_memory", "loopback_http"})
 LOCAL_RESPONSE_METADATA_KEYS = frozenset(
     {"capability", "match_type", "result_type", "transport"}
 )
@@ -41,6 +44,19 @@ _LOCAL_CONFIG_KEYS = frozenset(
         "default_top_k",
         "response_size_limit",
         "capabilities",
+    }
+)
+_LOCAL_HTTP_CONFIG_KEYS = frozenset(
+    {
+        "transport_type",
+        "endpoint",
+        "connect_timeout",
+        "read_timeout",
+        "total_timeout",
+        "default_top_k",
+        "response_size_limit",
+        "capabilities",
+        "allowlisted_hostnames",
     }
 )
 _LOCAL_CAPABILITY_KEYS = frozenset(
@@ -77,6 +93,7 @@ class LocalRetrievalConfig:
     capabilities: LocalRetrievalCapabilities = field(
         default_factory=LocalRetrievalCapabilities
     )
+    http_endpoint: LocalHTTPEndpoint | None = field(default=None, repr=False)
     configured: bool = False
 
     def __post_init__(self) -> None:
@@ -98,6 +115,13 @@ class LocalRetrievalConfig:
         )
         if not isinstance(self.capabilities, LocalRetrievalCapabilities):
             raise RetrievalAdapterError("capabilities must use LocalRetrievalCapabilities")
+        if self.transport_type == "in_memory" and self.http_endpoint is not None:
+            raise RetrievalAdapterError("in-memory transport does not accept HTTP settings")
+        if self.transport_type == "loopback_http":
+            from ragguard.http_contract import LocalHTTPEndpoint
+
+            if not isinstance(self.http_endpoint, LocalHTTPEndpoint):
+                raise RetrievalAdapterError("loopback HTTP transport requires an endpoint")
         if type(self.configured) is not bool:
             raise RetrievalAdapterError("configured must be boolean")
 
@@ -129,7 +153,13 @@ def load_local_retrieval_config(path: Path) -> LocalRetrievalConfig:
     if not isinstance(raw_config, Mapping):
         raise RetrievalAdapterError("local retrieval config must be a mapping")
     config_values = dict(raw_config)
-    if not set(config_values).issubset(_LOCAL_CONFIG_KEYS):
+    transport_type = config_values.get("transport_type")
+    allowed_keys = (
+        _LOCAL_HTTP_CONFIG_KEYS
+        if transport_type == "loopback_http"
+        else _LOCAL_CONFIG_KEYS
+    )
+    if not set(config_values).issubset(allowed_keys):
         raise RetrievalAdapterError("local retrieval config contains unsupported fields")
     if "transport_type" not in config_values:
         raise RetrievalAdapterError("local retrieval config requires transport_type")
@@ -143,6 +173,40 @@ def load_local_retrieval_config(path: Path) -> LocalRetrievalConfig:
 
     try:
         capabilities = LocalRetrievalCapabilities(**capability_values)
+        if transport_type == "loopback_http":
+            from ragguard.http_contract import parse_local_http_endpoint
+
+            required_fields = {
+                "endpoint",
+                "connect_timeout",
+                "read_timeout",
+                "total_timeout",
+            }
+            if not required_fields.issubset(config_values):
+                raise RetrievalAdapterError("loopback HTTP config is incomplete")
+            endpoint = parse_local_http_endpoint(
+                config_values["endpoint"],
+                connect_timeout=config_values["connect_timeout"],
+                read_timeout=config_values["read_timeout"],
+                total_timeout=config_values["total_timeout"],
+                response_size_limit=config_values.get(
+                    "response_size_limit", 262_144
+                ),
+                allowlisted_hostnames=config_values.get(
+                    "allowlisted_hostnames", ()
+                ),
+            )
+            return LocalRetrievalConfig(
+                transport_type=transport_type,
+                timeout_seconds=config_values["total_timeout"],
+                default_top_k=config_values.get("default_top_k", 5),
+                response_size_limit=config_values.get(
+                    "response_size_limit", 262_144
+                ),
+                capabilities=capabilities,
+                http_endpoint=endpoint,
+                configured=True,
+            )
         return LocalRetrievalConfig(
             transport_type=config_values["transport_type"],
             timeout_seconds=config_values.get("timeout_seconds", 3.0),
@@ -259,6 +323,8 @@ class LocalRetrievalTransport(Protocol):
 
 class InMemoryLocalRetrievalTransport:
     """Deterministic no-I/O transport for local contract and error-boundary tests."""
+
+    transport_type = "in_memory"
 
     def __init__(
         self,
@@ -426,7 +492,7 @@ class SyntheticRetrievalAdapter:
 
 
 class LocalRAGRetrievalAdapter:
-    """One-shot local adapter client restricted to the no-I/O in-memory transport."""
+    """One-shot local adapter client for explicitly configured bounded transports."""
 
     name = "local-rag"
 
@@ -435,8 +501,9 @@ class LocalRAGRetrievalAdapter:
         configuration: LocalRetrievalConfig | Mapping[str, Any] | None = None,
         transport: LocalRetrievalTransport | None = None,
     ) -> None:
-        if transport is not None and not isinstance(
-            transport, InMemoryLocalRetrievalTransport
+        if transport is not None and (
+            not isinstance(transport, LocalRetrievalTransport)
+            or getattr(transport, "transport_type", None) not in LOCAL_TRANSPORT_TYPES
         ):
             raise RetrievalAdapterError("unsupported local retrieval transport")
 
@@ -471,6 +538,10 @@ class LocalRAGRetrievalAdapter:
         close_failure: RetrievalAdapterError | None = None
 
         try:
+            if getattr(transport, "transport_type", None) != configuration.transport_type:
+                raise RetrievalAdapterError(
+                    "local retrieval transport does not match config"
+                )
             request = LocalRetrievalRequest(
                 query=query.question,
                 top_k=top_k,
