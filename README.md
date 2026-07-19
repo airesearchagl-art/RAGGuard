@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml)
 
-## RAG Benchmark Harness v0.8 secure local transport design
+## RAG Benchmark Harness v0.8 secure loopback transport
 
 v0.8 designs a real Local RAG transport boundary before any production communication is implemented.
 Phase A codes the endpoint, caller-supplied resolution proof, JSON request/response, size, and safe
@@ -40,6 +40,13 @@ or oversized responses, and sensitive-value disclosure while requiring one attem
 success or failure. This remains fake-server verification only; real Local RAG products and real
 documents are not connected.
 
+Phase F completes the v0.8 documentation, explicit Python 3.11/3.12 CI gate for the HTTP security
+E2E suite, changelog, and release checklist. The operational boundary remains unchanged:
+`loopback_http` is enabled only by explicit local-rag config, Synthetic remains the default, and
+`in_memory` remains compatible. Redirects, proxies, retries, credentials, external/private-LAN
+destinations, and filesystem retrieval remain unsupported. A real Local RAG product has not been
+connected or compatibility-tested.
+
 ```json
 {
   "transport_type": "loopback_http",
@@ -56,6 +63,11 @@ documents are not connected.
   }
 }
 ```
+
+Before a v0.8.0 tag or Release is created, the release checklist requires the complete pytest suite,
+HTTP security E2E, local-rag in-memory E2E, Synthetic default exit `0`, loopback HTTP evaluation and
+CLI-error exits `0` / `1` / `2` / `3`, both CLI help commands, diff/Unicode/line-ending/fixture
+scans, Python 3.11/3.12 Actions success, and a clean synchronized `main`.
 
 ## RAG Benchmark Harness v0.7 local connection contract
 

@@ -1,6 +1,6 @@
 # RAGGuard Roadmap
 
-## In progress: RAG Benchmark Harness v0.8 secure Local RAG transport
+## Completed: RAG Benchmark Harness v0.8 secure Local RAG transport
 
 v0.8 defines and incrementally verifies a loopback-only HTTP transport without connecting to a real
 Local RAG system during the design phase. Synthetic retrieval remains the default, and every
@@ -13,7 +13,25 @@ transport phase must preserve the existing adapter, evaluator, report, and exit-
 - Phase C: implement the bounded loopback HTTP client - completed.
 - Phase D: integrate the transport with safe CLI and config selection - completed.
 - Phase E: add synthetic end-to-end and transport security tests - completed.
-- Phase F: finalize docs, CI coverage, and release notes.
+- Phase F: finalize docs, CI coverage, and release notes - completed.
+
+### v0.8 endpoint
+
+- The explicit `loopback_http` path is integrated with bounded config loading, loopback-only
+  resolution and peer checks, one-shot lifecycle, deterministic evaluation, safe reports, and
+  PASS `0` / WARNING `1` / FAIL `2` / CLI error `3`.
+- Synthetic remains the default and `in_memory` compatibility is preserved.
+- Verification is limited to fixed synthetic responses from ephemeral fake loopback servers. No
+  real Local RAG product, real document, external/private-LAN endpoint, or credential is used.
+
+### Next candidates
+
+- Pre-connection product validation: define a separately reviewed compatibility gate before any
+  real Local RAG endpoint is contacted.
+- Compatibility validation: version and capability negotiation, response-contract conformance, and
+  upgrade/downgrade behavior using synthetic doubles first.
+- Operational monitoring: bounded duration/result-count/status/error-category telemetry without
+  query, endpoint, credential, raw traffic, or real-path disclosure.
 
 ### Security constraints and non-goals
 

@@ -91,7 +91,38 @@ access, or real Local RAG integration.
   from reports and bounded errors.
 - Verification remains synthetic-only over ephemeral `127.0.0.1` or supported `::1` test servers.
   No real Local RAG product, real document, external/private-LAN traffic, filesystem retrieval,
-  credential loading, fixture change, or workflow change was added. Phase F remains pending.
+  credential loading, fixture change, or workflow change was added. Phase F is completed below.
+
+### Phase F completion status
+
+- Consolidated the Phase A-E endpoint, request/response, client, CLI/config, and synthetic security
+  E2E boundaries into release-facing documentation without changing production logic.
+- Added a named CI step for the HTTP security E2E suite while retaining full pytest, local-rag
+  in-memory E2E, benchmark exit-code checks, and the Python 3.11/3.12 matrix.
+- The endpoint is parsed before use, every hostname resolution result must be loopback, resolution is
+  repeated immediately before connection, and the actual peer must match the loopback proof.
+- Requests and responses remain bounded; connect, read, and total deadlines are mandatory.
+  Redirects, proxy discovery, retry, pooling, credentials, and raw traffic persistence are disabled.
+- The one-shot lifecycle remains initialize, health check, capability check, retrieve, and close.
+  Close is required after success and failure, and errors map to bounded categories through
+  `RetrievalAdapterError`, `BenchmarkError`, and CLI error `3`.
+- Reports retain existing evaluation fields and the safe adapter identifier. The HTTP transport adds
+  no endpoint, port, config path, headers, cookies, credentials, raw request/response, socket detail,
+  internal exception, or raw HTTP query payload. The existing benchmark `question` field is retained
+  for compatibility.
+- Fake loopback servers and fixed synthetic responses verify transport behavior and security
+  boundaries without claiming compatibility with a real Local RAG product or real documents.
+
+### v0.8.0 release checklist
+
+- Full pytest suite passes.
+- HTTP security E2E and local-rag in-memory E2E suites pass independently.
+- Synthetic default returns `0`; loopback HTTP covers `0`, `1`, `2`, and `3`.
+- `check-mask --help` and `benchmark --help` succeed.
+- Workflow YAML parses; `git diff --check`, bidi, CR-only, and fixture-marker scans are clean.
+- GitHub Actions succeeds on Python 3.11 and 3.12.
+- `main` is clean and synchronized before creating the annotated tag and GitHub Release.
+- Tag and Release creation are separate from this Phase F PR.
 
 ### Transport selection and order
 
@@ -247,7 +278,7 @@ use real documents.
 - Phase C: bounded loopback HTTP client - completed.
 - Phase D: CLI and safe config integration - completed.
 - Phase E: synthetic end-to-end and security tests - completed.
-- Phase F: docs, CI, and release preparation.
+- Phase F: docs, CI, and release preparation - completed.
 
 ### v0.8 non-goals
 

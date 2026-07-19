@@ -58,6 +58,22 @@ Phase D loopback HTTP example:
 }
 ```
 
+Equivalent YAML using only a fictional loopback endpoint:
+
+```yaml
+transport_type: loopback_http
+endpoint: http://127.0.0.1:8765/retrieve
+connect_timeout: 1.0
+read_timeout: 2.0
+total_timeout: 3.0
+default_top_k: 5
+response_size_limit: 262144
+capabilities:
+  ranked_results: true
+  matched_keywords: true
+  filters: false
+```
+
 The config remains bounded to 64 KiB and is loaded with JSON parsing or `yaml.safe_load`. HTTP uses
 `http` only, literal `127.0.0.1` / `::1`, or an explicitly allowlisted hostname whose complete
 resolution set is loopback. Unknown fields are rejected. API keys, bearer tokens, credentials,
@@ -74,7 +90,24 @@ synthetic fixed responses. JSON and YAML config, PASS `0`, WARNING `1`, FAIL `2`
 deterministic reports, one-shot lifecycle, failure cleanup, bounded reads, unsafe config, redirects,
 timeouts, peer/resolution rejection, malformed responses, no retry, and sensitive-value
 non-disclosure are fixed by E2E tests. A real Local RAG product and real documents remain
-unsupported; Phase F documentation, CI, and release preparation remains pending.
+unsupported. Phase F completes documentation, CI, and release preparation without enabling them.
+
+Phase F adds an explicit CI step for `tests/test_http_transport_security_e2e.py` on Python 3.11 and
+3.12. It does not enable a real endpoint. Use of `auth`, `token`, `cookie`, custom authorization
+headers, `proxy`, `redirect`, `retry`, or credential settings is rejected. The transport does not add
+the endpoint, port, config path, headers, cookies, credentials, raw traffic, or raw HTTP query payload
+to reports. The existing benchmark `question` field remains unchanged for report compatibility.
+
+### v0.8 exit codes
+
+- `0`: valid retrieval and PASS evaluation.
+- `1`: valid retrieval and WARNING evaluation.
+- `2`: valid retrieval and FAIL evaluation.
+- `3`: CLI, config, endpoint, lifecycle, transport, timeout, size, status, content-type, or response
+  contract error.
+
+No real Local RAG connection example is provided. All v0.8 HTTP examples and tests use fictional
+loopback endpoints and fixed synthetic data.
 
 ## v0.7 Phase A-F Local RAG contract
 

@@ -57,6 +57,9 @@ jobs:
       - name: Check local-rag synthetic end-to-end contract
         run: python -m pytest tests/test_local_rag_e2e.py
 
+      - name: Check HTTP transport security end-to-end
+        run: python -m pytest tests/test_http_transport_security_e2e.py
+
       - name: Check benchmark exit codes
         run: |
           mkdir -p outputs/ci_benchmark_cases

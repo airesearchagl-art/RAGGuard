@@ -4,6 +4,15 @@
 
 ### v0.8 secure Local RAG transport design
 
+Phase delivery:
+
+- PR #38: designed the loopback-only transport security boundary.
+- PR #39 / Phase A: added endpoint, request, response, size, and error contracts.
+- PR #40 / Phase B: added fake loopback server contract tests.
+- PR #41 / Phase C: added the bounded one-request loopback HTTP client.
+- PR #42 / Phase D: integrated explicit CLI/config selection for `loopback_http`.
+- PR #43 / Phase E: added synthetic HTTP security E2E coverage.
+
 - Selected loopback HTTP as the first real transport candidate, with Unix domain sockets and Windows
   named pipes deferred for later review.
 - Defined loopback-only endpoint validation, DNS resolution and peer checks, redirect rejection,
@@ -59,6 +68,10 @@
   results, one attempt, guaranteed close, report compatibility, and sensitive-value non-disclosure.
 - Kept all verification on ephemeral synthetic loopback servers with no fixture, workflow,
   production implementation, real Local RAG, real-document, filesystem, or external-network change.
+- Completed Phase F documentation, a dedicated HTTP security E2E CI step, and the v0.8.0 release
+  checklist while preserving the Python 3.11/3.12 matrix and existing checks.
+- Kept real Local RAG products, real documents, external/private-LAN communication, redirects,
+  proxies, retries, credentials, and filesystem retrieval unsupported and unverified.
 
 ### v0.7 Local RAG connection contract design
 
