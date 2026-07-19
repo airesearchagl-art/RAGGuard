@@ -10,7 +10,7 @@ top-level keys, or existing exit codes.
 ### Phase plan
 
 - Phase A: compatibility profile and version contract. Completed.
-- Phase B: health and capabilities contract.
+- Phase B: health and capabilities contract. Completed.
 - Phase C: request and response mapping contract.
 - Phase D: synthetic compatibility harness.
 - Phase E: profile integration and security E2E.
@@ -38,6 +38,19 @@ top-level keys, or existing exit codes.
   rejected values in exceptions or profile representations.
 - Added contract tests only. Profile mappings are not executed, and health/capability communication
   remains Phase B work.
+
+### Phase B delivery
+
+- Added immutable health, capabilities, and compatibility-result models that discard raw mappings
+  after validation.
+- Added exact health schema/status/service checks and fail-closed protocol major/minor validation
+  using the selected profile contract.
+- Added negotiation for five required capabilities and explicitly requested optional capabilities,
+  including profile feature-flag alignment with no implicit downgrade or fallback.
+- Added bounded health/capability error categories and safe summary representations without raw
+  status, version, capability value, endpoint, path, product, or payload disclosure.
+- Added contract tests only. HTTP communication, bounded-client integration, request/response
+  mapping execution, and CLI/config integration remain unimplemented Phase C-or-later work.
 
 ### Separate manual product gate
 

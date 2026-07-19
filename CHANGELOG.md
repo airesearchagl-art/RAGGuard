@@ -13,6 +13,15 @@
 - Added safe compatibility error categories and contract coverage without endpoint, rejected value,
   path, credential, raw profile, communication, filesystem access, or product integration.
 - Kept mapping execution and health/capability communication for later phases.
+- Completed Phase B with immutable health, capabilities, and safe compatibility-result models.
+- Added exact health schema, status, service-availability, and profile protocol compatibility
+  validation with no fallback or raw-value disclosure.
+- Added five required retrieval capabilities plus allowlisted optional capability negotiation tied
+  to profile score semantics and feature flags, with no implicit downgrade.
+- Added bounded health/capability error categories and contract tests while retaining no raw
+  response, endpoint, path, product identity, credential, or protocol value in safe summaries.
+- Kept HTTP communication, bounded-client integration, request/response mapping execution,
+  CLI/config integration, fixtures, config, and workflow unchanged.
 
 - Started a product-neutral compatibility design before any real Local RAG product connection.
 - Isolated product-specific versions, health/capability shapes, field mappings, score semantics, and

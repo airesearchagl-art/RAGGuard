@@ -22,9 +22,17 @@ mappings, allowlisted score semantics and source policy, explicit optional featu
 profile selection. Unknown major versions and unallowlisted minor versions fail closed. Prerelease
 and build version forms are not accepted, and no mapping is executed in this phase.
 
+Phase B adds immutable product-neutral health and capabilities contracts. Health requires a valid
+schema, compatible protocol version, `healthy` status, and explicit service availability before
+capability negotiation. All five required retrieval capabilities must be true. Optional features
+are enabled only when explicitly requested by the profile or caller and affirmed by the response;
+they are never silently downgraded. The result retains only a safe profile ID, protocol/health
+status, required-capability outcome, and enabled optional capability names.
+
 Later v0.9 verification is planned around synthetic compatibility profiles and fixed health,
-capabilities, and retrieval responses. Health/capability communication is not implemented in Phase
-A. A real product connection is not part of v0.9 delivery: it
+capabilities, and retrieval responses. Phase B validates already bounded mappings only; HTTP
+health/capability communication is not implemented. A real product connection is not part of v0.9
+delivery: it
 requires a separately approved manual session using a loopback endpoint, synthetic queries, no
 credentials, no real documents, no fallback connection, and safe summary output only.
 
