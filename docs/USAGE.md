@@ -3,9 +3,11 @@
 ## v0.8 secure transport design status
 
 v0.8 Phase A provides endpoint, resolution-proof, request, response, size, and safe error models for
-a future loopback HTTP transport. These models perform no DNS lookup, HTTP, socket, named-pipe,
-localhost, network, or filesystem access. Continue to use the Synthetic default or the existing
-synthetic-only `in_memory` local-rag path documented below.
+a future loopback HTTP transport. Phase B verifies these models through test-only ephemeral loopback
+servers with fixed synthetic responses. The fake servers bind only to `127.0.0.1` or `::1`, do not
+contact a real Local RAG system, and are always shut down after each test. No production HTTP client,
+DNS lookup, redirect following, proxy use, or filesystem retrieval is available. Continue to use the
+Synthetic default or the existing synthetic-only `in_memory` local-rag path documented below.
 
 Planned HTTP use will require an explicit local-rag selection and explicit safe endpoint config.
 Only `127.0.0.1`, `::1`, or a separately reviewed allowlisted name resolving exclusively to

@@ -23,6 +23,21 @@ access, or real Local RAG integration.
 - Added no DNS lookup, HTTP client, socket connection, localhost traffic, redirect, proxy, or real
   Local RAG integration.
 
+### Phase B implementation status
+
+- Added a test-only standard-library HTTP server bound exclusively to ephemeral `127.0.0.1` or,
+  where supported, `::1` ports. Every server is shut down, closed, and joined after its test.
+- Exercised `POST` and fixed `application/json` request validation, successful response parsing, and
+  normalization to the existing ranked-result boundary over actual loopback sockets.
+- Fixed rejection behavior for redirects without following them, non-success status, invalid content
+  type, non-UTF-8 and invalid JSON, unknown or incomplete fields, and top-k item overflow.
+- Fixed configured-limit, exact-limit, limit-plus-one, and absolute-response-ceiling behavior using
+  bounded reads before parsing; raw response bodies remain excluded from errors.
+- Verified actual peer addresses, mixed or changed peer rejection, immediate-resolution proof,
+  IPv4 and optional IPv6 loopback, safe refusal/timeout categories, and one attempt with no retry.
+- Added no production HTTP client, DNS lookup implementation, proxy behavior, real Local RAG
+  integration, external/private-LAN communication, fixture data, or workflow changes.
+
 ### Transport selection and order
 
 1. Loopback HTTP is the first implementation candidate because its request, response, timeout, and
@@ -173,7 +188,7 @@ use real documents.
 ### v0.8 implementation phases
 
 - Phase A: endpoint and HTTP transport contract - completed.
-- Phase B: fake loopback server tests with fixed synthetic responses.
+- Phase B: fake loopback server tests with fixed synthetic responses - completed.
 - Phase C: bounded loopback HTTP client.
 - Phase D: CLI and safe config integration.
 - Phase E: synthetic end-to-end and security tests.

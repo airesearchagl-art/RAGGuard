@@ -25,6 +25,13 @@
   unknown fields, content type, status, item count, and secret/path non-disclosure.
 - Added no DNS lookup, HTTP client, socket connection, localhost traffic, redirect, proxy, or real
   Local RAG connection.
+- Completed Phase B with test-only ephemeral IPv4 and optional IPv6 loopback servers using fixed
+  synthetic responses and guaranteed shutdown.
+- Added live loopback contract coverage for POST/JSON validation, deterministic normalization,
+  redirect and invalid-response rejection, exact and limit-plus-one response sizes, peer proof,
+  connection refusal, connect/read/total timeout boundaries, no retry, and safe error disclosure.
+- Kept the production package free of an HTTP client, DNS lookup, proxy handling, real Local RAG
+  access, external/private-LAN traffic, fixture changes, and workflow changes.
 
 ### v0.7 Local RAG connection contract design
 
