@@ -73,7 +73,25 @@ access, or real Local RAG integration.
   redirect/status/content-type/JSON rejection, response limit, timeout, refusal, mixed resolution,
   proxy isolation, no retry, safe error disclosure, and close after success or failure.
 - Added no real Local RAG product integration, filesystem retrieval, external/private-LAN traffic,
-  credential handling, fixture changes, or workflow changes. Phase E remains pending.
+  credential handling, fixture changes, or workflow changes. Phase E is completed below.
+
+### Phase E implementation status
+
+- Added a dedicated synthetic HTTP security E2E suite covering CLI selection, bounded JSON/YAML
+  config loading, `LocalRAGRetrievalAdapter`, `LoopbackHTTPLocalRetrievalTransport`,
+  `BoundedLoopbackHTTPClient`, test-only loopback servers, evaluator results, reports, and exit codes.
+- Fixed PASS `0`, WARNING `1`, FAIL `2`, and CLI error `3` while preserving report top-level keys,
+  `metadata.retrieval_adapter`, Synthetic default behavior, and the existing `in_memory` path.
+- Added CLI-boundary rejection coverage for unknown or credential-related fields, unsafe endpoints,
+  invalid bounds, unsafe YAML, non-mapping and oversized configs, malformed schemas, top-k and item
+  limits, refusal, timeout, mixed or unverified peers, redirect/status/content-type failures, and
+  limit-plus-one responses.
+- Require one attempt, no pooling, and close after success or failure. Endpoint, port, config path,
+  credentials, raw request/response data, internal exception details, and stack traces remain absent
+  from reports and bounded errors.
+- Verification remains synthetic-only over ephemeral `127.0.0.1` or supported `::1` test servers.
+  No real Local RAG product, real document, external/private-LAN traffic, filesystem retrieval,
+  credential loading, fixture change, or workflow change was added. Phase F remains pending.
 
 ### Transport selection and order
 
@@ -228,7 +246,7 @@ use real documents.
 - Phase B: fake loopback server tests with fixed synthetic responses - completed.
 - Phase C: bounded loopback HTTP client - completed.
 - Phase D: CLI and safe config integration - completed.
-- Phase E: synthetic end-to-end and security tests.
+- Phase E: synthetic end-to-end and security tests - completed.
 - Phase F: docs, CI, and release preparation.
 
 ### v0.8 non-goals

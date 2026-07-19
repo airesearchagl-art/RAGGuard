@@ -69,8 +69,12 @@ outcomes. Config, endpoint, lifecycle, or transport failures return CLI error `3
 normal report. Existing JSON/Markdown top-level fields and `metadata.retrieval_adapter` remain
 unchanged; endpoint, port, config path, headers, raw bodies, and credentials are not added.
 
-Only synthetic fake loopback servers have been verified. A real Local RAG product and real documents
-remain unsupported, and Phase E security end-to-end coverage is still pending.
+Phase E verifies the complete `loopback_http` path with test-only ephemeral loopback servers and
+synthetic fixed responses. JSON and YAML config, PASS `0`, WARNING `1`, FAIL `2`, CLI error `3`,
+deterministic reports, one-shot lifecycle, failure cleanup, bounded reads, unsafe config, redirects,
+timeouts, peer/resolution rejection, malformed responses, no retry, and sensitive-value
+non-disclosure are fixed by E2E tests. A real Local RAG product and real documents remain
+unsupported; Phase F documentation, CI, and release preparation remains pending.
 
 ## v0.7 Phase A-F Local RAG contract
 
