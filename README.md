@@ -2,6 +2,25 @@
 
 [![Tests](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml)
 
+## RAG Benchmark Harness v0.9 compatibility design
+
+v0.8 completed the bounded loopback HTTP transport and synthetic security verification. v0.9
+designs a product-neutral compatibility layer before any real Local RAG product is contacted.
+Product-specific health, capability, request, and response differences are isolated in an explicit
+Compatibility Profile instead of being mixed into the transport, adapter, evaluator, or report
+contracts.
+
+Profiles use safe identifiers and explicit versions. Unknown profiles, unknown major versions,
+missing required capabilities, unsafe source identifiers, ambiguous score semantics, and invalid
+field mappings fail closed as CLI error `3`. There is no best-effort profile selection or response
+schema inference. Existing request limits, ranked-result validation, report top-level keys, and
+PASS `0` / WARNING `1` / FAIL `2` / CLI error `3` remain unchanged.
+
+v0.9 verification is planned around synthetic compatibility profiles and fixed health,
+capabilities, and retrieval responses. A real product connection is not part of v0.9 delivery: it
+requires a separately approved manual session using a loopback endpoint, synthetic queries, no
+credentials, no real documents, no fallback connection, and safe summary output only.
+
 ## RAG Benchmark Harness v0.8 secure loopback transport
 
 v0.8 designs a real Local RAG transport boundary before any production communication is implemented.
