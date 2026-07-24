@@ -2,7 +2,18 @@
 
 ## Unreleased
 
-### v0.10 production profile governance design
+### v0.10.0 production profile governance
+
+- Prepared the Phase A-F documentation, CI verification contract, and post-merge release checklist
+  without creating a tag, GitHub Release, or public version artifact.
+- Documented the supported operational surface and separated README overview, usage guidance,
+  design rationale, roadmap status, and release-operator responsibilities.
+- Confirmed the existing Python 3.11/3.12 workflow runs the full suite, approval/security coverage,
+  compatibility integration, HTTP security, CLI help, and benchmark exit-code gates; no duplicate
+  workflow step was added.
+- Preserved the synthetic-only, fail-closed boundary: no production profile or real registry entry,
+  persistence, manual validation, real-product connection, credential, real document,
+  external/private-LAN access, fallback, nearest-version selection, or schema inference.
 
 - Completed Phase E with an immutable bounded approval-enforcement contract and safe result over
   exact profile/version, explicit evaluation time, explicit test registry, runtime capabilities,

@@ -1,6 +1,6 @@
 # RAGGuard Roadmap
 
-## In progress: RAG Benchmark Harness v0.10 production profile governance
+## Release preparation: RAG Benchmark Harness v0.10.0 approval governance
 
 v0.10 defines fail-closed governance around production Compatibility Profiles without adding a
 production profile or connecting to a real product. Profile approval and registry admission remain
@@ -13,7 +13,7 @@ separate from transport configuration, benchmark evaluation, reports, and CI.
 - Phase C: trusted production registry contract. Completed.
 - Phase D: synthetic approval workflow harness. Completed.
 - Phase E: approval enforcement and security E2E. Completed.
-- Phase F: docs, CI, and release preparation.
+- Phase F: docs, CI, and release preparation. Completed by the release-preparation PR.
 
 ### Delivery boundary
 
@@ -97,6 +97,30 @@ separate from transport configuration, benchmark evaluation, reports, and CI.
 - Kept enforcement opt-in and test-registry-only. No public production CLI/config surface,
   production profile/entry, registry persistence/write, manual validation, real-product
   connection, credential, fixture, report-schema, workflow, tag, or Release was added.
+
+### Phase F delivery
+
+- Separated the public overview, usage boundary, design rationale, delivery status, changelog, and
+  release-operator checklist so synthetic governance is not presented as product compatibility.
+- Confirmed the existing Python 3.11/3.12 matrix runs the full Phase A-E suite and retains explicit
+  compatibility integration, HTTP security, CLI, and benchmark exit-code gates. A duplicate
+  approval-only workflow step was not added.
+- Added a checked release-preparation contract for documentation boundaries, workflow matrix/full
+  pytest coverage, and the required post-merge tag target.
+- Prepared but did not create `v0.10.0`. The annotated tag must point to the Phase F merge commit;
+  the tag, GitHub Release, and Vault record are separate post-merge operations.
+
+### Release and post-release sequence
+
+1. Merge the Phase F PR after Python 3.11/3.12 Actions succeeds.
+2. Synchronize clean local `main` with `origin/main` and rerun the release checklist.
+3. Create and push annotated tag `v0.10.0` at the Phase F merge commit.
+4. Create the GitHub Release from that tag as a distinct operation.
+5. Record the release in the Vault through a separate PR.
+
+Possible later work remains separately approved: manual real-product validation, a production
+profile proposal, production-registry admission and persistence design, and product-specific
+operational integration. None is implied or authorized by the v0.10.0 release.
 
 ### Separate manual product gate
 
