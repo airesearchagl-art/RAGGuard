@@ -433,6 +433,20 @@ class ApprovalMetadata:
     def __repr__(self) -> str:
         return "ApprovalMetadata(<safe>)"
 
+    def is_expired(self, evaluation_time: datetime) -> bool:
+        _validate_datetime(evaluation_time)
+        return bool(
+            (
+                self.expires_at is not None
+                and evaluation_time >= self.expires_at
+            )
+            or (
+                self.restrictions is not None
+                and self.restrictions.expires_at is not None
+                and evaluation_time >= self.restrictions.expires_at
+            )
+        )
+
 
 @dataclass(frozen=True, repr=False)
 class ProfileApprovalContract:
@@ -533,13 +547,7 @@ class ProfileApprovalContract:
             or not VALIDATION_CASE_IDS.issubset(validation.validation_cases)
         ):
             raise compatibility_error(CompatibilityErrorCategory.MANUAL_VALIDATION_REQUIRED)
-        if approval.expires_at is not None and current_time >= approval.expires_at:
-            raise compatibility_error(CompatibilityErrorCategory.PROFILE_VALIDATION_EXPIRED)
-        if (
-            approval.restrictions is not None
-            and approval.restrictions.expires_at is not None
-            and current_time >= approval.restrictions.expires_at
-        ):
+        if approval.is_expired(current_time):
             raise compatibility_error(CompatibilityErrorCategory.PROFILE_VALIDATION_EXPIRED)
         if not approval.supported_product_version_range.contains(product_version):
             raise compatibility_error(CompatibilityErrorCategory.PRODUCT_VERSION_UNSUPPORTED)
@@ -572,17 +580,7 @@ class ProfileApprovalContract:
             except RetrievalAdapterError:
                 supported = "unsupported"
         current_time = now or datetime.now(timezone.utc)
-        expired = bool(
-            approval is not None
-            and (
-                (approval.expires_at is not None and current_time >= approval.expires_at)
-                or (
-                    approval.restrictions is not None
-                    and approval.restrictions.expires_at is not None
-                    and current_time >= approval.restrictions.expires_at
-                )
-            )
-        )
+        expired = approval.is_expired(current_time) if approval is not None else False
         return ApprovalSafeSummary(
             profile_id=self.profile_id,
             profile_version=str(self.profile_version),

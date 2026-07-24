@@ -9,8 +9,8 @@ separate from transport configuration, benchmark evaluation, reports, and CI.
 ### Phase plan
 
 - Phase A: profile approval metadata and maturity contract. Completed.
-- Phase B: validation report and approval decision contract. Planned.
-- Phase C: trusted production registry contract.
+- Phase B: validation report and approval decision contract. Completed.
+- Phase C: trusted production registry contract. Planned.
 - Phase D: synthetic approval workflow harness.
 - Phase E: approval enforcement and security E2E.
 - Phase F: docs, CI, and release preparation.
@@ -35,7 +35,20 @@ separate from transport configuration, benchmark evaluation, reports, and CI.
 - Added fail-closed consistency checks for profile/version identity, manual validation evidence,
   required capabilities, score/source policy, expiration, revalidation, and supported versions.
 - Kept the contract disconnected from CLI/config, transport, production profiles, and any trusted
-  production registry. Phase B and later phases remain unimplemented.
+  production registry. Phase B builds only the report/decision contract on this boundary.
+
+### Phase B delivery
+
+- Added immutable validation case results and validation reports with bounded counts/durations,
+  explicit synthetic/manual environments, safe error categories, and no raw payload retention.
+- Added product-neutral required case sets with explicit differences between synthetic and manual
+  validation; missing, duplicate, unknown, failed, or skipped required cases fail closed.
+- Added deterministic approval decision evaluation for report status, maturity, identity, version
+  range, capability/policy results, restrictions, expiration, and revalidation.
+- Added a bounded validation summary without reviewer/approver identity, endpoint, query, raw
+  traffic, source path, credential, or internal exception disclosure.
+- Kept Phase B contract-only. Production registry, CLI/config integration, report files, manual
+  validation execution, product connectivity, fixtures, and workflow remain unimplemented.
 
 ### Separate manual product gate
 

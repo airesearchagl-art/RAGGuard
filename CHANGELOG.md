@@ -4,6 +4,16 @@
 
 ### v0.10 production profile governance design
 
+- Completed Phase B with immutable validation case/report models, explicit synthetic/manual
+  required case sets, deterministic approval decision evaluation, and bounded safe summaries.
+- Added fail-closed validation for case identity/outcomes, required evidence, timestamps,
+  environments, profile/version and approval-record identity, capabilities, score/source policy,
+  transport/cleanup/non-disclosure results, exact product versions, expiration, and revalidation.
+- Added explicit approved, approved-with-restrictions, rejected, and needs-revalidation outcomes
+  without automatic promotion, decision repair, nearest-version selection, or fallback.
+- Kept production registry, registry admission, production profiles, report files, CLI/config,
+  manual validation execution, product connectivity, fixtures, workflow, tag, and Release
+  unimplemented.
 - Completed Phase A with immutable profile maturity, approval decision, approval/validation
   metadata, supported product-version range, bounded restriction, and safe summary contracts.
 - Added an explicit maturity transition allowlist and fail-closed approval consistency checks for
