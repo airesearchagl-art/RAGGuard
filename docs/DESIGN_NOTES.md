@@ -3,8 +3,8 @@
 ## RAG Benchmark Harness v0.10 production profile governance design
 
 v0.10 defines the approval and audit boundary that must exist before a production Compatibility
-Profile is implemented. The design is product-neutral and documentation-only. It does not create a
-production registry entry, contact a product, load credentials, or access real documents.
+Profile is implemented. The contract is product-neutral and communication-free. It does not create
+a production registry entry, contact a product, load credentials, or access real documents.
 
 ### Maturity contract
 
@@ -109,7 +109,7 @@ error `3` without exposing raw product/version values or internal information.
 
 - Phase A: profile approval metadata and maturity contract. Implemented.
 - Phase B: validation report and approval decision contract. Implemented.
-- Phase C: trusted production registry contract.
+- Phase C: trusted production registry contract. Implemented.
 - Phase D: synthetic approval workflow harness.
 - Phase E: approval enforcement and security E2E.
 - Phase F: docs, CI, and release preparation.
@@ -135,7 +135,7 @@ or reviewer/approver identity.
 Phase A does not add a production Compatibility Profile, trusted production registry, registry
 admission, real-product/manual validation execution, CLI/config integration, report schema,
 transport behavior, fixture, or workflow change. Phase B builds only the report/decision contract
-described below; Phase C and later phases remain unimplemented.
+described below; Phase C builds the registry contract without adding a production entry.
 
 ### Phase B validation report contract
 
@@ -162,9 +162,50 @@ maturity, repair decisions, select a nearest version, or fall back to another pr
 
 The safe summary contains a shortened safe validation-record identifier, profile identity/version,
 validation type/status, outcome counts, required-failure count, safe error categories,
-revalidation status, and the bounded decision only. Phase B adds no report file format, registry,
-CLI/config integration, production profile, manual-validation execution, product connection,
-fixture, or workflow change. Phase C and later phases remain unimplemented.
+revalidation status, and the bounded decision only. Phase B adds no report file format, CLI/config
+integration, production profile, manual-validation execution, product connection, fixture, or
+workflow change. Phase C adds only the registry contract described below.
+
+### Phase C trusted registry boundary
+
+Phase C adds an in-memory, communication-free trusted-registry contract. Immutable entries bind an
+exact profile and protocol version to one approval record, one validation record, an approval
+decision, approved capabilities and score/source policies, a bounded supported-product-version
+range, optional restrictions, explicit expiration, registry kind, and lifecycle status. Entry
+parsing rejects unknown fields. The contract stores no endpoint, port, URL, path, credential,
+token, query, response, reviewer/approver identity, validation-case detail, or arbitrary audit
+text.
+
+Registration is explicit and fail closed. Production admission requires `approved` maturity, an
+`approved` or `approved_with_restrictions` decision, a passed and unexpired manual report, an
+unexpired approval, no revalidation requirement, passing required capability, score/source,
+transport, and non-disclosure checks, and exact identity/version/protocol/evidence consistency.
+Restricted approval requires a non-empty bounded restriction. Synthetic evidence belongs only to
+an explicitly constructed `test` registry; registry kinds are never inferred or converted, and no
+default production registry is created.
+
+### Phase C exact resolution and lifecycle
+
+Resolution requires an exact profile ID and profile version plus an explicit normalized product
+version and timezone-aware evaluation time. It accepts only active production entries whose
+validation and approval remain current and whose supported range and minor-version restrictions
+accept the product version. It does not discover profiles, list candidates, suggest a nearest
+version, fall back to another version/profile, overwrite an entry, or dump registry contents.
+
+Lifecycle changes use a fixed allowlist: active entries may become suspended, deprecated, or
+revoked; suspended entries may become deprecated or revoked; deprecated entries may become
+revoked; revoked is terminal. Suspended, deprecated, and revoked entries cannot resolve.
+Reactivation, automatic rollback, and automatic substitution are unavailable.
+
+Registry snapshots, lists, resolved views, and history are immutable. History contains only the
+allowlisted registered, suspended, deprecated, revoked, resolution-succeeded, and
+resolution-rejected event categories. Safe summaries expose bounded identity/version/status,
+decision, restriction, supported-version, expiration, and revalidation state only. Failures return
+allowlisted categories without raw rejected values or internal exception detail.
+
+Phase C does not add persistence, file output, a production Compatibility Profile, a real
+production-registry entry, CLI/config integration, report-format changes, manual-validation
+execution, product connectivity, fixtures, workflow changes, tags, or Releases.
 
 ### v0.10 non-goals
 
