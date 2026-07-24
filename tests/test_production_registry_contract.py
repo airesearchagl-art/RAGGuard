@@ -513,7 +513,7 @@ def test_synthetic_entry_is_rejected_by_production_registry() -> None:
     )
 
 
-def test_test_registry_accepts_explicit_test_entry_without_conversion() -> None:
+def test_test_registry_accepts_and_resolves_explicit_test_entry() -> None:
     report, approval = evidence(validation_type="synthetic")
     entry = entry_for(report, approval, kind=RegistryKind.TEST)
     registry = TrustedProductionRegistry(kind=RegistryKind.TEST)
@@ -524,16 +524,13 @@ def test_test_registry_accepts_explicit_test_entry_without_conversion() -> None:
         evaluation_time=NOW,
     )
     assert registry.contains("approved-profile", "1.0.0")
-    with pytest.raises(RetrievalAdapterError) as caught:
-        registry.resolve(
-            profile_id="approved-profile",
-            profile_version="1.0.0",
-            normalized_product_version="1.3.2",
-            evaluation_time=NOW,
-        )
-    assert_safe_error(
-        caught, CompatibilityErrorCategory.REGISTRY_KIND_MISMATCH
+    resolved = registry.resolve(
+        profile_id="approved-profile",
+        profile_version="1.0.0",
+        normalized_product_version="1.3.2",
+        evaluation_time=NOW,
     )
+    assert resolved.profile_id == "approved-profile"
 
 
 def test_registry_kind_mismatch_is_rejected() -> None:
