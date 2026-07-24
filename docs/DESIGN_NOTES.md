@@ -111,7 +111,7 @@ error `3` without exposing raw product/version values or internal information.
 - Phase B: validation report and approval decision contract. Implemented.
 - Phase C: trusted production registry contract. Implemented.
 - Phase D: synthetic approval workflow harness. Implemented.
-- Phase E: approval enforcement and security E2E.
+- Phase E: approval enforcement and security E2E. Implemented.
 - Phase F: docs, CI, and release preparation.
 
 Real-product manual validation is excluded from these phases and requires explicit user approval as
@@ -244,6 +244,51 @@ endpoint, query, response, path, token, stack trace, and internal exception deta
 Phase D adds no production Compatibility Profile or registry entry, persistence, manual-validation
 execution, product connection, localhost/private-LAN/external communication, credential,
 CLI/config integration, fixture, report-format, workflow, tag, or Release change.
+
+### Phase E approval enforcement and security E2E
+
+Phase E adds a bounded enforcement request containing an exact profile ID/version, normalized
+product version, explicit timezone-aware evaluation time, an explicitly constructed registry,
+canonical requested capabilities and execution constraints, top-k, and optional result fields.
+The immutable result exposes only allowed/denied, an allowlisted safe error category, a safe
+resolved view on success, applied-restriction labels, approval status, and registry status. It
+does not expose approval/validation record IDs, reviewer/approver identities, validation detail,
+endpoint, port, query, response, source path, credential, registry dump, or exception detail.
+
+The compatibility lifecycle is fixed: exact compatibility-profile resolution, approval
+enforcement, transport creation/initialization, health validation, capability negotiation,
+request mapping, one bounded loopback retrieval, response mapping, ranked-result normalization,
+evaluation/reporting, and close. Enforcement runs before a transport object is created. A denial
+therefore performs zero health, capability, retrieval, and HTTP operations and does not invoke a
+synthetic close. After transport creation, success and every failure path close exactly once;
+calling close again does not close the released transport again.
+
+Only an explicitly built `test` registry containing synthetic evidence is accepted by this
+enforcement path. A production registry kind is rejected without a write. Exact profile/version
+resolution is mandatory, and registry status, maturity, approval decision, expiration,
+revalidation state, product-version range, and supported minor versions are rechecked at the
+explicit evaluation time. Discovery, fallback, nearest-version selection, automatic registry
+creation/loading, kind conversion, overwrite, rollback, or substitution is unavailable.
+
+Restrictions are enforced before transport creation. Requests exceeding `maximum_top_k`, asking
+for disabled score/title/matched-keyword fields, omitting required query-ID echo, using an
+unsupported minor version, or evaluating an expired restriction fail closed with a bounded
+category. The runtime never silently reduces top-k, removes requested fields, downgrades
+capabilities, or ignores a restriction. Approved capability, score-semantics, source-policy, and
+protocol values must remain consistent with the selected compatibility profile.
+
+Security E2E uses only the in-process fake loopback server, product-neutral profile, synthetic
+evidence, and explicit test registry. It covers approved and restricted execution, inactive and
+expired entries, revalidation, unknown/exact versions, registry separation, restriction denial,
+protocol/score mismatch, deterministic time, denial-before-transport, zero HTTP requests on
+denial, fixed stage order, safe stdout/stderr/report behavior, and single-close lifecycle after
+health, capability, retrieval, or response failures. Existing PASS/WARNING/FAIL exit codes and CLI
+error `3` remain unchanged, and report top-level schemas are unchanged.
+
+Phase E adds no production Compatibility Profile or registry entry, production-registry write,
+persistence, manual validation execution, real-product connection, external/private-LAN/cloud
+communication, credential, public production enforcement CLI/config, fixture, report-schema,
+workflow, tag, Release, or Vault change.
 
 ### v0.10 non-goals
 

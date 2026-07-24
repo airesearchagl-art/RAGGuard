@@ -4,6 +4,22 @@
 
 ### v0.10 production profile governance design
 
+- Completed Phase E with an immutable bounded approval-enforcement contract and safe result over
+  exact profile/version, explicit evaluation time, explicit test registry, runtime capabilities,
+  execution constraints, top-k, and optional fields.
+- Integrated enforcement after compatibility-profile resolution and before transport creation,
+  with denial-before-transport, zero HTTP requests on denial, and exactly one close after each
+  post-transport success or failure.
+- Added fail-closed enforcement for registry kind/status, maturity, decision, expiration,
+  revalidation, supported product/minor versions, approved capabilities, protocol/score/source
+  consistency, and restrictions without discovery, fallback, nearest-version choice, implicit
+  top-k reduction, field removal, or capability downgrade.
+- Added synthetic loopback security E2E covering exact and restricted approval, inactive/expired
+  entries, safe errors, deterministic time, lifecycle order, report non-disclosure, and existing
+  PASS/WARNING/FAIL/CLI-error behavior.
+- Added no production profile/entry or registry write, persistence, manual validation,
+  real-product connection, credential, public production CLI/config, fixture, report-schema,
+  workflow, tag, Release, or Vault change.
 - Completed Phase D with an immutable deterministic synthetic approval workflow spanning evidence
   generation, validation report/decision, approval metadata, eligibility, test-registry
   registration, exact resolution, safe result, and bounded events.

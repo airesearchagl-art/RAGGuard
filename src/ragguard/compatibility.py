@@ -120,6 +120,7 @@ class CompatibilityErrorCategory(str, Enum):
     PROFILE_SUSPENDED = "profile_suspended"
     PROFILE_DEPRECATED = "profile_deprecated"
     APPROVAL_EXPIRED = "approval_expired"
+    RESTRICTION_VIOLATION = "restriction_violation"
     REGISTRY_KIND_MISMATCH = "registry_kind_mismatch"
     REGISTRY_METADATA_INVALID = "registry_metadata_invalid"
 
