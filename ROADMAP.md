@@ -11,7 +11,7 @@ separate from transport configuration, benchmark evaluation, reports, and CI.
 - Phase A: profile approval metadata and maturity contract. Completed.
 - Phase B: validation report and approval decision contract. Completed.
 - Phase C: trusted production registry contract. Completed.
-- Phase D: synthetic approval workflow harness.
+- Phase D: synthetic approval workflow harness. Completed.
 - Phase E: approval enforcement and security E2E.
 - Phase F: docs, CI, and release preparation.
 
@@ -63,6 +63,21 @@ separate from transport configuration, benchmark evaluation, reports, and CI.
 - Added immutable resolved views, snapshots, safe lifecycle events, and bounded error categories.
   Registry persistence, production profiles/entries, CLI/config integration, manual validation
   execution, product connectivity, fixtures, report files, and workflow remain unimplemented.
+
+### Phase D delivery
+
+- Added an immutable deterministic workflow input and safe result that connect synthetic evidence,
+  validation reporting, approval decisions/metadata, registry eligibility, test-registry
+  registration, exact resolution, bounded events, and case counts.
+- Added an in-code product-neutral all-pass evidence builder for every Phase B synthetic case with
+  an explicit evaluation time and no clock, UUID, randomness, sleep, I/O, network, or filesystem.
+- Added strict stage ordering and fail-closed partial results for missing/duplicate/failed cases,
+  unsafe capability/policy results, expiration, revalidation, role/identity mismatch, restrictions,
+  registry-kind separation, unsupported versions, and inactive registry states.
+- Kept successful and restricted synthetic approval flows in an explicit test registry. Production
+  eligibility is evaluated and must reject synthetic evidence; no production-registry write,
+  production profile/entry, persistence, CLI/config, fixture, report-file, or workflow change was
+  added.
 
 ### Separate manual product gate
 

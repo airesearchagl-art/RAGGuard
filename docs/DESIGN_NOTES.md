@@ -110,7 +110,7 @@ error `3` without exposing raw product/version values or internal information.
 - Phase A: profile approval metadata and maturity contract. Implemented.
 - Phase B: validation report and approval decision contract. Implemented.
 - Phase C: trusted production registry contract. Implemented.
-- Phase D: synthetic approval workflow harness.
+- Phase D: synthetic approval workflow harness. Implemented.
 - Phase E: approval enforcement and security E2E.
 - Phase F: docs, CI, and release preparation.
 
@@ -187,10 +187,12 @@ default production registry is created.
 ### Phase C exact resolution and lifecycle
 
 Resolution requires an exact profile ID and profile version plus an explicit normalized product
-version and timezone-aware evaluation time. It accepts only active production entries whose
-validation and approval remain current and whose supported range and minor-version restrictions
-accept the product version. It does not discover profiles, list candidates, suggest a nearest
-version, fall back to another version/profile, overwrite an entry, or dump registry contents.
+version and timezone-aware evaluation time. Production resolution accepts only active production
+entries whose validation and approval remain current and whose supported range and minor-version
+restrictions accept the product version. An explicitly constructed test registry may resolve only
+an exact test entry; it is never converted to or treated as production. Resolution does not
+discover profiles, list candidates, suggest a nearest version, fall back to another
+version/profile, overwrite an entry, or dump registry contents.
 
 Lifecycle changes use a fixed allowlist: active entries may become suspended, deprecated, or
 revoked; suspended entries may become deprecated or revoked; deprecated entries may become
@@ -206,6 +208,42 @@ allowlisted categories without raw rejected values or internal exception detail.
 Phase C does not add persistence, file output, a production Compatibility Profile, a real
 production-registry entry, CLI/config integration, report-format changes, manual-validation
 execution, product connectivity, fixtures, workflow changes, tags, or Releases.
+
+### Phase D synthetic approval workflow
+
+Phase D composes the Phase A-C contracts into one deterministic, communication-free synthetic
+workflow. Its immutable typed input contains bounded profile/protocol/product versions, maturity,
+synthetic case outcomes, capability and policy results, restrictions, record/role identifiers,
+explicit validation/approval timestamps, an explicit evaluation time, and an explicit registry
+kind and pre-resolution state. Unknown fields, mutable collections, unknown case IDs or error
+categories, and endpoint/query/path/credential-shaped fields are rejected.
+
+Stages are fixed: build the validation report, validate its exact identity, evaluate the synthetic
+decision, build approval metadata, evaluate registration eligibility, register in a test registry,
+perform exact resolution, and build the safe result. A failed stage returns a bounded partial
+result naming only the last completed stage and an allowlisted error category. No later stage runs,
+and partial success is never reported as approval completion.
+
+The product-neutral evidence builder creates all Phase B synthetic cases in code with zero raw
+payload retention. The same input and evaluation time produce the same decision, safe result,
+event sequence, and case counts. The harness reads no clock, UUID, random value, file, environment,
+socket, endpoint, query, response, or document and performs no sleep.
+
+Successful and restricted workflows use only an explicitly constructed `test` registry. Before
+test registration, the same synthetic evidence is checked against production admission and must
+fail with `registry_kind_mismatch`; no production registry is constructed for writing and no
+production entry is stored. Test-registry resolution remains exact and does not weaken production
+manual-validation requirements or permit registry-kind conversion.
+
+The immutable safe result contains only bounded profile/version, validation status, decision,
+test-registration eligibility, registry status, exact-resolution success, restriction and
+revalidation flags, safe error category, completed stage, case counts, and allowlisted event
+categories. It excludes validation-case detail, reviewer/approver IDs, approval-record content,
+endpoint, query, response, path, token, stack trace, and internal exception detail.
+
+Phase D adds no production Compatibility Profile or registry entry, persistence, manual-validation
+execution, product connection, localhost/private-LAN/external communication, credential,
+CLI/config integration, fixture, report-format, workflow, tag, or Release change.
 
 ### v0.10 non-goals
 

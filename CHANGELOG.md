@@ -4,6 +4,17 @@
 
 ### v0.10 production profile governance design
 
+- Completed Phase D with an immutable deterministic synthetic approval workflow spanning evidence
+  generation, validation report/decision, approval metadata, eligibility, test-registry
+  registration, exact resolution, safe result, and bounded events.
+- Added an in-code all-pass builder for the full Phase B synthetic case allowlist with explicit
+  timestamps and no hidden clock, UUID, randomness, sleep, I/O, network, filesystem, or raw data.
+- Added fail-closed workflow coverage for stage ordering, partial results, required evidence,
+  unsafe capability/policy results, role/identity consistency, expiration, revalidation,
+  restrictions, registry separation, unsupported versions, and inactive states.
+- Evaluated and rejected production admission for synthetic evidence while permitting exact
+  resolution only in an explicit test registry; added no production profile/entry, production
+  registry write, persistence, CLI/config, fixture, report format, workflow, tag, or Release.
 - Completed Phase C with immutable trusted-registry entries, explicit production/test registry
   kinds, fail-closed registration eligibility, and exact profile/version resolution.
 - Added explicit register, contains, bounded-summary, suspend, deprecate, and revoke operations

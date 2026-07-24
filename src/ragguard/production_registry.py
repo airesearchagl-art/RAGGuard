@@ -374,11 +374,6 @@ def validate_registration_eligibility(
         _invalid()
     if entry.maturity is not ProfileMaturity.APPROVED:
         raise compatibility_error(CompatibilityErrorCategory.PROFILE_UNAPPROVED)
-    if entry.approval_decision not in {
-        ApprovalDecision.APPROVED,
-        ApprovalDecision.APPROVED_WITH_RESTRICTIONS,
-    }:
-        raise compatibility_error(CompatibilityErrorCategory.PROFILE_UNAPPROVED)
     if entry.registry_kind is RegistryKind.PRODUCTION:
         if validation_report.validation_type is not ValidationType.MANUAL:
             raise compatibility_error(
@@ -397,6 +392,11 @@ def validate_registration_eligibility(
         )
     if approval_metadata.is_expired(evaluation_time):
         raise compatibility_error(CompatibilityErrorCategory.APPROVAL_EXPIRED)
+    if entry.approval_decision not in {
+        ApprovalDecision.APPROVED,
+        ApprovalDecision.APPROVED_WITH_RESTRICTIONS,
+    }:
+        raise compatibility_error(CompatibilityErrorCategory.PROFILE_UNAPPROVED)
     required_checks = (
         validation_report.required_capabilities_result,
         validation_report.score_semantics_result,
@@ -504,10 +504,6 @@ class TrustedProductionRegistry:
                     else CompatibilityErrorCategory.PROFILE_NOT_REGISTERED
                 )
                 raise compatibility_error(category)
-            if self._kind is not RegistryKind.PRODUCTION:
-                raise compatibility_error(
-                    CompatibilityErrorCategory.REGISTRY_KIND_MISMATCH
-                )
             self._require_resolvable(
                 entry,
                 normalized_product_version=normalized_product_version,
@@ -654,7 +650,7 @@ class TrustedProductionRegistry:
             raise compatibility_error(CompatibilityErrorCategory.APPROVAL_EXPIRED)
         try:
             supported = entry.supported_product_version_range.contains(
-                normalized_product_version
+                str(normalized_product_version)
             )
         except RetrievalAdapterError:
             supported = False
@@ -662,9 +658,15 @@ class TrustedProductionRegistry:
             raise compatibility_error(
                 CompatibilityErrorCategory.PRODUCT_VERSION_UNSUPPORTED
             )
-        product = SemanticVersion.parse(
-            normalized_product_version,
-            category=CompatibilityErrorCategory.PRODUCT_VERSION_UNSUPPORTED,
+        product = (
+            normalized_product_version
+            if isinstance(normalized_product_version, SemanticVersion)
+            else SemanticVersion.parse(
+                normalized_product_version,
+                category=(
+                    CompatibilityErrorCategory.PRODUCT_VERSION_UNSUPPORTED
+                ),
+            )
         )
         if (
             entry.restrictions is not None
