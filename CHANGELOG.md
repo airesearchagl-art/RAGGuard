@@ -4,6 +4,16 @@
 
 ### v0.10 production profile governance design
 
+- Completed Phase C with immutable trusted-registry entries, explicit production/test registry
+  kinds, fail-closed registration eligibility, and exact profile/version resolution.
+- Added explicit register, contains, bounded-summary, suspend, deprecate, and revoke operations
+  with immutable snapshots and allowlisted safe lifecycle events.
+- Added bounded registry error categories and contract coverage for approval/validation identity,
+  maturity, decisions, capabilities, policies, expiration, revalidation, restrictions, registry
+  separation, duplicate/overwrite rejection, exact resolution, and terminal revocation.
+- Added no profile discovery, nearest-version selection, profile/version fallback, reactivation,
+  rollback, automatic registry conversion, persistence, production profile/entry, CLI/config,
+  manual validation, product connection, fixture, workflow, tag, or Release.
 - Completed Phase B with immutable validation case/report models, explicit synthetic/manual
   required case sets, deterministic approval decision evaluation, and bounded safe summaries.
 - Added fail-closed validation for case identity/outcomes, required evidence, timestamps,

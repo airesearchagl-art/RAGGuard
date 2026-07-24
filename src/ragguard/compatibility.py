@@ -115,6 +115,13 @@ class CompatibilityErrorCategory(str, Enum):
     MANUAL_VALIDATION_REQUIRED = "manual_validation_required"
     APPROVAL_METADATA_INVALID = "approval_metadata_invalid"
     REVALIDATION_REQUIRED = "revalidation_required"
+    PROFILE_NOT_REGISTERED = "profile_not_registered"
+    PROFILE_VERSION_NOT_REGISTERED = "profile_version_not_registered"
+    PROFILE_SUSPENDED = "profile_suspended"
+    PROFILE_DEPRECATED = "profile_deprecated"
+    APPROVAL_EXPIRED = "approval_expired"
+    REGISTRY_KIND_MISMATCH = "registry_kind_mismatch"
+    REGISTRY_METADATA_INVALID = "registry_metadata_invalid"
 
 
 class ScoreSemantics(str, Enum):

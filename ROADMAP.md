@@ -10,7 +10,7 @@ separate from transport configuration, benchmark evaluation, reports, and CI.
 
 - Phase A: profile approval metadata and maturity contract. Completed.
 - Phase B: validation report and approval decision contract. Completed.
-- Phase C: trusted production registry contract. Planned.
+- Phase C: trusted production registry contract. Completed.
 - Phase D: synthetic approval workflow harness.
 - Phase E: approval enforcement and security E2E.
 - Phase F: docs, CI, and release preparation.
@@ -49,6 +49,20 @@ separate from transport configuration, benchmark evaluation, reports, and CI.
   traffic, source path, credential, or internal exception disclosure.
 - Kept Phase B contract-only. Production registry, CLI/config integration, report files, manual
   validation execution, product connectivity, fixtures, and workflow remain unimplemented.
+
+### Phase C delivery
+
+- Added immutable trusted-registry entries that bind exact profile, protocol, approval, validation,
+  capability, score/source policy, version-range, restriction, expiration, and registry-kind
+  metadata without retaining endpoints, paths, credentials, raw payloads, or free-form audit text.
+- Added fail-closed registration eligibility for approved, unexpired, manually validated
+  production entries and explicit separation from synthetic test-registry entries.
+- Added explicit register, exact resolve, contains, bounded-summary, suspend, deprecate, and revoke
+  operations with no discovery, overwrite, nearest-version selection, profile/version fallback,
+  reactivation, rollback, or automatic registry conversion.
+- Added immutable resolved views, snapshots, safe lifecycle events, and bounded error categories.
+  Registry persistence, production profiles/entries, CLI/config integration, manual validation
+  execution, product connectivity, fixtures, report files, and workflow remain unimplemented.
 
 ### Separate manual product gate
 
