@@ -2,28 +2,32 @@
 
 [![Tests](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml)
 
-## RAG Benchmark Harness v0.10 production profile governance design
+## RAG Benchmark Harness v0.10.0 approval governance
 
-v0.9 completed the product-neutral Compatibility Profile contracts and synthetic fake-loopback
-integration. v0.10 designs the governance required before any production Compatibility Profile can
-be created, approved, changed, or revoked. This design does not add a production profile, product
-configuration, real endpoint, credential, real document, or real-product connection.
+v0.10.0 is prepared as a synthetic-only governance release. Phases A-E implement immutable profile
+maturity and approval metadata, validation reports and decisions, an explicit test/production
+registry contract, a deterministic synthetic approval workflow, and approval enforcement before
+transport creation. Phase F documents those boundaries and prepares the release gate; no tag or
+GitHub Release exists until separate post-merge operations complete.
 
-Profiles move explicitly through `draft`, `synthetic_validated`, `manually_validated`, `approved`,
-`deprecated`, and `revoked`. Promotion is never automatic, and `draft` cannot move directly to
-`approved`. Synthetic validation is not evidence of real-product compatibility; manual validation
-is limited to the reviewed product version, isolated environment, and validation date. Only an
-explicitly approved version range is eligible for a future production registry.
+The runtime is fail-closed. Profiles and versions resolve exactly, restrictions are enforced before
+retrieval, and unapproved, expired, revalidation-required, suspended, deprecated, revoked, or
+incompatible entries are rejected. There is no automatic fallback, nearest-version selection,
+schema inference, implicit capability downgrade, or silent top-k reduction.
 
-The profile author, reviewer, approver, validation operator, and release operator have separate
-responsibilities. A profile author cannot self-approve a profile. Profile changes require a new
-version or explicit reapproval, and profiles with unknown ownership are unusable.
+This release provides no production Compatibility Profile, real production-registry entry,
+registry persistence, production approval CLI/config, manual validation result, real-product
+connection, credential support, real document, or external/private-LAN access. Synthetic
+validation is not evidence of real-product compatibility. Any future manual validation or
+production admission requires a separate explicitly approved task and evidence review.
 
-Any future real-product compatibility check is a separately approved manual gate, not a v0.10
-implementation phase or CI job. It must use a loopback-only isolated environment, synthetic corpus
-and queries, no credentials, no external/private-LAN traffic, no raw-response persistence, no
-fallback, and immediate stop on unexpected behavior. Production profiles and real-product
-compatibility remain unavailable until that gate and a separate approval workflow are completed.
+Document responsibilities:
+
+- [Usage](docs/USAGE.md) describes the supported operational surface and safety limits.
+- [Design Notes](docs/DESIGN_NOTES.md) define the Phase A-E contracts and lifecycle rationale.
+- [v0.10.0 Release Checklist](docs/RELEASE_CHECKLIST_V0.10.0.md) defines the merge, tag, Release,
+  and post-release gates.
+- [Roadmap](ROADMAP.md) records delivery status and separately approved future work.
 
 ## RAG Benchmark Harness v0.9 compatibility contract
 

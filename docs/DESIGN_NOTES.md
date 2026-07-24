@@ -112,7 +112,7 @@ error `3` without exposing raw product/version values or internal information.
 - Phase C: trusted production registry contract. Implemented.
 - Phase D: synthetic approval workflow harness. Implemented.
 - Phase E: approval enforcement and security E2E. Implemented.
-- Phase F: docs, CI, and release preparation.
+- Phase F: docs, CI, and release preparation. Implemented by the release-preparation PR.
 
 Real-product manual validation is excluded from these phases and requires explicit user approval as
 a separate task.
@@ -289,6 +289,33 @@ Phase E adds no production Compatibility Profile or registry entry, production-r
 persistence, manual validation execution, real-product connection, external/private-LAN/cloud
 communication, credential, public production enforcement CLI/config, fixture, report-schema,
 workflow, tag, Release, or Vault change.
+
+### Phase F documentation, CI, and release boundary
+
+Phase F changes documentation and release verification only. README is the concise public
+capability and non-goal overview. Usage documents the supported commands and internal synthetic
+governance sequence without presenting internal contracts as production configuration. Design
+Notes remain authoritative for maturity, evidence, registry, enforcement, and lifecycle
+semantics. The dedicated release checklist owns pre-tag state and post-merge operator steps.
+
+The existing workflow is sufficient: its Python 3.11/3.12 matrix runs `python -m pytest`, which
+includes all Phase A-E approval and security tests. It also retains explicit profile-integration
+E2E, HTTP security E2E, CLI help/config, benchmark execution, and exit-code steps. Adding another
+approval-suite workflow step would execute the same tests twice without increasing the gate.
+A lightweight release-preparation contract test instead verifies that the matrix, full-suite
+command, documentation boundaries, and annotated-tag requirement remain present.
+
+The release-preparation PR does not create `v0.10.0`. After merge, the release operator must
+synchronize `main` and `origin/main`, confirm a clean tracked tree, rerun the checklist, and create
+an annotated tag whose target is exactly the Phase F merge commit. Pushing the tag and creating the
+GitHub Release are distinct explicit actions. The Vault update is a separate post-release PR.
+
+Phase F preserves every security boundary from Phase A-E: synthetic evidence only, no production
+profile or real production-registry entry, no registry persistence, no performed manual
+validation, no real-product connection, no credentials or real documents, no external/private-LAN
+access, and fail-closed exact selection without fallback, nearest-version choice, or schema
+inference. Synthetic validation remains explicitly insufficient evidence of real-product
+compatibility.
 
 ### v0.10 non-goals
 

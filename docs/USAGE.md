@@ -1,40 +1,34 @@
 # Usage
 
-## v0.10 production profile approval design
+## v0.10.0 approval governance usage boundary
 
-No production Compatibility Profile is currently provided. Do not add a real product name,
-endpoint, port, credential, customer identifier, project identifier, person name, or real document
-path to RAGGuard configuration or documentation. Existing synthetic profiles are not production
-compatibility claims.
+v0.10.0 does not add a production-facing command. The supported public commands remain
+`check-mask` and `benchmark`; their arguments, report schemas, and PASS `0` / WARNING `1` / FAIL
+`2` / CLI error `3` behavior are unchanged. Approval-governance modules are internal contracts and
+synthetic security harnesses, not a production profile loader or registry service.
 
-A future manual compatibility validation requires a separately approved task that records only the
-safe profile ID/version, normalized product version, operator and approver IDs, validation time,
-approved test cases, and stop conditions. Before connecting, confirm an isolated local environment,
-a loopback-only endpoint, no authentication requirement, synthetic corpus and queries only, no
-external/private-LAN route, no proxy/redirect/retry/fallback, and no raw-response persistence.
+The internal Phase A-E flow is explicit:
 
-The standard manual sequence is:
+1. Build immutable profile approval and validation evidence.
+2. Evaluate a deterministic approval decision at an explicit timezone-aware time.
+3. Admit synthetic evidence only to an explicitly constructed `test` registry.
+4. Resolve the exact profile ID and version with no discovery or fallback.
+5. Enforce approval, registry status, supported versions, and restrictions before transport exists.
+6. Use the fake loopback server for bounded synthetic security E2E and close exactly once.
 
-1. Confirm the selected profile/version and normalized target product version.
-2. Confirm the loopback destination and synthetic-only corpus/query inputs.
-3. Validate health and negotiate required and optional capabilities.
-4. Run synthetic PASS, WARNING, and FAIL cases.
-5. Check malformed, timeout, and oversized responses.
-6. Confirm close/cleanup and report non-disclosure.
-7. Stop the connection immediately and create a bounded safe summary.
+Denial occurs before transport creation and produces only an allowlisted safe category. The
+implementation does not silently reduce top-k, remove requested fields, downgrade capabilities,
+select a nearest version, infer a schema, or substitute another profile. Existing synthetic
+validation is not evidence of real-product compatibility.
 
-The operator must not search real documents or perform exploratory retrieval. The safe summary may
-contain protocol/health status, capability summary, per-case outcomes, bounded duration, result
-count, safe error category, pass/fail decision, reviewer/approver IDs, and validation date. It must
-not contain endpoints, ports, query text, raw requests/responses, source paths, document content,
-credentials, headers, cookies, stack traces, or internal exception text.
+Do not add a product name, production profile, real registry entry, persistence setting, endpoint,
+port, credential, customer or project identifier, person name, or real document path to v0.10.0
+configuration or documentation. No manual validation has been performed, and no real product,
+external host, or private-LAN service is supported.
 
-Approval outcomes are `approved`, `approved_with_restrictions`, `rejected`, or
-`needs_revalidation`. Restrictions must be explicit, such as an approved minor-version range,
-disabled optional capability, unscored-only operation, or reduced top-k. Ambiguous temporary
-approval, undocumented workarounds, indefinite exceptions, and automatic fallback are forbidden.
-Unapproved, revoked, expired, unsupported, or revalidation-required profiles fail closed as CLI
-error `3`; normal evaluated results remain PASS `0`, WARNING `1`, and FAIL `2`.
+Release verification commands and post-merge tag/Release separation are defined in the
+[v0.10.0 Release Checklist](RELEASE_CHECKLIST_V0.10.0.md). Contract rationale and non-goals remain
+authoritative in [Design Notes](DESIGN_NOTES.md).
 
 ## v0.9 Phase A compatibility profile contract
 
