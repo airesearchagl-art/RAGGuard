@@ -4,6 +4,15 @@
 
 ### v0.10 production profile governance design
 
+- Completed Phase A with immutable profile maturity, approval decision, approval/validation
+  metadata, supported product-version range, bounded restriction, and safe summary contracts.
+- Added an explicit maturity transition allowlist and fail-closed approval consistency checks for
+  identity, manual validation, required capabilities, score/source policy, expiration,
+  revalidation, and exact supported versions.
+- Added bounded governance error categories and contract tests without retaining raw endpoint,
+  credential, query, response, path, reviewer, approver, or rejected values.
+- Kept production profiles, trusted production registry/admission, real-product/manual validation
+  execution, CLI/config integration, fixtures, workflow, tag, and Release unimplemented.
 - Started a documentation-only governance design before any production Compatibility Profile is
   implemented or admitted to a trusted registry.
 - Defined explicit maturity states from draft through synthetic/manual validation, approval,

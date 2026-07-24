@@ -107,7 +107,7 @@ error `3` without exposing raw product/version values or internal information.
 
 ### v0.10 implementation phases
 
-- Phase A: profile approval metadata and maturity contract.
+- Phase A: profile approval metadata and maturity contract. Implemented.
 - Phase B: validation report and approval decision contract.
 - Phase C: trusted production registry contract.
 - Phase D: synthetic approval workflow harness.
@@ -116,6 +116,25 @@ error `3` without exposing raw product/version values or internal information.
 
 Real-product manual validation is excluded from these phases and requires explicit user approval as
 a separate task.
+
+### Phase A implementation boundary
+
+Phase A adds a communication-free `profile_approval` contract. Immutable models represent the six
+maturity states, four approval decisions, bounded approval and validation metadata, explicit
+product-version ranges, flat restrictions, and a safe summary. Maturity transitions use a fixed
+allowlist; direct draft approval, automatic promotion, reactivation, fallback, nearest-version
+selection, schema inference, and raw rejected-value disclosure are not available.
+
+An active approval requires matching profile/version and validation record identities, completed
+manual-validation evidence, all required capabilities, allowlisted score/source policy, an
+unexpired approval, no revalidation requirement, and an exact supported product version. Reviewer
+and approver identities must be distinct. Collections are normalized to immutable tuples, unknown
+fields and duplicate validation cases fail closed, and representations retain no validation detail
+or reviewer/approver identity.
+
+Phase A does not add a production Compatibility Profile, trusted production registry, registry
+admission, real-product/manual validation execution, CLI/config integration, report schema,
+transport behavior, fixture, or workflow change. Phase B and later phases remain unimplemented.
 
 ### v0.10 non-goals
 

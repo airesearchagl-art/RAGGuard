@@ -108,6 +108,13 @@ class CompatibilityErrorCategory(str, Enum):
     UNSAFE_SOURCE_IDENTIFIER = "unsafe_source_identifier"
     INVALID_MAPPED_REQUEST = "invalid_mapped_request"
     INVALID_MAPPED_RESPONSE = "invalid_mapped_response"
+    PROFILE_UNAPPROVED = "profile_unapproved"
+    PROFILE_REVOKED = "profile_revoked"
+    PROFILE_VALIDATION_EXPIRED = "profile_validation_expired"
+    PRODUCT_VERSION_UNSUPPORTED = "product_version_unsupported"
+    MANUAL_VALIDATION_REQUIRED = "manual_validation_required"
+    APPROVAL_METADATA_INVALID = "approval_metadata_invalid"
+    REVALIDATION_REQUIRED = "revalidation_required"
 
 
 class ScoreSemantics(str, Enum):
