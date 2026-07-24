@@ -12,7 +12,7 @@ separate from transport configuration, benchmark evaluation, reports, and CI.
 - Phase B: validation report and approval decision contract. Completed.
 - Phase C: trusted production registry contract. Completed.
 - Phase D: synthetic approval workflow harness. Completed.
-- Phase E: approval enforcement and security E2E.
+- Phase E: approval enforcement and security E2E. Completed.
 - Phase F: docs, CI, and release preparation.
 
 ### Delivery boundary
@@ -78,6 +78,25 @@ separate from transport configuration, benchmark evaluation, reports, and CI.
   eligibility is evaluated and must reject synthetic evidence; no production-registry write,
   production profile/entry, persistence, CLI/config, fixture, report-file, or workflow change was
   added.
+
+### Phase E delivery
+
+- Added an immutable approval-enforcement request and bounded safe result that require an exact
+  profile/version, normalized product version, explicit evaluation time, explicit test registry,
+  required runtime capabilities, fixed execution constraints, top-k, and optional fields.
+- Integrated enforcement after compatibility-profile resolution and before transport creation.
+  Denial creates no transport, performs no health/capability/retrieval request, sends no HTTP
+  request, and does not call close for a transport that never existed.
+- Added fail-closed checks for registry kind/status, maturity, decision, validation/approval and
+  restriction expiration, revalidation, supported product/minor version, approved capabilities,
+  score/source policy consistency, and bounded restrictions without implicit top-k reduction,
+  optional-field removal, capability downgrade, fallback, discovery, or nearest-version choice.
+- Added synthetic loopback security E2E for exact approval, restrictions, lifecycle denials,
+  deterministic evaluation time, safe errors, fixed stage order, single close after every
+  post-transport outcome, report non-disclosure, and existing PASS/WARNING/FAIL/CLI-error behavior.
+- Kept enforcement opt-in and test-registry-only. No public production CLI/config surface,
+  production profile/entry, registry persistence/write, manual validation, real-product
+  connection, credential, fixture, report-schema, workflow, tag, or Release was added.
 
 ### Separate manual product gate
 
