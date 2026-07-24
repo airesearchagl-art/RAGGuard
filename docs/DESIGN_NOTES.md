@@ -108,7 +108,7 @@ error `3` without exposing raw product/version values or internal information.
 ### v0.10 implementation phases
 
 - Phase A: profile approval metadata and maturity contract. Implemented.
-- Phase B: validation report and approval decision contract.
+- Phase B: validation report and approval decision contract. Implemented.
 - Phase C: trusted production registry contract.
 - Phase D: synthetic approval workflow harness.
 - Phase E: approval enforcement and security E2E.
@@ -134,7 +134,37 @@ or reviewer/approver identity.
 
 Phase A does not add a production Compatibility Profile, trusted production registry, registry
 admission, real-product/manual validation execution, CLI/config integration, report schema,
-transport behavior, fixture, or workflow change. Phase B and later phases remain unimplemented.
+transport behavior, fixture, or workflow change. Phase B builds only the report/decision contract
+described below; Phase C and later phases remain unimplemented.
+
+### Phase B validation report contract
+
+Phase B adds immutable, communication-free validation case and report models. Each case stores only
+an allowlisted case ID and outcome, one optional safe error category, bounded duration and result
+count, an explicit required flag, and an allowlisted notes code. Free-form notes, raw query or
+response data, endpoints, paths, and unknown fields are rejected.
+
+Reports distinguish `synthetic` from `manual` validation and bind each type to an explicit safe
+environment class. Synthetic validation requires the full product-neutral rejection and lifecycle
+case set. Manual validation uses an explicit subset and never inherits or infers synthetic results.
+Duplicate, unknown, or missing required cases fail closed. A passed report cannot contain a failed,
+skipped, or not-applicable required case, failed required policy result, safe error, or pending
+revalidation.
+
+### Phase B approval evaluation and expiration
+
+The pure decision evaluator accepts an explicit timezone-aware evaluation time and returns only
+`approved`, `approved_with_restrictions`, `rejected`, or `needs_revalidation`. It verifies report,
+profile/version, and approval-record identity; manual validation status; exact supported product
+version; required capability, score/source, transport, cleanup, and non-disclosure results; bounded
+restrictions; report/approval expiration; and revalidation state. It does not mutate or promote
+maturity, repair decisions, select a nearest version, or fall back to another profile.
+
+The safe summary contains a shortened safe validation-record identifier, profile identity/version,
+validation type/status, outcome counts, required-failure count, safe error categories,
+revalidation status, and the bounded decision only. Phase B adds no report file format, registry,
+CLI/config integration, production profile, manual-validation execution, product connection,
+fixture, or workflow change. Phase C and later phases remain unimplemented.
 
 ### v0.10 non-goals
 
