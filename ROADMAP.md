@@ -10,8 +10,8 @@ profile/entry, persist a registry, or expand the runtime.
 ### Phase plan
 
 - Phase A: manual validation plan contract. Completed and merged.
-- Phase B: manual validation evidence contract. Implemented on the feature branch; pending review.
-- Phase C: production admission evaluator.
+- Phase B: manual validation evidence contract. Completed and merged.
+- Phase C: production admission evaluator. Implemented on the feature branch; pending review.
 - Phase D: offline manual-evidence import and validation boundary.
 - Phase E: registry admission enforcement and security E2E.
 - Phase F: docs, CI, and release preparation.
@@ -48,6 +48,18 @@ approval remain separately approved non-goals.
   preserving equivalent-instant identity while preventing timestamp truncation collisions.
 - Kept evidence construction separate from manual execution, approval, production admission,
   runtime authorization, transport generation, registry write, persistence, and real-product use.
+
+### Phase C delivery
+
+- Added immutable reviewer-attestation, admission-request, decision-result, reason, restriction,
+  and revalidation-trigger contracts with exact Phase A/B and v0.10 metadata identity binding.
+- Added a deterministic pure evaluator with explicit UTC evaluation time, `manually_validated`
+  maturity, reviewer/approver separation, evidence freshness, supported-version, restriction, and
+  revalidation gates.
+- Fixed decision priority to rejected identity/security failures, then revalidation/freshness
+  failures, then explicit enforceable restrictions, then unrestricted approval.
+- Returns registry eligibility only. It creates no registry entry, performs no registry read/write
+  or persistence, grants no runtime authority, and generates no transport or product connection.
 
 ## Release preparation: RAG Benchmark Harness v0.10.0 approval governance
 

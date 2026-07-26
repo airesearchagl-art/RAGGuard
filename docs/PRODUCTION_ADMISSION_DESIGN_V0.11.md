@@ -439,12 +439,25 @@ fixture; the word “import” never authorizes external API access or automatic
 
 - Purpose: pure decision table over v0.10 approval plus v0.11 plan, evidence, review, restrictions,
   freshness, roles, and registry eligibility.
-- Implementation: deterministic communication-free evaluator and bounded result.
+- Implementation: delivered as immutable reviewer-attestation, request, decision, safe-summary,
+  reason-category, and revalidation-trigger contracts plus a deterministic communication-free
+  evaluator.
 - Non-goals: registry mutation, runtime integration, product connection, automatic approval.
 - Tests: all four decisions, identity/freshness/role failures, restrictions, revalidation, and no
   mutation or fallback.
 - Security: explicit evaluation time, bounded categories, no raw rejected values.
 - Merge gate: Phase A-C and full regressions pass on Python 3.11/3.12.
+
+The evaluator accepts `manually_validated` maturity as the exact pre-approval state; it does not
+require `approved` before producing the approval decision. Its deterministic priority is:
+
+1. unsafe, identity, binding, role, or reviewer rejection -> `rejected`;
+2. freshness, expiration, unsupported exact version, or explicit trigger -> `needs_revalidation`;
+3. all gates pass with explicit enforceable restrictions -> `approved_with_restrictions`;
+4. all gates pass without restrictions -> `approved`.
+
+Only the last two outcomes are registry-admission eligible. Eligibility does not create an entry,
+write or read a registry, persist state, grant runtime authorization, or create a transport.
 
 ### Phase D: offline manual-evidence import and validation boundary
 

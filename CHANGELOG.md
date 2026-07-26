@@ -4,6 +4,14 @@
 
 ### v0.11 production admission design
 
+- Added the Phase C immutable `ReviewerAttestation`, `ProductionAdmissionRequest`, and
+  `ProductionAdmissionDecision` contracts plus a deterministic pure admission evaluator.
+- Added exact plan/evidence/synthetic-reference/approval/validation identity, explicit-time
+  freshness, `manually_validated` maturity, role separation, restriction, supported-version, and
+  revalidation gates with bounded safe reason categories and canonical SHA-256 results.
+- Kept admission evaluation separate from registry mutation and runtime authorization. It creates
+  no registry entry, persistence, transport, network/filesystem I/O, product connection, hidden
+  clock, random value, UUID, credential, or real-data operation.
 - Added the Phase B immutable `ManualValidationEvidence` contract with exact Phase A plan binding,
   strict planned/observed product identity, explicit execution/freshness times, and all 22 required
   case results.
