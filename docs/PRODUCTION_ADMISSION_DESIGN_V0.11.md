@@ -34,18 +34,23 @@ The following lifecycle states may follow admission:
 
 | From | To | Required gate |
 | --- | --- | --- |
-| candidate_profile | synthetic_validation_complete | Complete v0.10 synthetic evidence |
-| synthetic_validation_complete | manual_validation_planned | Approved immutable manual plan |
-| manual_validation_planned | manual_validation_executed | All required manual cases attempted |
-| manual_validation_executed | evidence_reviewed | Immutable evidence validates exactly |
-| evidence_reviewed | approval_decided | Independent reviewer attestation |
-| approval_decided | production_registry_admitted | Approved decision and admission evaluator pass |
-| production_registry_admitted | suspended / deprecated / revoked | Explicit administrative action |
-| any non-terminal state | revalidation_required | A revalidation trigger is present |
+| `candidate_profile` | `synthetic_validation_complete` | Complete v0.10 synthetic evidence |
+| `synthetic_validation_complete` | `manual_validation_planned` | Approved immutable manual plan |
+| `manual_validation_planned` | `manual_validation_executed` | All required manual cases attempted |
+| `manual_validation_executed` | `evidence_reviewed` | Independent evidence reviewer validates the evidence and creates an immutable attestation |
+| `evidence_reviewed` | `approval_decided` | A distinct approver explicitly selects one decision |
+| `approval_decided` | `production_registry_admitted` | Decision is `approved` or `approved_with_restrictions` and every admission gate passes |
+| `production_registry_admitted` | `suspended` / `deprecated` / `revoked` | Explicit administrative action |
+| any non-terminal state | `revalidation_required` | A revalidation trigger is present |
 
 No step may be skipped, inferred, repaired, or promoted automatically. Revalidation starts a new
 plan and evidence chain; it does not mutate or relabel the old evidence. Suspension, deprecation,
 and revocation never select a replacement profile, reactivate an entry, or roll back automatically.
+
+`rejected` and `needs_revalidation` are valid decisions that complete the `approval_decided` state,
+but they are ineligible for `production_registry_admitted`. They terminate the current admission
+attempt or require a new evidence chain. Only `approved` and `approved_with_restrictions` make the
+record an admission candidate, and neither decision bypasses any other admission gate.
 
 ## Component responsibility
 
@@ -179,14 +184,16 @@ fingerprint shape, observed version, timestamps, freshness, cleanup, non-disclos
 unknown fields. The reviewer produces an immutable attestation containing only safe IDs, digests,
 review time, outcome, and bounded error categories.
 
-The approver then selects exactly one existing v0.10 decision:
+Only creation of that immutable reviewer attestation establishes `evidence_reviewed`.
+Approval is forbidden before `evidence_reviewed`. A distinct approver then explicitly selects
+exactly one existing v0.10 decision and establishes `approval_decided`:
 
 | Decision | Production admission result |
 | --- | --- |
 | `approved` | Eligible only when every admission condition passes |
 | `approved_with_restrictions` | Eligible only when every restriction is explicit and enforceable |
-| `rejected` | Ineligible; no registry write |
-| `needs_revalidation` | Ineligible until a new complete evidence chain is approved |
+| `rejected` | Completes `approval_decided`; ineligible and no registry write |
+| `needs_revalidation` | Completes `approval_decided`; ineligible until a new evidence chain is approved |
 
 An admission evaluator is pure and deterministic at an explicit timezone-aware evaluation time.
 Admission requires:
@@ -199,7 +206,11 @@ Admission requires:
 - Unexpired plan, evidence, review, approval, and restrictions.
 - No revalidation trigger.
 - Distinct operator, reviewer, and approver responsibilities.
-- An eligible active registry status and exact production registry kind.
+- Exact requested registry kind `production` and requested initial status `active`.
+
+Before admission, no registry entry or registry status exists. The evaluator validates the
+requested registry kind and initial status; it does not claim that an active entry already exists.
+Only a successful explicit registry write creates the entry with status `active`.
 
 Restrictions are valid only when bounded and machine-enforceable, such as maximum top-k, disabled
 optional fields, required query-ID echo, allowed minor versions, or expiration. Free-form
@@ -217,6 +228,10 @@ The registry administrator revalidates this bundle immediately before writing. R
 only an exact profile ID/version, rejects duplicate or overwrite attempts, and records one bounded
 event. There is no discovery, fallback, nearest-version selection, schema inference, automatic
 recovery, automatic rollback, or automatic substitution.
+
+Only `approved` and `approved_with_restrictions` decisions are eligible for this operation, and
+only after every other admission condition succeeds. `rejected` and `needs_revalidation` remain
+valid recorded decisions but cannot create an entry.
 
 Suspended, deprecated, revoked, expired, or revalidation-required entries cannot resolve or pass
 approval enforcement. Revocation is terminal. Suspension requires a new explicit review before

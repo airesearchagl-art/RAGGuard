@@ -77,6 +77,42 @@ def test_v011_design_preserves_decision_and_registry_boundaries() -> None:
         assert required in design
 
 
+def test_v011_transition_gates_separate_review_approval_and_admission() -> None:
+    design = _design()
+    normalized = " ".join(design.split())
+    for transition in (
+        "| `manual_validation_executed` | `evidence_reviewed` | "
+        "Independent evidence reviewer validates the evidence and creates "
+        "an immutable attestation |",
+        "| `evidence_reviewed` | `approval_decided` | "
+        "A distinct approver explicitly selects one decision |",
+        "| `approval_decided` | `production_registry_admitted` | "
+        "Decision is `approved` or `approved_with_restrictions` and every "
+        "admission gate passes |",
+    ):
+        assert transition in design
+
+    assert "Approval is forbidden before `evidence_reviewed`." in normalized
+    assert (
+        "`rejected` and `needs_revalidation` are valid decisions that complete "
+        "the `approval_decided` state"
+    ) in normalized
+    assert (
+        "Only `approved` and `approved_with_restrictions` make the record "
+        "an admission candidate"
+    ) in normalized
+
+
+def test_v011_pre_admission_registry_status_is_requested_not_preexisting() -> None:
+    design = _design()
+    assert "Before admission, no registry entry or registry status exists." in design
+    assert (
+        "Exact requested registry kind `production` and requested initial "
+        "status `active`."
+    ) in design
+    assert "Only a successful explicit registry write creates the entry" in design
+
+
 def test_v011_design_defines_all_six_phases_without_runtime_expansion() -> None:
     design = _design()
     for phase in ("Phase A", "Phase B", "Phase C", "Phase D", "Phase E", "Phase F"):
