@@ -4,6 +4,14 @@
 
 ### v0.11 production admission design
 
+- Added the Phase A immutable `ManualValidationPlan` contract with strict exact SemanticVersion
+  fields, explicit timezone-aware execution windows, role separation, and complete deterministic
+  case, abort, and cleanup allowlists.
+- Added safe loopback boundary declarations, synthetic-only data and credential-prohibited
+  contracts, exact synthetic-evidence identity binding, SHA-256 canonical digests, bounded safe
+  summaries, typed non-disclosing errors, and focused contract coverage.
+- Kept plan creation communication-free: it performs no validation, approval, admission, registry
+  write, transport creation, I/O, network/filesystem access, or real-product/data operation.
 - Designed the explicit candidate, synthetic, manual-plan, manual-execution, evidence-review,
   approval-decision, production-admission, lifecycle, and revalidation states.
 - Defined immutable manual-validation plan and evidence schemas, the complete required manual case

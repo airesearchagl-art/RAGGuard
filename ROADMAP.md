@@ -9,7 +9,7 @@ profile/entry, persist a registry, or expand the runtime.
 
 ### Phase plan
 
-- Phase A: manual validation plan contract.
+- Phase A: manual validation plan contract. Implemented on the feature branch; pending review.
 - Phase B: manual validation evidence contract.
 - Phase C: production admission evaluator.
 - Phase D: offline manual-evidence import and validation boundary.
@@ -25,6 +25,18 @@ Every phase remains product-neutral and fail-closed. Synthetic evidence is never
 Real-product validation, credentials, real data, external/private-LAN access, production profiles
 and entries, persistence, fallback, nearest-version selection, schema inference, and automatic
 approval remain separately approved non-goals.
+
+### Phase A delivery
+
+- Added an immutable, hashable manual-validation plan with exact profile, protocol, and opaque
+  product-fixture versions, explicitly supplied timezone-aware timestamps, and a 30-day maximum
+  execution window.
+- Fixed the complete required-case, abort-condition, and cleanup-condition sets with deterministic
+  ordering, defensive copying, unknown/duplicate/missing rejection, and SHA-256 canonical identity.
+- Enforced operator/reviewer/approver separation and safe endpoint, synthetic-only data,
+  credential-prohibited, non-disclosing summary, and bounded typed-error contracts.
+- Kept plan construction separate from validation execution, approval, registry admission,
+  transport generation, CLI/config, persistence, and any real-product operation.
 
 ## Release preparation: RAG Benchmark Harness v0.10.0 approval governance
 

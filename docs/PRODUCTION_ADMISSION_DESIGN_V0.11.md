@@ -104,6 +104,68 @@ never combine reviewer and approver or permit self-approval.
 The operator may not alter the plan during execution. Any required change creates a new plan ID,
 digest, review, and approval.
 
+### Phase A implemented plan contract
+
+Phase A provides a narrower communication-free typed contract before any evidence execution. Its
+immutable fields are `plan_id`, `profile_id`, `profile_version`, `protocol_version`, `product_id`,
+`product_version`, `created_at`, `execution_window_start`, `execution_window_end`,
+`profile_implementer_id`, `validation_operator_id`, `evidence_reviewer_id`, `approver_id`,
+`registry_administrator_id`, `required_case_ids`, `endpoint_boundary`, `data_boundary`,
+`credential_boundary`, `abort_conditions`, `cleanup_conditions`,
+`synthetic_evidence_reference`, `safe_summary`, and `canonical_digest`.
+
+Versions are exact strict SemanticVersion values; wildcards, ranges, nearest-version selection,
+and inference are structurally unavailable. Timestamps are explicit and timezone-aware,
+`created_at <= execution_window_start < execution_window_end`, and the window is at most 30 days.
+The contract uses no hidden clock, random value, or generated UUID.
+
+The evidence reviewer differs from the approver, the validation operator cannot review their own
+execution, and the profile implementer cannot approve their own profile. The registry
+administrator/release-operator exception remains outside this plan because release operator is not
+a plan field.
+
+`endpoint_boundary` contains only the `loopback` category, an explicitly approved boundary marker,
+and an opaque endpoint reference. Its identifiers cannot represent a hostname, address, port,
+URL, path, query, credential, private-LAN destination, or external destination. This declaration
+does not create a transport or determine connectivity. The data boundary requires
+`synthetic_only`, `no_customer_data`, `no_production_data`, `no_real_documents`,
+`no_raw_payload_retention`, and `safe_summary_only`. The credential boundary requires
+`credentials_prohibited=true` and has no credential-reference field.
+
+The exact Phase A case IDs are `health_valid`, `capabilities_valid`,
+`required_capabilities_present`, `request_mapping_valid`, `response_mapping_valid`, `pass_query`,
+`warning_query`, `fail_query`, `malformed_response_rejected`, `timeout_rejected`,
+`oversized_response_rejected`, `unsafe_source_rejected`, `duplicate_id_rejected`,
+`rank_gap_rejected`, `query_id_echo_valid`, `close_cleanup_valid`,
+`report_non_disclosure_valid`, `product_version_valid`,
+`unsupported_product_version_rejected`, `approval_denial_before_transport`,
+`credential_non_disclosure_valid`, and `endpoint_non_disclosure_valid`. Missing, duplicate,
+unknown, or partial sets fail closed and the stored order is canonical.
+
+The exact abort set covers unexpected network destination, credential request, unsafe source
+disclosure, raw-payload retention attempt, schema mismatch, unsupported product version, response
+size violation, timeout, and cleanup failure. The exact cleanup set requires transport closed,
+temporary safe fixture removed, no raw payload retained, no credential retained, no endpoint
+detail retained, and safe summary produced.
+
+The synthetic evidence reference is an opaque v0.10 record identity bound to the exact profile ID
+and version. It cannot contain report text, a path, or a URL and is never manual evidence. The
+canonical digest is `sha256:<hex>` over sorted-key compact JSON of the immutable safe plan fields.
+The safe summary contains only the allowed identities and versions, execution window, case count,
+role-separation result, boundary category, and digest. Validation errors expose only deterministic
+typed categories and never rejected input.
+
+A canonical timestamp is normalized to UTC and serialized with a `Z` suffix while preserving all
+six digits of Python `datetime` microsecond precision. Equivalent instants expressed with different
+UTC offsets therefore produce identical canonical timestamp values and identical plan digests.
+Distinct instants must remain distinct: no timestamp is truncated to seconds, so a microsecond-only
+difference changes the canonical value and digest. Safe-summary execution-window timestamps use
+the same UTC normalization and microsecond-preserving serialization as canonical JSON.
+
+A valid plan is not evidence, approval, or production admission. Plan creation performs no
+validation execution, transport generation, registry write, I/O, network/filesystem access,
+credential handling, or real-product/data operation.
+
 ## Required manual cases
 
 Every manual evidence record contains exactly one result for each required case:
