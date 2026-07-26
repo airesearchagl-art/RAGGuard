@@ -228,6 +228,58 @@ Raw request/response payloads, query text, endpoint details, ports, paths, token
 keys, credentials, headers, real document content, customer/production data, stack traces, and
 internal exceptions are not evidence fields and are never retained in reports or fixtures.
 
+### Phase B implemented evidence contract
+
+Phase B implements immutable `ManualValidationEvidence` with `evidence_id`, `plan_id`,
+`plan_digest`, `profile_id`, `profile_version`, `protocol_version`, `product_id`,
+`planned_product_version`, `observed_product_version`, `execution_started_at`,
+`execution_completed_at`, `validation_operator_id`, `evidence_reviewer_id`,
+`environment_fingerprint`, `tool_version`, `case_results`, `close_cleanup_evidence`,
+`non_disclosure_evidence`, `failure_summary`, `expires_at`, `safe_summary`, and
+`canonical_digest`.
+
+Construction accepts one `ManualValidationPlan` solely to verify exact identity and does not retain
+the plan object or plan body. Plan ID/digest, profile ID/version, protocol version, opaque product
+ID, planned version, operator, reviewer, and required case set must match exactly. The observed
+product version is a strict exact SemanticVersion and must equal the planned version in Phase B.
+Any wider supported-range decision belongs to Phase C; no range inference, nearest selection, or
+fallback occurs here.
+
+Execution start, completion, each case execution, and expiration are explicit timezone-aware
+timestamps. Execution must remain inside the plan window, start precedes completion, completion
+precedes expiration, and freshness is at most 90 days. Canonical timestamps normalize to UTC with
+a `Z` suffix and fixed six-digit microsecond precision. Equivalent instants have identical
+canonical values; distinct microsecond instants do not collide. Expiration is evaluated only
+against an explicitly supplied timezone-aware evaluation time. Structural validity and freshness
+combine through `is_valid_at(explicit_time)`; no hidden clock decides evidence validity.
+
+Every Phase A required case has one immutable result containing case ID, `passed`, `failed`, or
+`aborted` outcome, execution time, allowlisted safe observation, bounded failure category, and
+cleanup confirmation. Missing, duplicate, unknown, or out-of-window results fail closed and stored
+results use the Phase A canonical order. Failed or aborted results may be retained with a bounded
+typed failure summary, but make `is_valid=false`; they are never approved evidence.
+
+The environment fingerprint contains only an opaque environment reference, allowlisted OS family
+and architecture, strict Python/RAGGuard versions, a safe fixture adapter ID, exact profile ID, and
+its deterministic digest. Hostname, username, address, MAC address, endpoint, port, path,
+environment values, credentials, and customer/product-specific details are structurally absent.
+
+Close/cleanup evidence requires transport closed exactly once, temporary safe fixture removal, no
+raw payload, credential, or endpoint detail retained, and safe summary production. Non-disclosure
+evidence explicitly requires no credential, endpoint, path, raw request/response, real document,
+or stack-trace disclosure and safe errors only.
+
+Canonical evidence identity is `sha256:<64 hex>` over sorted-key compact JSON of the immutable safe
+fields, including the exact plan digest and environment digest. The safe summary contains only
+allowlisted evidence/plan/profile/protocol/product versions, canonical execution and expiry times,
+case outcome counts, role-separation result, environment digest, and evidence digest.
+
+A valid evidence object is not reviewer attestation, approval, production admission, registry
+write authority, or runtime authorization. Evidence construction performs no validation session,
+transport generation, I/O, network/filesystem access, credential handling, or real-product/data
+operation. Synthetic evidence is a plan prerequisite only and is never relabelled as manual
+evidence.
+
 ## Synthetic and manual evidence separation
 
 The v0.10 synthetic report remains a prerequisite and retains its existing identity. Manual

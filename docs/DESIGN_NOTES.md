@@ -32,6 +32,24 @@ profile or registry entry, persistence, runtime/transport/CLI integration, real-
 connection, credential, real document, external/private-LAN access, fallback, nearest-version
 selection, schema inference, or automatic approval is added.
 
+### v0.11 Phase B implementation status
+
+- Added immutable manual evidence that accepts a Phase A plan only for construction-time exact
+  binding and does not retain the raw plan object.
+- Bound plan ID/digest, profile/protocol, product identity and exact planned/observed version,
+  operator/reviewer roles, and all 22 required cases without nearest-version or fallback behavior.
+- Added safe environment fingerprints, explicit 90-day maximum freshness, complete cleanup and
+  non-disclosure declarations, typed case failures, and bounded failure summaries.
+- Canonicalized evidence with sorted-key compact JSON, UTC six-digit microsecond timestamps, and a
+  `sha256:<hex>` digest containing the exact plan digest. Safe summaries reference the same digest.
+- Represented failed and aborted evidence for bounded audit without treating it as valid evidence;
+  only complete passed cases with cleanup confirmation produce structural `is_valid=true`, while
+  `is_valid_at(explicit_time)` additionally enforces expiration without a hidden clock.
+
+Phase B remains a contract boundary built only from explicit safe fixture values. It does not
+execute manual validation, create a reviewer attestation or approval, authorize runtime use,
+connect to a product, generate transport, write a registry, load credentials, or access real data.
+
 ## RAG Benchmark Harness v0.10 production profile governance design
 
 v0.10 defines the approval and audit boundary that must exist before a production Compatibility
