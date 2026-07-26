@@ -604,7 +604,13 @@ class ManualValidationEvidence:
         return evaluation_time >= self.expires_at
 
     def is_valid_at(self, evaluation_time: datetime) -> bool:
-        return self.is_valid and not self.is_expired(evaluation_time)
+        if not _is_aware_datetime(evaluation_time):
+            _raise(ManualValidationEvidenceErrorCategory.EXECUTION_TIME_INVALID)
+        return (
+            self.is_valid
+            and self.execution_completed_at <= evaluation_time
+            and evaluation_time < self.expires_at
+        )
 
     def canonical_json(self) -> str:
         payload = {

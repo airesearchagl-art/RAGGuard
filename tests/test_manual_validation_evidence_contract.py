@@ -354,14 +354,28 @@ def test_execution_and_freshness_are_explicit_and_bounded(
 
 def test_expiry_is_evaluated_only_at_explicit_time() -> None:
     record = evidence()
+    before_start = datetime(2026, 7, 27, 0, 59, 59, tzinfo=timezone.utc)
+    during = datetime(2026, 7, 27, 1, 30, 0, tzinfo=timezone.utc)
+    at_completion = datetime(
+        2026, 7, 27, 2, 0, 0, 234567, tzinfo=timezone.utc
+    )
+    after_completion = datetime(
+        2026, 7, 27, 2, 0, 0, 234568, tzinfo=timezone.utc
+    )
     before = datetime(2026, 8, 26, 2, 0, 0, 234566, tzinfo=timezone.utc)
     at_expiry = datetime(2026, 8, 26, 2, 0, 0, 234567, tzinfo=timezone.utc)
     assert record.is_expired(before) is False
     assert record.is_expired(at_expiry) is True
+    assert record.is_valid_at(before_start) is False
+    assert record.is_valid_at(during) is False
+    assert record.is_valid_at(at_completion) is True
+    assert record.is_valid_at(after_completion) is True
     assert record.is_valid_at(before) is True
     assert record.is_valid_at(at_expiry) is False
     with pytest.raises(ManualValidationEvidenceError):
         record.is_expired(datetime(2026, 8, 26, 2, 0, 0))
+    with pytest.raises(ManualValidationEvidenceError):
+        record.is_valid_at(datetime(2026, 7, 27, 2, 0, 0))
 
 
 @pytest.mark.parametrize("mode", ["missing", "duplicate", "unknown"])

@@ -251,7 +251,10 @@ precedes expiration, and freshness is at most 90 days. Canonical timestamps norm
 a `Z` suffix and fixed six-digit microsecond precision. Equivalent instants have identical
 canonical values; distinct microsecond instants do not collide. Expiration is evaluated only
 against an explicitly supplied timezone-aware evaluation time. Structural validity and freshness
-combine through `is_valid_at(explicit_time)`; no hidden clock decides evidence validity.
+combine through `is_valid_at(explicit_time)`: it is true only from `execution_completed_at`
+inclusive until `expires_at` exclusive. `is_valid` reports structural validity only, while
+`is_valid_at` reports temporal validity including completion and freshness. Future-dated evidence
+is invalid, and no hidden clock decides evidence validity.
 
 Every Phase A required case has one immutable result containing case ID, `passed`, `failed`, or
 `aborted` outcome, execution time, allowlisted safe observation, bounded failure category, and

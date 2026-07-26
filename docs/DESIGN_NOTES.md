@@ -44,7 +44,8 @@ selection, schema inference, or automatic approval is added.
   `sha256:<hex>` digest containing the exact plan digest. Safe summaries reference the same digest.
 - Represented failed and aborted evidence for bounded audit without treating it as valid evidence;
   only complete passed cases with cleanup confirmation produce structural `is_valid=true`, while
-  `is_valid_at(explicit_time)` additionally enforces expiration without a hidden clock.
+  `is_valid_at(explicit_time)` additionally requires completion at or before the aware evaluation
+  time and enforces expiration without a hidden clock. Future-dated evidence remains invalid.
 
 Phase B remains a contract boundary built only from explicit safe fixture values. It does not
 execute manual validation, create a reviewer attestation or approval, authorize runtime use,
