@@ -21,6 +21,9 @@ and a pre-validation approval checklist.
   responsibilities.
 - Canonicalized the complete required-case, abort, and cleanup sets and bound the safe plan fields
   to a deterministic `sha256:<hex>` digest.
+- Normalized canonical timestamps to UTC with fixed microsecond precision. Equivalent instants
+  share one canonical value, while distinct microsecond instants cannot collide through truncation;
+  safe-summary window timestamps use the same rule.
 - Rejected unsafe or incomplete boundaries with typed, deterministic errors that do not repeat
   rejected values.
 

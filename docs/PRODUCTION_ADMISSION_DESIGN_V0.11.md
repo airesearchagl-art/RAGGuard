@@ -155,6 +155,13 @@ The safe summary contains only the allowed identities and versions, execution wi
 role-separation result, boundary category, and digest. Validation errors expose only deterministic
 typed categories and never rejected input.
 
+A canonical timestamp is normalized to UTC and serialized with a `Z` suffix while preserving all
+six digits of Python `datetime` microsecond precision. Equivalent instants expressed with different
+UTC offsets therefore produce identical canonical timestamp values and identical plan digests.
+Distinct instants must remain distinct: no timestamp is truncated to seconds, so a microsecond-only
+difference changes the canonical value and digest. Safe-summary execution-window timestamps use
+the same UTC normalization and microsecond-preserving serialization as canonical JSON.
+
 A valid plan is not evidence, approval, or production admission. Plan creation performs no
 validation execution, transport generation, registry write, I/O, network/filesystem access,
 credential handling, or real-product/data operation.

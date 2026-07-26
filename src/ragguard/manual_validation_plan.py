@@ -589,7 +589,7 @@ def _is_aware_datetime(value: object) -> bool:
 def _canonical_datetime(value: datetime) -> str:
     return (
         value.astimezone(timezone.utc)
-        .isoformat(timespec="seconds")
+        .isoformat(timespec="microseconds")
         .replace("+00:00", "Z")
     )
 

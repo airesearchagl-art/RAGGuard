@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import FrozenInstanceError, fields, replace
 from pathlib import Path
 
@@ -139,6 +140,70 @@ def test_field_change_changes_digest() -> None:
         plan_data(product_version="2.3.5")
     )
     assert first.canonical_digest != second.canonical_digest
+
+
+@pytest.mark.parametrize(
+    ("field", "changed_value"),
+    [
+        ("created_at", "2026-07-26T00:00:00.000001Z"),
+        ("execution_window_start", "2026-07-27T00:00:00.000001Z"),
+        ("execution_window_end", "2026-07-28T00:00:00.000001Z"),
+    ],
+)
+def test_timestamp_microsecond_change_changes_digest(
+    field: str, changed_value: str
+) -> None:
+    baseline = ManualValidationPlan.from_mapping(plan_data())
+    changed = ManualValidationPlan.from_mapping(
+        plan_data(**{field: changed_value})
+    )
+    assert baseline.canonical_digest != changed.canonical_digest
+
+
+def test_equivalent_instants_with_different_offsets_have_same_digest() -> None:
+    utc_plan = ManualValidationPlan.from_mapping(
+        plan_data(
+            created_at="2026-07-26T00:00:00.123456Z",
+            execution_window_start="2026-07-27T00:00:00.234567Z",
+            execution_window_end="2026-07-28T00:00:00.345678Z",
+        )
+    )
+    offset_plan = ManualValidationPlan.from_mapping(
+        plan_data(
+            created_at="2026-07-26T09:00:00.123456+09:00",
+            execution_window_start="2026-07-27T09:00:00.234567+09:00",
+            execution_window_end="2026-07-28T09:00:00.345678+09:00",
+        )
+    )
+    assert utc_plan.canonical_json() == offset_plan.canonical_json()
+    assert utc_plan.canonical_digest == offset_plan.canonical_digest
+
+
+def test_safe_summary_uses_canonical_utc_microsecond_timestamps() -> None:
+    plan = ManualValidationPlan.from_mapping(
+        plan_data(
+            created_at="2026-07-26T09:00:00.123456+09:00",
+            execution_window_start="2026-07-27T09:00:00.234567+09:00",
+            execution_window_end="2026-07-28T09:00:00.345678+09:00",
+        )
+    )
+    canonical = json.loads(plan.canonical_json())
+
+    assert plan.safe_summary.execution_window_start == (
+        "2026-07-27T00:00:00.234567Z"
+    )
+    assert plan.safe_summary.execution_window_end == (
+        "2026-07-28T00:00:00.345678Z"
+    )
+    assert (
+        plan.safe_summary.execution_window_start
+        == canonical["execution_window_start"]
+    )
+    assert (
+        plan.safe_summary.execution_window_end
+        == canonical["execution_window_end"]
+    )
+    assert canonical["created_at"] == "2026-07-26T00:00:00.123456Z"
 
 
 @pytest.mark.parametrize(
