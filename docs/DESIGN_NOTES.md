@@ -12,10 +12,22 @@ existing approval decisions, deterministic admission gates, freshness and revali
 exact registry admission, fail-closed failure handling, a Phase A-F roadmap, unresolved questions,
 and a pre-validation approval checklist.
 
-This is a design boundary only. No manual validation has been performed; no production profile or
-registry entry, persistence, runtime/transport/CLI integration, real-product connection,
-credential, real document, external/private-LAN access, fallback, nearest-version selection,
-schema inference, or automatic approval is added.
+### v0.11 Phase A implementation status
+
+- Added the immutable `ManualValidationPlan` and nested endpoint, data, credential,
+  synthetic-evidence, and safe-summary value contracts.
+- Required exact SemanticVersion values, explicit timezone-aware timestamps, a maximum 30-day
+  window, opaque fixture product identity, and distinct implementer/operator/reviewer/approver
+  responsibilities.
+- Canonicalized the complete required-case, abort, and cleanup sets and bound the safe plan fields
+  to a deterministic `sha256:<hex>` digest.
+- Rejected unsafe or incomplete boundaries with typed, deterministic errors that do not repeat
+  rejected values.
+
+Phase A remains a contract boundary only. No manual validation has been performed; no production
+profile or registry entry, persistence, runtime/transport/CLI integration, real-product
+connection, credential, real document, external/private-LAN access, fallback, nearest-version
+selection, schema inference, or automatic approval is added.
 
 ## RAG Benchmark Harness v0.10 production profile governance design
 
