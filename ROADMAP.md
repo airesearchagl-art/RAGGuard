@@ -1,5 +1,31 @@
 # RAGGuard Roadmap
 
+## Design: RAG Benchmark Harness v0.11 production admission
+
+v0.11 designs the manual-validation and evidence-review boundary required before an immutable
+Compatibility Profile can be explicitly admitted to a production registry. It builds on v0.10
+approval governance but does not execute validation, connect to a product, add a production
+profile/entry, persist a registry, or expand the runtime.
+
+### Phase plan
+
+- Phase A: manual validation plan contract.
+- Phase B: manual validation evidence contract.
+- Phase C: production admission evaluator.
+- Phase D: offline manual-evidence import and validation boundary.
+- Phase E: registry admission enforcement and security E2E.
+- Phase F: docs, CI, and release preparation.
+
+The authoritative state transition, role separation, plan/evidence schemas, decision table,
+revalidation triggers, failure matrix, security boundary, phase merge gates, unresolved questions,
+and pre-validation checklist are in
+[v0.11 Production Admission Design](docs/PRODUCTION_ADMISSION_DESIGN_V0.11.md).
+
+Every phase remains product-neutral and fail-closed. Synthetic evidence is never manual evidence.
+Real-product validation, credentials, real data, external/private-LAN access, production profiles
+and entries, persistence, fallback, nearest-version selection, schema inference, and automatic
+approval remain separately approved non-goals.
+
 ## Release preparation: RAG Benchmark Harness v0.10.0 approval governance
 
 v0.10 defines fail-closed governance around production Compatibility Profiles without adding a
