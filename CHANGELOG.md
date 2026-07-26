@@ -4,6 +4,15 @@
 
 ### v0.11 production admission design
 
+- Added the Phase B immutable `ManualValidationEvidence` contract with exact Phase A plan binding,
+  strict planned/observed product identity, explicit execution/freshness times, and all 22 required
+  case results.
+- Added safe environment fingerprints, typed passed/failed/aborted outcomes, complete close/cleanup
+  and non-disclosure evidence, bounded failure summaries, explicit expiry evaluation, canonical
+  SHA-256 evidence identity, and non-disclosing summaries/errors.
+- Kept evidence construction synthetic-fixture-only and communication-free. It performs no manual
+  validation, approval, admission, runtime authorization, transport creation, registry write,
+  I/O, network/filesystem access, credential handling, or real-product/data operation.
 - Added the Phase A immutable `ManualValidationPlan` contract with strict exact SemanticVersion
   fields, explicit timezone-aware execution windows, role separation, and complete deterministic
   case, abort, and cleanup allowlists.
