@@ -1,5 +1,22 @@
 # Design Notes
 
+## RAG Benchmark Harness v0.11 production admission design
+
+v0.11 separates real-product manual evidence and production admission from the v0.10 synthetic
+approval path. The complete product-neutral design is documented in
+[v0.11 Production Admission Design](PRODUCTION_ADMISSION_DESIGN_V0.11.md).
+
+The design fixes an explicit monotonic state transition, immutable plan/evidence schemas, a full
+required manual-case allowlist, synthetic/manual evidence separation, role separation, the four
+existing approval decisions, deterministic admission gates, freshness and revalidation rules,
+exact registry admission, fail-closed failure handling, a Phase A-F roadmap, unresolved questions,
+and a pre-validation approval checklist.
+
+This is a design boundary only. No manual validation has been performed; no production profile or
+registry entry, persistence, runtime/transport/CLI integration, real-product connection,
+credential, real document, external/private-LAN access, fallback, nearest-version selection,
+schema inference, or automatic approval is added.
+
 ## RAG Benchmark Harness v0.10 production profile governance design
 
 v0.10 defines the approval and audit boundary that must exist before a production Compatibility

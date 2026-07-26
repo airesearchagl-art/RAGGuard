@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### v0.11 production admission design
+
+- Designed the explicit candidate, synthetic, manual-plan, manual-execution, evidence-review,
+  approval-decision, production-admission, lifecycle, and revalidation states.
+- Defined immutable manual-validation plan and evidence schemas, the complete required manual case
+  allowlist, exact synthetic/manual evidence separation, bounded safe fingerprints, freshness and
+  expiration, role separation, decision rules, restrictions, and minimum admission evidence.
+- Defined fail-closed revalidation triggers, registry admission rules, failure handling, the Phase
+  A-F implementation roadmap, unresolved questions, and the approval checklist required before any
+  separately approved real-product validation session.
+- Added design contract tests without runtime, transport, HTTP client, CLI/config, workflow,
+  production profile/entry, persistence, product connection, credential, real document, fixture,
+  tag, Release, or Vault changes.
+
 ### v0.10.0 production profile governance
 
 - Prepared the Phase A-F documentation, CI verification contract, and post-merge release checklist
