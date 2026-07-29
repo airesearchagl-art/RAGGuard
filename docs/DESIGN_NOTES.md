@@ -110,6 +110,13 @@ plan/evidence/reviewer-attestation digest chain, exact profile/protocol/product 
 production-kind and active-status request, explicit evaluation time and expirations, effective
 restrictions, and administrator separation from approver, reviewer, and operator.
 
+Phase C binds the validated evidence-reviewer and validation-operator opaque IDs into the decision
+canonical JSON and digest. Phase E compares request roles and exact profile/protocol/product
+identity directly with the decision's digest-covered fields. The safe summary is independently
+checked against canonical identity, but it is advisory output and cannot replace or override the
+decision-bound values. The registry administrator must remain distinct from the actual
+decision-bound approver, reviewer, and operator.
+
 Validation, immutable entry construction, and test-store commit are separate stages. No entry or
 success event is constructed before validation completes; duplicate, inactive, malformed, or
 failed commit paths preserve the previous snapshot and write count. Successful tests write exactly

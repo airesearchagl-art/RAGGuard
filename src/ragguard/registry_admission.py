@@ -818,22 +818,34 @@ def _validate(
         reasons.add(RegistryAdmissionReason.DIGEST_MISMATCH)
     summary = decision.safe_summary
     if (
-        request.expected_profile_id != summary.profile_id
-        or str(request.expected_profile_version) != summary.profile_version
-        or str(request.expected_protocol_version) != summary.protocol_version
-        or request.expected_product_id != summary.product_id
-        or str(request.expected_product_version) != summary.product_version
+        request.expected_profile_id != decision.profile_id
+        or str(request.expected_profile_version) != decision.profile_version
+        or str(request.expected_protocol_version)
+        != decision.protocol_version
+        or request.expected_product_id != decision.product_id
+        or str(request.expected_product_version) != decision.product_version
+        or request.evidence_reviewer_id != decision.evidence_reviewer_id
+        or request.validation_operator_id != decision.validation_operator_id
+        or request.approver_id != decision.approver_id
     ):
         reasons.add(RegistryAdmissionReason.IDENTITY_MISMATCH)
-    if request.approver_id != decision.approver_id:
+    if not _decision_summary_identity_valid(decision):
         reasons.add(RegistryAdmissionReason.IDENTITY_MISMATCH)
-    roles = (
+    request_roles = (
         request.registry_administrator_id,
         request.approver_id,
         request.evidence_reviewer_id,
         request.validation_operator_id,
     )
-    if len(set(roles)) != len(roles):
+    if (
+        len(set(request_roles)) != len(request_roles)
+        or request.registry_administrator_id
+        in {
+            decision.approver_id,
+            decision.evidence_reviewer_id,
+            decision.validation_operator_id,
+        }
+    ):
         reasons.add(RegistryAdmissionReason.ROLE_CONFLICT)
     if request.expected_restrictions != decision.effective_restrictions:
         reasons.add(RegistryAdmissionReason.RESTRICTION_MISMATCH)
@@ -880,6 +892,36 @@ def _validate(
         }:
             reasons.add(RegistryAdmissionReason.STATUS_INELIGIBLE)
     return tuple(reason for reason in _REASON_ORDER if reason in reasons)
+
+
+def _decision_summary_identity_valid(
+    decision: ProductionAdmissionDecision,
+) -> bool:
+    summary = decision.safe_summary
+    return (
+        summary.request_id == decision._request_id
+        and summary.decision == decision.decision.value
+        and summary.eligible_for_registry_admission
+        == decision.eligible_for_registry_admission
+        and summary.profile_id == decision.profile_id
+        and summary.profile_version == decision.profile_version
+        and summary.protocol_version == decision.protocol_version
+        and summary.product_id == decision.product_id
+        and summary.product_version == decision.product_version
+        and summary.plan_digest == decision.plan_digest
+        and summary.evidence_digest == decision.evidence_digest
+        and summary.reviewer_attestation_digest
+        == decision.reviewer_attestation_digest
+        and summary.evidence_reviewer_id == decision.evidence_reviewer_id
+        and summary.validation_operator_id == decision.validation_operator_id
+        and summary.approver_id == decision.approver_id
+        and summary.reason_categories
+        == tuple(reason.value for reason in decision.reason_categories)
+        and summary.restriction_count
+        == _restriction_count(decision.effective_restrictions)
+        and summary.evaluated_at == _canonical_datetime(decision.evaluated_at)
+        and summary.canonical_digest == decision.canonical_digest
+    )
 
 
 def _construct_entry(

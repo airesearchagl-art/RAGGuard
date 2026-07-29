@@ -316,6 +316,23 @@ def test_valid_explicit_restriction_returns_restricted_decision() -> None:
     assert result.safe_summary.restriction_count == 1
 
 
+def test_decision_binds_review_and_validation_identities_to_digest() -> None:
+    base = request()
+    result = evaluate_production_admission(base)
+    plan = base.manual_validation_plan
+
+    assert result.evidence_reviewer_id == plan.evidence_reviewer_id
+    assert result.validation_operator_id == plan.validation_operator_id
+    assert result.safe_summary.evidence_reviewer_id == (
+        plan.evidence_reviewer_id
+    )
+    assert result.safe_summary.validation_operator_id == (
+        plan.validation_operator_id
+    )
+    assert '"evidence_reviewer_id":' in result.canonical_json()
+    assert '"validation_operator_id":' in result.canonical_json()
+
+
 @pytest.mark.parametrize(
     ("outcome", "decision", "reason"),
     [

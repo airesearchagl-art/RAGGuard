@@ -513,6 +513,15 @@ temporal, maturity, restriction, reviewer, approver, or revalidation failure.
   canonical decision digest, complete digest chain, exact profile/protocol/product identity,
   explicit UTC-aware time and expirations, restrictions, requested production/active state, and
   administrator/approver/reviewer/operator separation.
+- Decision-bound identity: Phase C retains the validated evidence-reviewer and
+  validation-operator opaque IDs in the canonical decision JSON and digest together with exact
+  profile, protocol, product, and version fields. Phase E compares request identities directly
+  with those digest-covered fields. A safe summary is checked for consistency but is never a
+  substitute for canonical identity or role evidence.
+- Role enforcement: the registry administrator must differ from the decision-bound approver,
+  evidence reviewer, and validation operator. Request-only role IDs cannot satisfy or bypass this
+  gate; canonical tampering invalidates the decision digest and safe-summary divergence fails
+  closed before entry construction.
 - Atomicity: validation, construction, and commit are separate. Only the test-owned in-memory
   registry is writable; denial creates no entry or event and changes no write count. The
   production registry contract is an evaluated intent, not an operational production write.

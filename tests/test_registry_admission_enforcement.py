@@ -72,6 +72,8 @@ def decision(**overrides: object) -> ProductionAdmissionDecision:
         "evidence_digest": digest("evidence"),
         "reviewer_attestation_id": "attestation-001",
         "reviewer_attestation_digest": digest("attestation"),
+        "evidence_reviewer_id": "reviewer-001",
+        "validation_operator_id": "operator-001",
         "approver_id": "approver-001",
         "requested_registry_kind": RegistryKind.PRODUCTION,
         "requested_initial_status": RegistryStatus.ACTIVE,
@@ -251,6 +253,8 @@ def test_ineligible_decision_is_rejected(
         ("expected_product_id", "other-product"),
         ("expected_product_version", version("2.3.5")),
         ("approver_id", "other-approver"),
+        ("evidence_reviewer_id", "other-reviewer"),
+        ("validation_operator_id", "other-operator"),
     ],
 )
 def test_exact_identity_mismatch_is_rejected(
@@ -278,6 +282,95 @@ def test_decision_digest_tampering_is_rejected() -> None:
         result,
         registry,
         RegistryAdmissionReason.DIGEST_MISMATCH,
+    )
+
+
+@pytest.mark.parametrize(
+    ("field_name", "value"),
+    [
+        ("evidence_reviewer_id", "reviewer-002"),
+        ("validation_operator_id", "operator-002"),
+    ],
+)
+def test_decision_role_identity_changes_canonical_digest(
+    field_name: str,
+    value: str,
+) -> None:
+    assert decision().canonical_digest != decision(
+        **{field_name: value}
+    ).canonical_digest
+
+
+@pytest.mark.parametrize(
+    "field_name",
+    [
+        "_profile_id",
+        "_profile_version",
+        "_protocol_version",
+        "_product_id",
+        "_product_version",
+        "evidence_reviewer_id",
+        "validation_operator_id",
+    ],
+)
+def test_canonical_identity_tampering_is_digest_mismatch(
+    field_name: str,
+) -> None:
+    admission_decision = decision()
+    object.__setattr__(admission_decision, field_name, "tampered-identity")
+    registry, result = admit(
+        request(production_admission_decision=admission_decision)
+    )
+    assert_denied(
+        result,
+        registry,
+        RegistryAdmissionReason.DIGEST_MISMATCH,
+    )
+
+
+@pytest.mark.parametrize(
+    ("field_name", "value"),
+    [
+        ("profile_id", "tampered-profile"),
+        ("product_id", "tampered-product"),
+        ("evidence_reviewer_id", "tampered-reviewer"),
+        ("validation_operator_id", "tampered-operator"),
+        ("approver_id", "tampered-approver"),
+    ],
+)
+def test_safe_summary_identity_tampering_is_rejected(
+    field_name: str,
+    value: str,
+) -> None:
+    admission_decision = decision()
+    object.__setattr__(admission_decision.safe_summary, field_name, value)
+    registry, result = admit(
+        request(production_admission_decision=admission_decision)
+    )
+    assert_denied(
+        result,
+        registry,
+        RegistryAdmissionReason.IDENTITY_MISMATCH,
+    )
+
+
+def test_safe_summary_cannot_replace_canonical_reviewer_identity() -> None:
+    admission_decision = decision()
+    object.__setattr__(
+        admission_decision.safe_summary,
+        "evidence_reviewer_id",
+        "request-only-reviewer",
+    )
+    registry, result = admit(
+        request(
+            production_admission_decision=admission_decision,
+            evidence_reviewer_id="request-only-reviewer",
+        )
+    )
+    assert_denied(
+        result,
+        registry,
+        RegistryAdmissionReason.IDENTITY_MISMATCH,
     )
 
 
@@ -348,24 +441,39 @@ def test_microsecond_difference_changes_request_digest() -> None:
 
 
 @pytest.mark.parametrize(
-    "field_name",
+    "administrator_id",
     [
-        "approver_id",
-        "evidence_reviewer_id",
-        "validation_operator_id",
+        "approver-001",
+        "reviewer-001",
+        "operator-001",
     ],
 )
 def test_registry_administrator_role_conflict_is_rejected(
-    field_name: str,
+    administrator_id: str,
 ) -> None:
     registry, result = admit(
-        request(**{field_name: "registry-admin-001"})
+        request(registry_administrator_id=administrator_id)
     )
     assert_denied(
         result,
         registry,
         RegistryAdmissionReason.ROLE_CONFLICT,
     )
+
+
+def test_exact_decision_bound_reviewer_and_operator_are_admitted() -> None:
+    registry, result = admit(
+        request(
+            evidence_reviewer_id="reviewer-001",
+            validation_operator_id="operator-001",
+        )
+    )
+    assert result.admitted is True
+    assert registry.write_count == 1
+    assert len(registry.snapshot) == 1
+    assert len(registry.events) == 1
+    assert registry.transport_count == 0
+    assert registry.http_count == 0
 
 
 def test_empty_role_identifier_is_rejected_safely() -> None:

@@ -10,6 +10,10 @@
 - Added fail-closed decision/digest/identity/time/role/restriction/status gates and atomic
   validate-construct-commit behavior. Every denial returns no entry and leaves write/event counts
   unchanged.
+- Bound validated reviewer and validation-operator identities into the Phase C canonical decision
+  digest. Phase E now compares request roles and exact profile/protocol/product identities directly
+  with those decision-bound fields, rejects safe-summary divergence, and separates the registry
+  administrator from the actual approver, reviewer, and operator.
 - Added the explicit test-only `TestRegistryAdmissionStore` with exact profile, product, and
   protocol resolution. Production registry instances, duplicate/overwrite, inactive identities,
   fallback, nearest-version selection, and schema inference are rejected.
