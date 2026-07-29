@@ -273,6 +273,26 @@ def test_valid_safe_fixture_imports_phase_b_evidence() -> None:
     assert result.safe_summary.passed_count == 22
 
 
+def test_tokenizer_fixture_opaque_identifier_is_accepted() -> None:
+    data = import_data(plan())
+    role_identities = data["role_identities"]
+    assert isinstance(role_identities, dict)
+    role_identities["validation_operator_id"] = "tokenizer-fixture"
+    data["source_digest"] = source_digest(data)
+    parsed = ManualEvidenceImportRequest.from_mapping(data)
+    assert parsed.role_identities.validation_operator_id == "tokenizer-fixture"
+
+
+def test_secretariat_profile_opaque_identifier_is_accepted() -> None:
+    data = import_data(plan())
+    identity_binding = data["identity_binding"]
+    assert isinstance(identity_binding, dict)
+    identity_binding["profile_id"] = "secretariat-profile"
+    data["source_digest"] = source_digest(data)
+    parsed = ManualEvidenceImportRequest.from_mapping(data)
+    assert parsed.identity_binding.profile_id == "secretariat-profile"
+
+
 def test_request_and_result_are_immutable_hashable_and_bounded() -> None:
     bound_plan = plan()
     import_request = request(bound_plan)
@@ -738,25 +758,30 @@ def test_environment_digest_mismatch_is_rejected() -> None:
         "/private/fixture.json",
         "Authorization: Bearer opaque",
         "api_key=opaque",
+        "token=opaque",
         "cookie=session",
         "-----BEGIN PRIVATE KEY-----",
         "Traceback (most recent call last):",
         "GET /raw HTTP/1.1",
+        "HTTP/1.1 200 OK",
         "opaque\x00value",
         "opaque\u202evalue",
+        "opaque\nvalue",
         "opaque\rvalue",
     ],
 )
-def test_unsafe_content_is_rejected_without_disclosure(
+def test_structurally_invalid_unsafe_identifier_is_rejected_without_disclosure(
     unsafe_value: str,
 ) -> None:
     data = import_data(plan())
-    data["safe_context"] = [unsafe_value]
+    role_identities = data["role_identities"]
+    assert isinstance(role_identities, dict)
+    role_identities["validation_operator_id"] = unsafe_value
     data["source_digest"] = source_digest(data)
     with pytest.raises(ManualEvidenceImportError) as caught:
         ManualEvidenceImportRequest.from_mapping(data)
     assert_safe_error(
-        caught, ManualEvidenceImportErrorCategory.UNSAFE_CONTENT
+        caught, ManualEvidenceImportErrorCategory.IDENTIFIER_INVALID
     )
     assert unsafe_value not in str(caught.value)
     assert unsafe_value not in repr(caught.value)

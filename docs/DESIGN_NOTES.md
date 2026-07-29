@@ -78,7 +78,15 @@ as evidence and cannot satisfy or override an admission gate.
 Phase D adds a pure offline boundary from one explicitly supplied `inline_safe_fixture` mapping to
 the existing Phase B `ManualValidationEvidence` contract. The request is immutable and uses exact
 nested schemas: unknown, missing, null-defaulted, implicitly cast, oversized, recursively
-unbounded, or unsafe content fails closed through typed messages that never repeat rejected values.
+unbounded, or structurally invalid content fails closed through typed messages that never repeat
+rejected values.
+
+Structural allowlists and typed validators run before heuristic inspection. Identifiers, versions,
+digests, timestamps, enums, and bounded declarations are validated according to their field type;
+opaque identifiers are not rejected by credential-word substring matching. The current schema has
+no free-description field, so it applies no root-wide heuristic scan. Any future free-description
+field must scope such a scan to that field only. URL, IP, absolute path, credential/header, PEM,
+raw HTTP, stack trace, control, bidi, CR-only, and null-byte values remain structurally invalid.
 
 The importer requires exact Phase A plan ID/digest, profile/protocol/product versions,
 operator/reviewer roles, all 22 cases, the execution window, and a separately recomputed safe

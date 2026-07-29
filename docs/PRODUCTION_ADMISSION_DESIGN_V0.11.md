@@ -483,8 +483,12 @@ temporal, maturity, restriction, reviewer, approver, or revalidation failure.
   fails closed without echoing values.
 - Safety boundary: structural allowlists admit only opaque IDs, strict semantic versions,
   timezone-aware timestamps, enums, digests, bounded observations, and boolean declarations.
-  URL/IP/path, credential/token/cookie, PEM/header, raw HTTP, stack trace, control, bidi, CR-only,
-  and null-byte patterns are rejected as an additional defense.
+  These typed validators take precedence over heuristic substring scans. Opaque identifiers are
+  validated by grammar and are not rejected merely because they contain words such as `token` or
+  `secret`. The current schema has no free-description field, so it performs no root-wide heuristic
+  scan; any future free-description field must receive a field-scoped scan. URL/IP/path,
+  credential/token/cookie forms, PEM/header, raw HTTP, stack trace, control, bidi, CR-only, and
+  null-byte values remain outside the typed field grammars and fail closed.
 - Binding and construction: plan ID/digest, profile/protocol/product versions, roles, required
   cases, execution window, and a recomputed environment digest must match exactly. Source digest
   uses sorted-key compact JSON and UTC fixed six-digit microseconds; equivalent instants match and

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import ipaddress
 import json
 import re
 from dataclasses import dataclass, field
@@ -143,44 +142,10 @@ _DIGEST = re.compile(r"sha256:[a-f0-9]{64}\Z")
 _SEMANTIC_VERSION = re.compile(
     r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\Z"
 )
-_URL_SCHEME = re.compile(r"[A-Za-z][A-Za-z0-9+.-]*://")
-_WINDOWS_PATH = re.compile(r"[A-Za-z]:[\\/]")
-_RAW_HTTP_HEADER = re.compile(
-    r"(?:authorization|cookie|set-cookie|host|x-api-key|content-type)\s*:",
-    re.IGNORECASE,
-)
-_RAW_HTTP_MESSAGE = re.compile(
-    r"(?:\b(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+\S+\s+HTTP/"
-    r"|HTTP/[0-9.]+\s+[0-9]{3}\b)",
-    re.IGNORECASE,
-)
-_CREDENTIAL_PATTERN = re.compile(
-    r"(?:api[_-]?key|authorization|bearer|cookie|credential|password|secret|token)",
-    re.IGNORECASE,
-)
-_BIDI_CONTROLS = frozenset(
-    chr(codepoint)
-    for codepoint in (*range(0x202A, 0x202F), *range(0x2066, 0x206A))
-)
 
 
 class ManualEvidenceSourceKind(str, Enum):
     INLINE_SAFE_FIXTURE = "inline_safe_fixture"
-
-
-_STRUCTURAL_SAFE_VALUES = frozenset(
-    {
-        *_REQUIRED_SAFE_CONTEXT,
-        *(item.value for item in ManualValidationCase),
-        *(item.value for item in EvidenceCaseOutcome),
-        *(item.value for item in SafeCaseObservation),
-        *(item.value for item in EvidenceFailureCategory),
-        *(item.value for item in FailureSummaryCategory),
-        *(item.value for item in EnvironmentOSFamily),
-        *(item.value for item in EnvironmentArchitecture),
-        *(item.value for item in ManualEvidenceSourceKind),
-    }
-)
 
 
 class ManualEvidenceImportErrorCategory(str, Enum):
@@ -410,7 +375,6 @@ class ManualEvidenceImportRequest:
     def from_mapping(cls, value: object) -> ManualEvidenceImportRequest:
         raw = _require_root_mapping(value)
         _reject_unknown_or_missing(raw, _IMPORT_FIELDS)
-        _reject_unsafe_content(raw)
 
         plan_reference_raw = _require_mapping(
             raw["plan_reference"], _PLAN_REFERENCE_FIELDS
@@ -1052,58 +1016,6 @@ def _safe_context(value: object) -> tuple[str, ...]:
     if len(value) != len(set(value)) or set(value) != set(_REQUIRED_SAFE_CONTEXT):
         _raise(ManualEvidenceImportErrorCategory.SCHEMA_INVALID)
     return _REQUIRED_SAFE_CONTEXT
-
-
-def _reject_unsafe_content(value: object) -> None:
-    for text in _walk_strings(value):
-        if _is_unsafe_string(text):
-            _raise(ManualEvidenceImportErrorCategory.UNSAFE_CONTENT)
-
-
-def _walk_strings(value: object, *, depth: int = 0):
-    if depth > 6:
-        _raise(ManualEvidenceImportErrorCategory.SCHEMA_INVALID)
-    if isinstance(value, str):
-        yield value
-    elif type(value) is dict:
-        for key, item in value.items():
-            if not isinstance(key, str):
-                _raise(ManualEvidenceImportErrorCategory.SCHEMA_INVALID)
-            yield from _walk_strings(item, depth=depth + 1)
-    elif type(value) is list:
-        for item in value:
-            yield from _walk_strings(item, depth=depth + 1)
-    elif value is None or type(value) in (bool, int):
-        return
-    else:
-        _raise(ManualEvidenceImportErrorCategory.SCHEMA_INVALID)
-
-
-def _is_unsafe_string(value: str) -> bool:
-    if value in _STRUCTURAL_SAFE_VALUES:
-        return False
-    if (
-        "\x00" in value
-        or any(character in _BIDI_CONTROLS for character in value)
-        or any(ord(character) < 0x20 for character in value)
-        or _URL_SCHEME.search(value)
-        or _WINDOWS_PATH.search(value)
-        or value.startswith("/")
-        or "../" in value
-        or "..\\" in value
-        or _RAW_HTTP_HEADER.search(value)
-        or _RAW_HTTP_MESSAGE.search(value)
-        or _CREDENTIAL_PATTERN.search(value)
-        or "-----BEGIN " in value
-        or "Traceback (most recent call last):" in value
-        or "\r" in value
-    ):
-        return True
-    try:
-        ipaddress.ip_address(value.strip("[]"))
-    except ValueError:
-        return False
-    return True
 
 
 def _plan_binding_error(
