@@ -429,19 +429,20 @@ def test_invalid_attestation_time_is_rejected(reviewed_at: datetime) -> None:
 
 def test_evidence_completion_boundary_is_valid() -> None:
     base = request()
-    evaluation = base.manual_validation_evidence.execution_completed_at
+    reviewed_at = base.manual_validation_evidence.execution_completed_at
+    approved_at = reviewed_at + timedelta(microseconds=1)
     record = attestation(
         base.manual_validation_plan,
         base.manual_validation_evidence,
-        reviewed_at=evaluation,
+        reviewed_at=reviewed_at,
     )
     result = evaluate_production_admission(
         replace(
             base,
-            evaluation_time=evaluation,
+            evaluation_time=approved_at,
             reviewer_attestation=record,
             profile_approval_metadata=approval_metadata(
-                approved_at="2026-07-27T02:00:00.234567Z"
+                approved_at=approved_at.isoformat()
             ),
         )
     )
@@ -573,18 +574,81 @@ def test_restriction_conflict_is_rejected() -> None:
     )
 
 
-def test_approval_before_review_is_rejected() -> None:
+@pytest.mark.parametrize(
+    "approved_at",
+    [
+        "2026-07-27T02:29:59.234567Z",
+        "2026-07-27T02:30:00.234567Z",
+    ],
+)
+def test_approval_at_or_before_review_is_rejected(
+    approved_at: str,
+) -> None:
     result = evaluate_production_admission(
-        request(
+        request(profile_approval_metadata=approval_metadata(approved_at=approved_at))
+    )
+    assert result.decision is ApprovalDecision.REJECTED
+    assert result.reason_categories == (
+        ProductionAdmissionReason.REVIEWER_ATTESTATION_INVALID,
+    )
+
+
+def test_approval_one_microsecond_after_review_passes_temporal_gate() -> None:
+    base = request()
+    record = base.reviewer_attestation
+    assert record is not None
+    approved_at = record.reviewed_at + timedelta(microseconds=1)
+    result = evaluate_production_admission(
+        replace(
+            base,
+            evaluation_time=approved_at,
             profile_approval_metadata=approval_metadata(
-                approved_at="2026-07-27T02:00:00.234567Z"
-            )
+                approved_at=approved_at.isoformat()
+            ),
+        )
+    )
+    assert result.decision is ApprovalDecision.APPROVED
+
+
+def test_approval_after_evaluation_is_rejected() -> None:
+    base = request()
+    result = evaluate_production_admission(
+        replace(
+            base,
+            profile_approval_metadata=approval_metadata(
+                approved_at=(base.evaluation_time + timedelta(microseconds=1)).isoformat()
+            ),
         )
     )
     assert result.decision is ApprovalDecision.REJECTED
     assert result.reason_categories == (
         ProductionAdmissionReason.REVIEWER_ATTESTATION_INVALID,
     )
+
+
+def test_temporal_gate_compares_equivalent_instants_across_offsets() -> None:
+    base = request()
+    record = base.reviewer_attestation
+    assert record is not None
+    offset = timezone(timedelta(hours=9))
+    approval = base.profile_approval_metadata
+    offset_result = evaluate_production_admission(
+        replace(
+            base,
+            reviewer_attestation=replace(
+                record,
+                reviewed_at=record.reviewed_at.astimezone(offset),
+            ),
+            profile_approval_metadata=replace(
+                approval,
+                approved_at=approval.approved_at.astimezone(offset),
+            ),
+            evaluation_time=base.evaluation_time.astimezone(offset),
+        )
+    )
+    utc_result = evaluate_production_admission(base)
+    assert offset_result.decision is ApprovalDecision.APPROVED
+    assert offset_result.canonical_digest == utc_result.canonical_digest
 
 
 def test_unsupported_product_version_needs_revalidation() -> None:

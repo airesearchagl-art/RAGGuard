@@ -305,6 +305,11 @@ Only creation of that immutable reviewer attestation establishes `evidence_revie
 Approval is forbidden before `evidence_reviewed`. A distinct approver then explicitly selects
 exactly one existing v0.10 decision and establishes `approval_decided`:
 
+The temporal order is strict and compares timezone-aware instants after UTC normalization:
+`evidence.execution_completed_at <= attestation.reviewed_at < approval.approved_at
+<= evaluation_time < evidence.expires_at`. Review and approval at the same instant are rejected;
+approval one microsecond after review satisfies this ordering when every other gate passes.
+
 | Decision | Production admission result |
 | --- | --- |
 | `approved` | Eligible only when every admission condition passes |
@@ -458,6 +463,10 @@ require `approved` before producing the approval decision. Its deterministic pri
 
 Only the last two outcomes are registry-admission eligible. Eligibility does not create an entry,
 write or read a registry, persist state, grant runtime authorization, or create a transport.
+
+`safe_context` is allowlisted advisory metadata. Its shape is validated at request construction,
+but it is not evidence, does not satisfy any admission gate, and cannot override an identity,
+temporal, maturity, restriction, reviewer, approver, or revalidation failure.
 
 ### Phase D: offline manual-evidence import and validation boundary
 

@@ -67,6 +67,12 @@ The result is an immutable approval-decision record and registry-eligibility sta
 registry entry or runtime authorization. The evaluator has no hidden clock, I/O, registry
 read/write, persistence, transport generation, product connection, credential, or real-data path.
 
+The review-before-approval order is strict:
+`evidence completion <= reviewer attestation < approval decision <= evaluation < evidence expiry`.
+Equal review and approval instants are rejected; timezone offsets do not change instant ordering.
+The allowlisted `safe_context` is advisory metadata after request-shape validation. It never acts
+as evidence and cannot satisfy or override an admission gate.
+
 ## RAG Benchmark Harness v0.10 production profile governance design
 
 v0.10 defines the approval and audit boundary that must exist before a production Compatibility

@@ -447,7 +447,7 @@ def evaluate_production_admission(
         ):
             reasons.add(ProductionAdmissionReason.REVALIDATION_REQUIRED)
         if (
-            approval.approved_at < attestation.reviewed_at
+            approval.approved_at <= attestation.reviewed_at
             or approval.approved_at > request.evaluation_time
         ):
             reasons.add(ProductionAdmissionReason.REVIEWER_ATTESTATION_INVALID)
