@@ -4,6 +4,19 @@
 
 ### v0.11 production admission design
 
+- Added the Phase D immutable `ManualEvidenceImportRequest`,
+  `ManualEvidenceImportResult`, typed safe errors, and pure
+  `import_manual_validation_evidence()` boundary for explicitly supplied
+  `inline_safe_fixture` mappings only.
+- Added exact unknown/missing-field rejection, bounded input and field sizes, all 22 required case
+  fixtures, structural safe-content allowlists, environment-digest verification, exact Phase A
+  plan binding, and UTC six-digit-microsecond canonical source/result digests.
+- Constructed imported evidence only through the public Phase B contract and regenerated its
+  canonical evidence digest. Import success is neither manual-validation execution, evidence
+  approval, registry admission, nor runtime authorization.
+- Added no file/stdin/clipboard import, filesystem/network/subprocess/environment discovery,
+  registry read/write, persistence, transport, product connection, credential, real document,
+  production profile/entry, hidden clock, random value, UUID, CLI/config, or workflow path.
 - Added the Phase C immutable `ReviewerAttestation`, `ProductionAdmissionRequest`, and
   `ProductionAdmissionDecision` contracts plus a deterministic pure admission evaluator.
 - Added exact plan/evidence/synthetic-reference/approval/validation identity, explicit-time
