@@ -508,11 +508,23 @@ temporal, maturity, restriction, reviewer, approver, or revalidation failure.
 
 - Purpose: require a successful Phase C result before an explicit exact registry admission and
   ensure denied/inactive entries cannot reach runtime.
-- Implementation: synthetic-only admission boundary and security E2E using test-owned data.
+- Implementation: delivered as immutable request, entry, result, safe-summary, event, and typed
+  reason contracts plus deterministic `enforce_registry_admission()`. It rechecks the Phase C
+  canonical decision digest, complete digest chain, exact profile/protocol/product identity,
+  explicit UTC-aware time and expirations, restrictions, requested production/active state, and
+  administrator/approver/reviewer/operator separation.
+- Atomicity: validation, construction, and commit are separate. Only the test-owned in-memory
+  registry is writable; denial creates no entry or event and changes no write count. The
+  production registry contract is an evaluated intent, not an operational production write.
+- Exact resolution: the test registry resolves only exact profile/version, product/version, and
+  protocol identity. Discovery, fallback, nearest-version selection, range expansion, schema
+  inference, aliases, overwrite, automatic status promotion, recovery, and rollback are rejected.
 - Non-goals: real production entry, persistence, product-specific adapter, manual validation.
 - Tests: denial-before-write, exact admission, duplicate/overwrite rejection, suspension,
   deprecation, revocation, runtime denial, safe output, and no fallback/rollback.
-- Security: no real registry data, product traffic, credential, or persistent backend.
+- Security: no real registry data, production profile/entry, runtime authority, product traffic,
+  credential, real document, filesystem/network/subprocess, hidden clock, random/UUID, transport,
+  HTTP, or persistent backend.
 - Merge gate: Phase A-E, compatibility/profile integration/HTTP security, and full regressions pass
   on Python 3.11/3.12.
 
