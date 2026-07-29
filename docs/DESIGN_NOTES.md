@@ -51,6 +51,28 @@ Phase B remains a contract boundary built only from explicit safe fixture values
 execute manual validation, create a reviewer attestation or approval, authorize runtime use,
 connect to a product, generate transport, write a registry, load credentials, or access real data.
 
+### v0.11 Phase C implementation status
+
+Phase C implements a communication-free production-admission evaluator over the exact Phase A
+plan, Phase B evidence, reviewer attestation, v0.10 approval/validation metadata, explicit
+evaluation time, typed restrictions, and explicit revalidation triggers.
+
+The only admission-candidate maturity is `manually_validated`; requiring `approved` before the
+approval decision would create a circular gate. Reviewer acceptance, approver identity, evidence
+freshness, exact product/version identity, supported-version inclusion, and enforceable
+restrictions are all independently checked. Rejected identity/security failures have priority over
+freshness/revalidation failures, which have priority over restricted or unrestricted approval.
+
+The result is an immutable approval-decision record and registry-eligibility statement, not a
+registry entry or runtime authorization. The evaluator has no hidden clock, I/O, registry
+read/write, persistence, transport generation, product connection, credential, or real-data path.
+
+The review-before-approval order is strict:
+`evidence completion <= reviewer attestation < approval decision <= evaluation < evidence expiry`.
+Equal review and approval instants are rejected; timezone offsets do not change instant ordering.
+The allowlisted `safe_context` is advisory metadata after request-shape validation. It never acts
+as evidence and cannot satisfy or override an admission gate.
+
 ## RAG Benchmark Harness v0.10 production profile governance design
 
 v0.10 defines the approval and audit boundary that must exist before a production Compatibility

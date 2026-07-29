@@ -305,6 +305,11 @@ Only creation of that immutable reviewer attestation establishes `evidence_revie
 Approval is forbidden before `evidence_reviewed`. A distinct approver then explicitly selects
 exactly one existing v0.10 decision and establishes `approval_decided`:
 
+The temporal order is strict and compares timezone-aware instants after UTC normalization:
+`evidence.execution_completed_at <= attestation.reviewed_at < approval.approved_at
+<= evaluation_time < evidence.expires_at`. Review and approval at the same instant are rejected;
+approval one microsecond after review satisfies this ordering when every other gate passes.
+
 | Decision | Production admission result |
 | --- | --- |
 | `approved` | Eligible only when every admission condition passes |
@@ -439,12 +444,29 @@ fixture; the word “import” never authorizes external API access or automatic
 
 - Purpose: pure decision table over v0.10 approval plus v0.11 plan, evidence, review, restrictions,
   freshness, roles, and registry eligibility.
-- Implementation: deterministic communication-free evaluator and bounded result.
+- Implementation: delivered as immutable reviewer-attestation, request, decision, safe-summary,
+  reason-category, and revalidation-trigger contracts plus a deterministic communication-free
+  evaluator.
 - Non-goals: registry mutation, runtime integration, product connection, automatic approval.
 - Tests: all four decisions, identity/freshness/role failures, restrictions, revalidation, and no
   mutation or fallback.
 - Security: explicit evaluation time, bounded categories, no raw rejected values.
 - Merge gate: Phase A-C and full regressions pass on Python 3.11/3.12.
+
+The evaluator accepts `manually_validated` maturity as the exact pre-approval state; it does not
+require `approved` before producing the approval decision. Its deterministic priority is:
+
+1. unsafe, identity, binding, role, or reviewer rejection -> `rejected`;
+2. freshness, expiration, unsupported exact version, or explicit trigger -> `needs_revalidation`;
+3. all gates pass with explicit enforceable restrictions -> `approved_with_restrictions`;
+4. all gates pass without restrictions -> `approved`.
+
+Only the last two outcomes are registry-admission eligible. Eligibility does not create an entry,
+write or read a registry, persist state, grant runtime authorization, or create a transport.
+
+`safe_context` is allowlisted advisory metadata. Its shape is validated at request construction,
+but it is not evidence, does not satisfy any admission gate, and cannot override an identity,
+temporal, maturity, restriction, reviewer, approver, or revalidation failure.
 
 ### Phase D: offline manual-evidence import and validation boundary
 
