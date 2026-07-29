@@ -472,7 +472,31 @@ temporal, maturity, restriction, reviewer, approver, or revalidation failure.
 
 - Purpose: parse and validate an explicitly supplied safe fixture against exact plan/evidence
   schemas.
-- Implementation: offline parser boundary with unknown-field rejection and no automatic session.
+- Implementation: delivered as immutable `ManualEvidenceImportRequest` and
+  `ManualEvidenceImportResult` contracts plus typed safe errors and a deterministic
+  `import_manual_validation_evidence()` function. The only source kind is
+  `inline_safe_fixture`; file paths, URLs, streams, stdin, clipboard, environment references,
+  cloud objects, databases, and external processes are not inputs.
+- Schema and size boundary: exact nested field sets, no defaults or implicit casts, a 64 KiB total
+  input limit, 64-character identifiers/environment fields, bounded safe context/failure summary,
+  and exactly 22 case fixtures. Unknown, missing, duplicate, nested-arbitrary, and oversized input
+  fails closed without echoing values.
+- Safety boundary: structural allowlists admit only opaque IDs, strict semantic versions,
+  timezone-aware timestamps, enums, digests, bounded observations, and boolean declarations.
+  These typed validators take precedence over heuristic substring scans. Opaque identifiers are
+  validated by grammar and are not rejected merely because they contain words such as `token` or
+  `secret`. The current schema has no free-description field, so it performs no root-wide heuristic
+  scan; any future free-description field must receive a field-scoped scan. URL/IP/path,
+  credential/token/cookie forms, PEM/header, raw HTTP, stack trace, control, bidi, CR-only, and
+  null-byte values remain outside the typed field grammars and fail closed.
+- Binding and construction: plan ID/digest, profile/protocol/product versions, roles, required
+  cases, execution window, and a recomputed environment digest must match exactly. Source digest
+  uses sorted-key compact JSON and UTC fixed six-digit microseconds; equivalent instants match and
+  one-microsecond differences do not. Evidence is then reconstructed through the public Phase B
+  contract, which independently regenerates its canonical evidence digest.
+- Result boundary: acceptance means only safe fixture validation and evidence construction. It is
+  not manual-validation execution, evidence approval, registry eligibility/admission, registry
+  mutation, or runtime authorization. Rejected results contain no evidence or partial object.
 - Non-goals: external API, product connection, credential loading, endpoint discovery, real
   evidence generation, or registry write.
 - Tests: safe fixture parsing, malformed/unknown/sensitive fields, size bounds, exact digest, and

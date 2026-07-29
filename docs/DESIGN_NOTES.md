@@ -73,6 +73,34 @@ Equal review and approval instants are rejected; timezone offsets do not change 
 The allowlisted `safe_context` is advisory metadata after request-shape validation. It never acts
 as evidence and cannot satisfy or override an admission gate.
 
+### v0.11 Phase D implementation status
+
+Phase D adds a pure offline boundary from one explicitly supplied `inline_safe_fixture` mapping to
+the existing Phase B `ManualValidationEvidence` contract. The request is immutable and uses exact
+nested schemas: unknown, missing, null-defaulted, implicitly cast, oversized, recursively
+unbounded, or structurally invalid content fails closed through typed messages that never repeat
+rejected values.
+
+Structural allowlists and typed validators run before heuristic inspection. Identifiers, versions,
+digests, timestamps, enums, and bounded declarations are validated according to their field type;
+opaque identifiers are not rejected by credential-word substring matching. The current schema has
+no free-description field, so it applies no root-wide heuristic scan. Any future free-description
+field must scope such a scan to that field only. URL, IP, absolute path, credential/header, PEM,
+raw HTTP, stack trace, control, bidi, CR-only, and null-byte values remain structurally invalid.
+
+The importer requires exact Phase A plan ID/digest, profile/protocol/product versions,
+operator/reviewer roles, all 22 cases, the execution window, and a separately recomputed safe
+environment digest. Source identity uses sorted-key compact JSON and UTC timestamps with fixed
+six-digit microseconds; equivalent instants share a digest and one-microsecond differences do not.
+The declared source digest is distinct from the evidence digest. Evidence is constructed through
+the public Phase B mapping contract, which regenerates its own canonical digest.
+
+Import acceptance means only schema, safety, binding, and evidence-construction success. Failed or
+aborted cases may be retained for bounded audit but remain structurally invalid evidence. Import
+does not execute manual validation, approve evidence, confer registry eligibility, read or write a
+registry, authorize runtime use, generate transport, discover an environment, load a file, use
+stdin or clipboard, connect to a network or product, handle credentials, or retain real content.
+
 ## RAG Benchmark Harness v0.10 production profile governance design
 
 v0.10 defines the approval and audit boundary that must exist before a production Compatibility

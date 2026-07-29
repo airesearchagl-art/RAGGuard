@@ -1,5 +1,13 @@
 """RAGGuard package."""
 
+from ragguard.manual_evidence_import import (
+    ManualEvidenceImportError,
+    ManualEvidenceImportErrorCategory,
+    ManualEvidenceImportRequest,
+    ManualEvidenceImportResult,
+    ManualEvidenceSourceKind,
+    import_manual_validation_evidence,
+)
 from ragguard.production_admission import (
     ProductionAdmissionDecision,
     ProductionAdmissionError,
@@ -15,6 +23,11 @@ from ragguard.production_admission import (
 __version__ = "0.1.0"
 
 __all__ = [
+    "ManualEvidenceImportError",
+    "ManualEvidenceImportErrorCategory",
+    "ManualEvidenceImportRequest",
+    "ManualEvidenceImportResult",
+    "ManualEvidenceSourceKind",
     "ProductionAdmissionDecision",
     "ProductionAdmissionError",
     "ProductionAdmissionErrorCategory",
@@ -24,4 +37,5 @@ __all__ = [
     "ReviewerAttestationOutcome",
     "RevalidationTrigger",
     "evaluate_production_admission",
+    "import_manual_validation_evidence",
 ]
