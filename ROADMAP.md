@@ -13,9 +13,9 @@ profile/entry, persist a registry, or expand the runtime.
 - Phase B: manual validation evidence contract. Completed and merged.
 - Phase C: production admission evaluator. Completed and merged.
 - Phase D: offline manual-evidence import and validation boundary. Completed and merged.
-- Phase E: registry admission enforcement and security E2E. Implemented on the feature branch;
-  pending review.
-- Phase F: docs, CI, and release preparation.
+- Phase E: registry admission enforcement and security E2E. Completed and merged.
+- Phase F: docs, CI, and release preparation. Implemented by the release-preparation PR; pending
+  review and merge.
 
 The authoritative state transition, role separation, plan/evidence schemas, decision table,
 revalidation triggers, failure matrix, security boundary, phase merge gates, unresolved questions,
@@ -90,6 +90,31 @@ approval remain separately approved non-goals.
   nearest-version selection, schema inference, persistence, or production-registry write.
 - Admission success remains synthetic test-registry evidence only. It is not a real production
   entry, runtime authorization, manual validation, or evidence of real-product compatibility.
+
+### Phase F delivery
+
+- Consolidate the Phase A-E contracts, exact identity/role/digest chain, temporal ordering,
+  structural allowlist priority, atomic denial behavior, and security limitations across README,
+  Usage, Design Notes, changelog, and the authoritative v0.11 design.
+- Add the v0.11.0 release checklist and contract tests that require all Phase A-E and compatibility
+  suites to remain included in the Python 3.11/3.12 full-suite workflow.
+- Retain the existing workflow without duplicate targeted steps because each matrix job already
+  runs the complete pytest suite; require targeted local checks and Actions success as release
+  evidence.
+- Prepare release notes only. Tag creation, tag push, GitHub Release publication, and Vault update
+  remain separate explicitly requested post-merge operations.
+
+### Release and post-release sequence
+
+1. Review and merge the Phase F PR with a normal merge commit.
+2. Synchronize clean local `main` with `origin/main` and rerun the release checklist.
+3. Create and push annotated tag `v0.11.0` pointing directly to the Phase F merge commit.
+4. Publish a non-draft, non-prerelease latest GitHub Release as a separate operation.
+5. Record the milestone through a separate post-release Vault PR; optional Notion recording remains
+   separate.
+
+Real-product manual validation, a production profile, a real production-registry entry,
+persistence, and runtime production authorization remain separately approved future work.
 
 ## Release preparation: RAG Benchmark Harness v0.10.0 approval governance
 

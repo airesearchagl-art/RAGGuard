@@ -139,6 +139,28 @@ network, subprocess, environment discovery, hidden clock, random/UUID generation
 CLI/config, workflow, production profile, product adapter, or runtime authorization. No manual
 validation or real-product compatibility check has been performed.
 
+### v0.11 Phase F release-preparation status
+
+Phase F documents the delivered responsibility chain without expanding runtime scope. Phase A
+defines the immutable plan; Phase B binds structurally valid evidence to that exact plan and
+separates structural validity from completion/freshness; Phase D imports only an inline synthetic
+safe fixture through structural allowlists and keeps its source digest distinct from the evidence
+digest. Phase C performs a pure deterministic decision after strict review-before-approval
+ordering. Phase E admits only to a test-owned registry after exact decision-bound identity, role,
+digest, restriction, and expiration checks.
+
+Validation, entry construction, and commit remain separate. Every denial leaves entry, write,
+event, transport, and HTTP counts at zero. Safe summaries are consistency-checked advisory output,
+not canonical identity or evidence. Exact resolution remains the only resolution mode; fallback,
+nearest-version selection, schema inference, automatic approval, recovery, and rollback remain
+absent.
+
+The existing CI matrix already runs full pytest on Python 3.11 and 3.12, which includes the Phase
+A-E, v0.10 approval, compatibility, profile-integration, and HTTP-security suites. Phase F adds a
+release contract test instead of duplicating those suites as extra workflow steps. The separate
+v0.11.0 checklist controls targeted verification, annotated tag creation at the Phase F merge
+commit, GitHub Release publication, and the later Vault PR.
+
 ## RAG Benchmark Harness v0.10 production profile governance design
 
 v0.10 defines the approval and audit boundary that must exist before a production Compatibility

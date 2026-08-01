@@ -1,5 +1,33 @@
 # Usage
 
+## v0.11.0 production-admission usage boundary
+
+v0.11.0 adds no public production-admission command. The supported public CLI remains
+`check-mask` and `benchmark`, with unchanged report top-level schemas and exit codes: PASS `0`,
+WARNING `1`, FAIL `2`, and CLI error `3`. The v0.11 modules are internal immutable contracts and
+synthetic security boundaries, not a product connector, production profile loader, persistent
+registry, or runtime authorization service.
+
+The internal contract sequence is explicit: construct an immutable manual-validation plan that
+passes the Phase A plan contract. A valid plan is not approval and is not manual evidence. Evidence
+must then be bound to that exact plan and pass structural and temporal validation. A reviewer
+attestation precedes a decision by a distinct approver; approval occurs only at that later decision
+stage. The boundary may import only an inline synthetic safe fixture before evaluating
+production-admission eligibility and admitting only to an explicitly constructed test registry.
+Phase E compares digest-covered profile, protocol, product, version, reviewer, operator, and
+approver identities exactly. Denial occurs before any entry, write, event, transport, or HTTP
+activity.
+
+Do not interpret accepted fixture import, an eligible decision, or successful test-registry
+admission as manual-validation evidence, real-product compatibility, a production-registry entry,
+or runtime production authorization. No production profile, persistence, credentials, real
+documents, external/private-LAN access, fallback, nearest-version selection, schema inference,
+automatic approval, recovery, or rollback is supported.
+Test-registry admission is not runtime production authorization.
+
+Release verification and the separate post-merge tag, GitHub Release, and Vault operations are
+defined in the [v0.11.0 Release Checklist](RELEASE_CHECKLIST_V0.11.0.md).
+
 ## v0.10.0 approval governance usage boundary
 
 v0.10.0 does not add a production-facing command. The supported public commands remain
