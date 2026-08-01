@@ -293,6 +293,8 @@ class ProductionAdmissionSafeSummary:
     plan_digest: str
     evidence_digest: str
     reviewer_attestation_digest: str | None
+    evidence_reviewer_id: str
+    validation_operator_id: str
     approver_id: str
     reason_categories: tuple[str, ...]
     restriction_count: int
@@ -313,6 +315,8 @@ class ProductionAdmissionDecision:
     evidence_digest: str
     reviewer_attestation_id: str | None
     reviewer_attestation_digest: str | None
+    evidence_reviewer_id: str
+    validation_operator_id: str
     approver_id: str
     requested_registry_kind: RegistryKind
     requested_initial_status: RegistryStatus
@@ -347,6 +351,8 @@ class ProductionAdmissionDecision:
                 plan_digest=self.plan_digest,
                 evidence_digest=self.evidence_digest,
                 reviewer_attestation_digest=self.reviewer_attestation_digest,
+                evidence_reviewer_id=self.evidence_reviewer_id,
+                validation_operator_id=self.validation_operator_id,
                 approver_id=self.approver_id,
                 reason_categories=tuple(
                     reason.value for reason in self.reason_categories
@@ -373,6 +379,7 @@ class ProductionAdmissionDecision:
                 "evaluated_at": _canonical_datetime(self.evaluated_at),
                 "evidence_digest": self.evidence_digest,
                 "evidence_id": self.evidence_id,
+                "evidence_reviewer_id": self.evidence_reviewer_id,
                 "plan_digest": self.plan_digest,
                 "plan_id": self.plan_id,
                 "product_id": self._product_id,
@@ -390,8 +397,29 @@ class ProductionAdmissionDecision:
                     self.reviewer_attestation_digest
                 ),
                 "reviewer_attestation_id": self.reviewer_attestation_id,
+                "validation_operator_id": self.validation_operator_id,
             }
         )
+
+    @property
+    def profile_id(self) -> str:
+        return self._profile_id
+
+    @property
+    def profile_version(self) -> str:
+        return self._profile_version
+
+    @property
+    def protocol_version(self) -> str:
+        return self._protocol_version
+
+    @property
+    def product_id(self) -> str:
+        return self._product_id
+
+    @property
+    def product_version(self) -> str:
+        return self._product_version
 
     def __repr__(self) -> str:
         return "ProductionAdmissionDecision(<safe>)"
@@ -514,6 +542,8 @@ def evaluate_production_admission(
         reviewer_attestation_digest=(
             None if attestation is None else attestation.canonical_digest
         ),
+        evidence_reviewer_id=plan.evidence_reviewer_id,
+        validation_operator_id=plan.validation_operator_id,
         approver_id=request.approver_identity,
         requested_registry_kind=request.requested_registry_kind,
         requested_initial_status=request.requested_initial_status,

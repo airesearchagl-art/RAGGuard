@@ -12,9 +12,9 @@ profile/entry, persist a registry, or expand the runtime.
 - Phase A: manual validation plan contract. Completed and merged.
 - Phase B: manual validation evidence contract. Completed and merged.
 - Phase C: production admission evaluator. Completed and merged.
-- Phase D: offline manual-evidence import and validation boundary. Implemented on the feature
-  branch; pending review.
-- Phase E: registry admission enforcement and security E2E.
+- Phase D: offline manual-evidence import and validation boundary. Completed and merged.
+- Phase E: registry admission enforcement and security E2E. Implemented on the feature branch;
+  pending review.
 - Phase F: docs, CI, and release preparation.
 
 The authoritative state transition, role separation, plan/evidence schemas, decision table,
@@ -75,6 +75,21 @@ approval remain separately approved non-goals.
 - Import acceptance means only that a safe fixture was validated and evidence was constructed. It
   does not execute manual validation, approve evidence, grant registry eligibility, write a
   registry, authorize runtime use, generate transport, or connect to a product.
+
+### Phase E delivery
+
+- Added immutable registry-admission request, entry, result, safe-summary, event, and typed-reason
+  contracts that accept only an exact eligible Phase C decision and explicit evaluation time.
+- Revalidate the Phase C canonical digest, complete plan/evidence/attestation digest chain, exact
+  profile/protocol/product versions, effective restrictions, expirations, and administrator role
+  separation before constructing any entry.
+- Split validation, entry construction, and commit so every denial leaves the test registry
+  unchanged with zero writes, events, transports, and HTTP requests.
+- Added a test-only in-memory registry with exact profile/product/protocol resolution, duplicate
+  and overwrite rejection, monotonic inactive status handling, and no discovery, fallback,
+  nearest-version selection, schema inference, persistence, or production-registry write.
+- Admission success remains synthetic test-registry evidence only. It is not a real production
+  entry, runtime authorization, manual validation, or evidence of real-product compatibility.
 
 ## Release preparation: RAG Benchmark Harness v0.10.0 approval governance
 

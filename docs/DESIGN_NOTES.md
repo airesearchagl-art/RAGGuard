@@ -101,6 +101,44 @@ does not execute manual validation, approve evidence, confer registry eligibilit
 registry, authorize runtime use, generate transport, discover an environment, load a file, use
 stdin or clipboard, connect to a network or product, handle credentials, or retain real content.
 
+### v0.11 Phase E implementation status
+
+Phase E applies one immutable Phase C `ProductionAdmissionDecision` to a bounded test-only registry
+contract. `eligible_for_registry_admission=true` is necessary but is not itself a write. The
+enforcement boundary independently verifies the decision canonical digest, non-empty
+plan/evidence/reviewer-attestation digest chain, exact profile/protocol/product identity,
+production-kind and active-status request, explicit evaluation time and expirations, effective
+restrictions, and administrator separation from approver, reviewer, and operator.
+
+Phase C binds the validated evidence-reviewer and validation-operator opaque IDs into the decision
+canonical JSON and digest. Phase E compares request roles and exact profile/protocol/product
+identity directly with the decision's digest-covered fields. The safe summary is independently
+checked against canonical identity, but it is advisory output and cannot replace or override the
+decision-bound values. The registry administrator must remain distinct from the actual
+decision-bound approver, reviewer, and operator.
+
+Validation, immutable entry construction, and test-store commit are separate stages. No entry or
+success event is constructed before validation completes; duplicate, inactive, malformed, or
+failed commit paths preserve the previous snapshot and write count. Successful tests write exactly
+once to `TestRegistryAdmissionStore`, whose storage boundary is `test` even though the evaluated
+admission intent is `production`.
+
+Resolution requires exact profile/version, product/version, and protocol. Discovery, aliases,
+fallback, nearest-version selection, version-range expansion, schema inference, overwrite, status
+promotion, automatic recovery, and rollback are not provided. The test store retains the existing
+monotonic active-to-inactive lifecycle and does not reactivate suspended, deprecated, or revoked
+identities.
+
+The admitted entry and result contain only opaque identity, versions, decision/restriction state,
+digest chain, explicit timestamps, status, administrator ID, and bounded safe summaries. They do
+not retain raw plans, evidence, fixtures, endpoint/port/path/query, request/response, credentials,
+real documents, stack traces, or internal exceptions.
+
+This implementation has no production registry write path, persistence, filesystem, database,
+network, subprocess, environment discovery, hidden clock, random/UUID generation, transport, HTTP,
+CLI/config, workflow, production profile, product adapter, or runtime authorization. No manual
+validation or real-product compatibility check has been performed.
+
 ## RAG Benchmark Harness v0.10 production profile governance design
 
 v0.10 defines the approval and audit boundary that must exist before a production Compatibility

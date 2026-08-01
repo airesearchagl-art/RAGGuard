@@ -4,6 +4,22 @@
 
 ### v0.11 production admission design
 
+- Added Phase E immutable `RegistryAdmissionRequest`, `RegistryAdmissionEntry`,
+  `RegistryAdmissionResult`, safe summaries, deterministic reason categories, and
+  `enforce_registry_admission()` over the exact Phase C decision.
+- Added fail-closed decision/digest/identity/time/role/restriction/status gates and atomic
+  validate-construct-commit behavior. Every denial returns no entry and leaves write/event counts
+  unchanged.
+- Bound validated reviewer and validation-operator identities into the Phase C canonical decision
+  digest. Phase E now compares request roles and exact profile/protocol/product identities directly
+  with those decision-bound fields, rejects safe-summary divergence, and separates the registry
+  administrator from the actual approver, reviewer, and operator.
+- Added the explicit test-only `TestRegistryAdmissionStore` with exact profile, product, and
+  protocol resolution. Production registry instances, duplicate/overwrite, inactive identities,
+  fallback, nearest-version selection, and schema inference are rejected.
+- Added Phase A-E synthetic security E2E without filesystem/network/subprocess, hidden clock,
+  random/UUID generation, transport, HTTP, persistence, production profile/entry, credential,
+  real document, manual-validation execution, or runtime integration.
 - Added the Phase D immutable `ManualEvidenceImportRequest`,
   `ManualEvidenceImportResult`, typed safe errors, and pure
   `import_manual_validation_evidence()` boundary for explicitly supplied
