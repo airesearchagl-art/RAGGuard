@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import ast
 from dataclasses import FrozenInstanceError, replace
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -143,9 +143,24 @@ def test_valid_active_transitions(kind, target) -> None:
 @pytest.mark.parametrize(
     ("first_kind", "first_status", "second_kind", "second_status"),
     [
-        (RevalidationTriggerKind.ADMINISTRATOR_SUSPENSION, RegistryStatus.SUSPENDED, RevalidationTriggerKind.ADMINISTRATOR_DEPRECATION, RegistryStatus.DEPRECATED),
-        (RevalidationTriggerKind.ADMINISTRATOR_SUSPENSION, RegistryStatus.SUSPENDED, RevalidationTriggerKind.ADMINISTRATOR_REVOCATION, RegistryStatus.REVOKED),
-        (RevalidationTriggerKind.ADMINISTRATOR_DEPRECATION, RegistryStatus.DEPRECATED, RevalidationTriggerKind.ADMINISTRATOR_REVOCATION, RegistryStatus.REVOKED),
+        (
+            RevalidationTriggerKind.ADMINISTRATOR_SUSPENSION,
+            RegistryStatus.SUSPENDED,
+            RevalidationTriggerKind.ADMINISTRATOR_DEPRECATION,
+            RegistryStatus.DEPRECATED,
+        ),
+        (
+            RevalidationTriggerKind.ADMINISTRATOR_SUSPENSION,
+            RegistryStatus.SUSPENDED,
+            RevalidationTriggerKind.ADMINISTRATOR_REVOCATION,
+            RegistryStatus.REVOKED,
+        ),
+        (
+            RevalidationTriggerKind.ADMINISTRATOR_DEPRECATION,
+            RegistryStatus.DEPRECATED,
+            RevalidationTriggerKind.ADMINISTRATOR_REVOCATION,
+            RegistryStatus.REVOKED,
+        ),
     ],
 )
 def test_valid_non_active_forward_transitions(
@@ -210,7 +225,9 @@ def test_active_requested_status_is_rejected_at_contract_boundary() -> None:
 def test_same_status_write_is_rejected() -> None:
     admission_request, original, store = context()
     first = lifecycle_request(admission_request, original)
-    assert enforce_registry_lifecycle(first, registry=store, admission_request=admission_request).applied
+    assert enforce_registry_lifecycle(
+        first, registry=store, admission_request=admission_request
+    ).applied
     current = store.resolve_status_exact(
         profile_id=original.profile_id,
         profile_version=original.profile_version,
@@ -225,7 +242,9 @@ def test_same_status_write_is_rejected() -> None:
         lifecycle_request_id="lifecycle-request-002",
         evaluation_time=TRIGGER_TIME + timedelta(microseconds=1),
     )
-    result = enforce_registry_lifecycle(second, registry=store, admission_request=admission_request)
+    result = enforce_registry_lifecycle(
+        second, registry=store, admission_request=admission_request
+    )
     assert result.applied is False
     assert RegistryLifecycleReason.TRANSITION_FORBIDDEN in result.reason_categories
     assert store.mutation_count == 1
@@ -239,7 +258,9 @@ def test_deprecated_to_suspended_is_rejected() -> None:
         kind=RevalidationTriggerKind.ADMINISTRATOR_DEPRECATION,
         requested_status=RegistryStatus.DEPRECATED,
     )
-    assert enforce_registry_lifecycle(first, registry=store, admission_request=admission_request).applied
+    assert enforce_registry_lifecycle(
+        first, registry=store, admission_request=admission_request
+    ).applied
     current = store.resolve_status_exact(
         profile_id=original.profile_id,
         profile_version=original.profile_version,
@@ -254,12 +275,17 @@ def test_deprecated_to_suspended_is_rejected() -> None:
         lifecycle_request_id="lifecycle-request-002",
         evaluation_time=TRIGGER_TIME + timedelta(microseconds=1),
     )
-    result = enforce_registry_lifecycle(second, registry=store, admission_request=admission_request)
+    result = enforce_registry_lifecycle(
+        second, registry=store, admission_request=admission_request
+    )
     assert result.applied is False
     assert RegistryLifecycleReason.TRANSITION_FORBIDDEN in result.reason_categories
 
 
-@pytest.mark.parametrize("target", [RegistryStatus.SUSPENDED, RegistryStatus.DEPRECATED, RegistryStatus.REVOKED])
+@pytest.mark.parametrize(
+    "target",
+    [RegistryStatus.SUSPENDED, RegistryStatus.DEPRECATED, RegistryStatus.REVOKED],
+)
 def test_revoked_is_terminal(target: RegistryStatus) -> None:
     admission_request, original, store = context()
     first = lifecycle_request(
@@ -268,7 +294,9 @@ def test_revoked_is_terminal(target: RegistryStatus) -> None:
         kind=RevalidationTriggerKind.ADMINISTRATOR_REVOCATION,
         requested_status=RegistryStatus.REVOKED,
     )
-    assert enforce_registry_lifecycle(first, registry=store, admission_request=admission_request).applied
+    assert enforce_registry_lifecycle(
+        first, registry=store, admission_request=admission_request
+    ).applied
     current = store.resolve_status_exact(
         profile_id=original.profile_id,
         profile_version=original.profile_version,
@@ -289,7 +317,9 @@ def test_revoked_is_terminal(target: RegistryStatus) -> None:
         lifecycle_request_id="lifecycle-request-002",
         evaluation_time=TRIGGER_TIME + timedelta(microseconds=1),
     )
-    result = enforce_registry_lifecycle(second, registry=store, admission_request=admission_request)
+    result = enforce_registry_lifecycle(
+        second, registry=store, admission_request=admission_request
+    )
     assert result.applied is False
     assert RegistryLifecycleReason.ALREADY_TERMINAL in result.reason_categories
     assert store.mutation_count == 1
@@ -298,10 +328,22 @@ def test_revoked_is_terminal(target: RegistryStatus) -> None:
 @pytest.mark.parametrize(
     ("override", "reason"),
     [
-        ({"expected_current_status": RegistryStatus.DEPRECATED}, RegistryLifecycleReason.STATUS_MISMATCH),
-        ({"expected_entry_digest": "sha256:" + "0" * 64}, RegistryLifecycleReason.DIGEST_MISMATCH),
-        ({"registry_administrator_id": "other-admin"}, RegistryLifecycleReason.IDENTITY_MISMATCH),
-        ({"registry_administrator_id": "approver-001"}, RegistryLifecycleReason.ROLE_CONFLICT),
+        (
+            {"expected_current_status": RegistryStatus.DEPRECATED},
+            RegistryLifecycleReason.STATUS_MISMATCH,
+        ),
+        (
+            {"expected_entry_digest": "sha256:" + "0" * 64},
+            RegistryLifecycleReason.DIGEST_MISMATCH,
+        ),
+        (
+            {"registry_administrator_id": "other-admin"},
+            RegistryLifecycleReason.IDENTITY_MISMATCH,
+        ),
+        (
+            {"registry_administrator_id": "approver-001"},
+            RegistryLifecycleReason.ROLE_CONFLICT,
+        ),
     ],
 )
 def test_denied_bindings_leave_no_lifecycle_side_effects(override, reason) -> None:
@@ -314,7 +356,9 @@ def test_denied_bindings_leave_no_lifecycle_side_effects(override, reason) -> No
         product_version=entry.product_version,
         protocol_version=entry.protocol_version,
     )
-    result = enforce_registry_lifecycle(request, registry=store, admission_request=admission_request)
+    result = enforce_registry_lifecycle(
+        request, registry=store, admission_request=admission_request
+    )
     after = store.resolve_status_exact(
         profile_id=entry.profile_id,
         profile_version=entry.profile_version,
@@ -333,7 +377,9 @@ def test_denied_bindings_leave_no_lifecycle_side_effects(override, reason) -> No
 def test_commit_failure_is_atomic() -> None:
     admission_request, entry, store = context(fail_commit=True)
     request = lifecycle_request(admission_request, entry)
-    result = enforce_registry_lifecycle(request, registry=store, admission_request=admission_request)
+    result = enforce_registry_lifecycle(
+        request, registry=store, admission_request=admission_request
+    )
     assert result.applied is False
     assert result.reason_categories == (RegistryLifecycleReason.REGISTRY_COMMIT_FAILED,)
     assert store.mutation_count == store.write_count == 0
@@ -383,7 +429,9 @@ def test_lifecycle_contracts_are_immutable_and_deterministic() -> None:
     request = lifecycle_request(admission_request, entry)
     with pytest.raises(FrozenInstanceError):
         request.registry_administrator_id = "other"  # type: ignore[misc]
-    result = enforce_registry_lifecycle(request, registry=store, admission_request=admission_request)
+    result = enforce_registry_lifecycle(
+        request, registry=store, admission_request=admission_request
+    )
     assert result.applied is True
     assert result.digest_algorithm == CANONICAL_REGISTRY_LIFECYCLE_DIGEST_ALGORITHM
     assert repr(request) == "RegistryLifecycleRequest(<safe>)"
@@ -396,7 +444,7 @@ def test_request_digest_preserves_microseconds_and_normalizes_offsets() -> None:
     equivalent = replace(
         first,
         evaluation_time=first.evaluation_time.astimezone(
-            first.evaluation_time.tzinfo
+            timezone(timedelta(hours=9))
         ),
     )
     distinct = replace(

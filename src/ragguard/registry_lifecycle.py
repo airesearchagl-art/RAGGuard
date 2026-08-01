@@ -350,8 +350,16 @@ class RegistryLifecycleResult:
 class TestRegistryLifecycleStore:
     __test__ = False
 
-    def __init__(self, admission_registry: TestRegistryAdmissionStore, *, fail_commit: bool = False) -> None:
-        if not isinstance(admission_registry, TestRegistryAdmissionStore) or type(fail_commit) is not bool:
+    def __init__(
+        self,
+        admission_registry: TestRegistryAdmissionStore,
+        *,
+        fail_commit: bool = False,
+    ) -> None:
+        if (
+            not isinstance(admission_registry, TestRegistryAdmissionStore)
+            or type(fail_commit) is not bool
+        ):
             _raise(RegistryLifecycleReason.REGISTRY_KIND_INVALID)
         self._admission_registry = admission_registry
         self._events: tuple[RegistryLifecycleEvent, ...] = ()
@@ -449,7 +457,10 @@ def enforce_registry_lifecycle(
         _raise(RegistryLifecycleReason.SECURITY_BOUNDARY_VIOLATION)
     reasons: set[RegistryLifecycleReason] = set()
     entry: RegistryAdmissionEntry | None = None
-    if not isinstance(registry, TestRegistryLifecycleStore) or registry.kind is not RegistryKind.TEST:
+    if (
+        not isinstance(registry, TestRegistryLifecycleStore)
+        or registry.kind is not RegistryKind.TEST
+    ):
         reasons.add(RegistryLifecycleReason.REGISTRY_WRITE_REJECTED)
     else:
         try:
@@ -513,10 +524,17 @@ def enforce_registry_lifecycle(
             reasons.add(RegistryLifecycleReason.REVALIDATION_REQUIRED)
         elif request.requested_status is not requirement.target_status:
             reasons.add(RegistryLifecycleReason.TRANSITION_FORBIDDEN)
-        if isinstance(registry, TestRegistryLifecycleStore) and registry._is_duplicate(request.lifecycle_request_id):
+        if isinstance(
+            registry, TestRegistryLifecycleStore
+        ) and registry._is_duplicate(request.lifecycle_request_id):
             reasons.add(RegistryLifecycleReason.DUPLICATE_TRANSITION)
 
-    if reasons or entry is None or requirement is None or not isinstance(registry, TestRegistryLifecycleStore):
+    if (
+        reasons
+        or entry is None
+        or requirement is None
+        or not isinstance(registry, TestRegistryLifecycleStore)
+    ):
         return _result(request, entry=entry, reasons=reasons)
 
     transitioned = replace(entry, registry_status=request.requested_status)
@@ -572,21 +590,29 @@ def _result(
 ) -> RegistryLifecycleResult:
     denial_reasons = reasons or set()
     applied = transitioned is not None and event is not None and not denial_reasons
-    previous_status = entry.registry_status if entry is not None else request.expected_current_status
+    previous_status = (
+        entry.registry_status
+        if entry is not None
+        else request.expected_current_status
+    )
     return RegistryLifecycleResult(
         lifecycle_request_id=request.lifecycle_request_id,
         applied=applied,
         previous_status=previous_status,
         resulting_status=transitioned.registry_status if applied else previous_status,
         trigger_kind=request.trigger.trigger_kind,
-        reason_categories=tuple(reason for reason in _REASON_ORDER if reason in denial_reasons),
+        reason_categories=tuple(
+            reason for reason in _REASON_ORDER if reason in denial_reasons
+        ),
         profile_id=request.trigger.profile_id,
         profile_version=request.trigger.profile_version,
         protocol_version=request.trigger.protocol_version,
         product_id=request.trigger.product_id,
         product_version=request.trigger.product_version,
         registry_entry_digest=request.trigger.registry_entry_digest,
-        resulting_entry_digest=transitioned.canonical_digest if applied else None,
+        resulting_entry_digest=(
+            transitioned.canonical_digest if applied else None
+        ),
         plan_digest=entry.plan_digest if entry is not None else _zero_digest(),
         evidence_digest=request.trigger.evidence_digest,
         admission_decision_digest=request.trigger.admission_decision_digest,
@@ -614,7 +640,9 @@ def _map_revalidation_reasons(
     return {mapping[reason] for reason in reasons}
 
 
-def _canonical_restrictions(restrictions: ApprovalRestrictions | None) -> dict[str, object] | None:
+def _canonical_restrictions(
+    restrictions: ApprovalRestrictions | None,
+) -> dict[str, object] | None:
     if restrictions is None:
         return None
     return {
@@ -630,7 +658,11 @@ def _canonical_restrictions(restrictions: ApprovalRestrictions | None) -> dict[s
 
 def _restriction_count(restrictions: ApprovalRestrictions | None) -> int:
     mapping = _canonical_restrictions(restrictions)
-    return 0 if mapping is None else sum(value not in (None, False, [], ()) for value in mapping.values())
+    return (
+        0
+        if mapping is None
+        else sum(value not in (None, False, [], ()) for value in mapping.values())
+    )
 
 
 def _is_safe_identifier(value: object) -> bool:
@@ -642,7 +674,13 @@ def _is_digest(value: object) -> bool:
 
 
 def _is_safe_context(value: object) -> bool:
-    return isinstance(value, tuple) and tuple(sorted(set(value))) == value and all(isinstance(item, str) and item in _SAFE_CONTEXT_VALUES for item in value)
+    return (
+        isinstance(value, tuple)
+        and tuple(sorted(set(value))) == value
+        and all(
+            isinstance(item, str) and item in _SAFE_CONTEXT_VALUES for item in value
+        )
+    )
 
 
 def _is_aware_datetime(value: object) -> bool:

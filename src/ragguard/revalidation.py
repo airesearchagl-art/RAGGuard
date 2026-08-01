@@ -224,7 +224,10 @@ class RevalidationRequirement:
         if (
             not _is_safe_identifier(self.trigger_id)
             or not isinstance(self.action, RevalidationAction)
-            or (self.target_status is not None and not isinstance(self.target_status, RegistryStatus))
+            or (
+                self.target_status is not None
+                and not isinstance(self.target_status, RegistryStatus)
+            )
             or type(self.revalidation_required) is not bool
             or not _is_aware_datetime(self.evaluated_at)
             or tuple(reason for reason in _REASON_ORDER if reason in self.reason_categories)
@@ -331,25 +334,89 @@ def evaluate_revalidation_requirement(
 
     kind = trigger.trigger_kind
     if kind is RevalidationTriggerKind.SECURITY_POLICY_CHANGED:
-        return _requirement(trigger, RevalidationAction.REVOKE, RegistryStatus.REVOKED, False, {RevalidationReason.SECURITY_POLICY_CHANGED}, evaluation_time)
+        return _requirement(
+            trigger,
+            RevalidationAction.REVOKE,
+            RegistryStatus.REVOKED,
+            False,
+            {RevalidationReason.SECURITY_POLICY_CHANGED},
+            evaluation_time,
+        )
     if kind is RevalidationTriggerKind.ADMINISTRATOR_REVOCATION:
-        return _requirement(trigger, RevalidationAction.REVOKE, RegistryStatus.REVOKED, False, set(), evaluation_time)
-    if kind in {RevalidationTriggerKind.EVIDENCE_EXPIRED, RevalidationTriggerKind.EVIDENCE_REVOKED, RevalidationTriggerKind.APPROVAL_REVOKED}:
+        return _requirement(
+            trigger,
+            RevalidationAction.REVOKE,
+            RegistryStatus.REVOKED,
+            False,
+            set(),
+            evaluation_time,
+        )
+    if kind in {
+        RevalidationTriggerKind.EVIDENCE_EXPIRED,
+        RevalidationTriggerKind.EVIDENCE_REVOKED,
+        RevalidationTriggerKind.APPROVAL_REVOKED,
+    }:
         reason = {
             RevalidationTriggerKind.EVIDENCE_EXPIRED: RevalidationReason.EVIDENCE_EXPIRED,
             RevalidationTriggerKind.EVIDENCE_REVOKED: RevalidationReason.EVIDENCE_REVOKED,
             RevalidationTriggerKind.APPROVAL_REVOKED: RevalidationReason.APPROVAL_REVOKED,
         }[kind]
-        return _requirement(trigger, RevalidationAction.SUSPEND, RegistryStatus.SUSPENDED, True, {reason, RevalidationReason.REVALIDATION_REQUIRED}, evaluation_time)
-    if kind in {RevalidationTriggerKind.PRODUCT_VERSION_CHANGED, RevalidationTriggerKind.PROTOCOL_VERSION_CHANGED, RevalidationTriggerKind.RESTRICTION_CHANGED}:
-        return _requirement(trigger, RevalidationAction.DEPRECATE, RegistryStatus.DEPRECATED, True, {RevalidationReason.REVALIDATION_REQUIRED}, evaluation_time)
+        return _requirement(
+            trigger,
+            RevalidationAction.SUSPEND,
+            RegistryStatus.SUSPENDED,
+            True,
+            {reason, RevalidationReason.REVALIDATION_REQUIRED},
+            evaluation_time,
+        )
+    if kind in {
+        RevalidationTriggerKind.PRODUCT_VERSION_CHANGED,
+        RevalidationTriggerKind.PROTOCOL_VERSION_CHANGED,
+        RevalidationTriggerKind.RESTRICTION_CHANGED,
+    }:
+        return _requirement(
+            trigger,
+            RevalidationAction.DEPRECATE,
+            RegistryStatus.DEPRECATED,
+            True,
+            {RevalidationReason.REVALIDATION_REQUIRED},
+            evaluation_time,
+        )
     if kind is RevalidationTriggerKind.SCHEDULED_REVALIDATION:
-        return _requirement(trigger, RevalidationAction.REVALIDATION_REQUIRED, None, True, {RevalidationReason.REVALIDATION_REQUIRED}, evaluation_time)
+        return _requirement(
+            trigger,
+            RevalidationAction.REVALIDATION_REQUIRED,
+            None,
+            True,
+            {RevalidationReason.REVALIDATION_REQUIRED},
+            evaluation_time,
+        )
     if kind is RevalidationTriggerKind.ADMINISTRATOR_SUSPENSION:
-        return _requirement(trigger, RevalidationAction.SUSPEND, RegistryStatus.SUSPENDED, False, set(), evaluation_time)
+        return _requirement(
+            trigger,
+            RevalidationAction.SUSPEND,
+            RegistryStatus.SUSPENDED,
+            False,
+            set(),
+            evaluation_time,
+        )
     if kind is RevalidationTriggerKind.ADMINISTRATOR_DEPRECATION:
-        return _requirement(trigger, RevalidationAction.DEPRECATE, RegistryStatus.DEPRECATED, False, set(), evaluation_time)
-    return _requirement(trigger, RevalidationAction.NO_ACTION, None, False, set(), evaluation_time)
+        return _requirement(
+            trigger,
+            RevalidationAction.DEPRECATE,
+            RegistryStatus.DEPRECATED,
+            False,
+            set(),
+            evaluation_time,
+        )
+    return _requirement(
+        trigger,
+        RevalidationAction.NO_ACTION,
+        None,
+        False,
+        set(),
+        evaluation_time,
+    )
 
 
 def _requirement(

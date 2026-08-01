@@ -136,9 +136,21 @@ def test_future_trigger_denial_has_zero_side_effects() -> None:
     ("field_name", "value", "reason"),
     [
         ("profile_id", "other-profile", RegistryLifecycleReason.IDENTITY_MISMATCH),
-        ("registry_entry_digest", "sha256:" + "0" * 64, RegistryLifecycleReason.DIGEST_MISMATCH),
-        ("admission_decision_digest", "sha256:" + "1" * 64, RegistryLifecycleReason.DIGEST_MISMATCH),
-        ("evidence_digest", "sha256:" + "2" * 64, RegistryLifecycleReason.DIGEST_MISMATCH),
+        (
+            "registry_entry_digest",
+            "sha256:" + "0" * 64,
+            RegistryLifecycleReason.DIGEST_MISMATCH,
+        ),
+        (
+            "admission_decision_digest",
+            "sha256:" + "1" * 64,
+            RegistryLifecycleReason.DIGEST_MISMATCH,
+        ),
+        (
+            "evidence_digest",
+            "sha256:" + "2" * 64,
+            RegistryLifecycleReason.DIGEST_MISMATCH,
+        ),
     ],
 )
 def test_identity_and_digest_tampering_is_atomic(field_name, value, reason) -> None:
@@ -146,7 +158,9 @@ def test_identity_and_digest_tampering_is_atomic(field_name, value, reason) -> N
     request = lifecycle_request(admission_request, entry)
     tampered_trigger = replace(request.trigger, **{field_name: value})
     denied = replace(request, trigger=tampered_trigger)
-    result = enforce_registry_lifecycle(denied, registry=store, admission_request=admission_request)
+    result = enforce_registry_lifecycle(
+        denied, registry=store, admission_request=admission_request
+    )
     assert_denied(result, store, entry, reason)
 
 
@@ -160,7 +174,9 @@ def test_actor_role_conflict_is_atomic(actor: str) -> None:
         "approver-001": decision.approver_id,
     }[actor]
     request = lifecycle_request(admission_request, entry, actor_id=actual_actor)
-    result = enforce_registry_lifecycle(request, registry=store, admission_request=admission_request)
+    result = enforce_registry_lifecycle(
+        request, registry=store, admission_request=admission_request
+    )
     assert_denied(result, store, entry, RegistryLifecycleReason.ROLE_CONFLICT)
 
 
@@ -170,7 +186,9 @@ def test_expected_status_mismatch_is_atomic() -> None:
         lifecycle_request(admission_request, entry),
         expected_current_status=RegistryStatus.DEPRECATED,
     )
-    result = enforce_registry_lifecycle(request, registry=store, admission_request=admission_request)
+    result = enforce_registry_lifecycle(
+        request, registry=store, admission_request=admission_request
+    )
     assert_denied(result, store, entry, RegistryLifecycleReason.STATUS_MISMATCH)
 
 
@@ -212,7 +230,9 @@ def test_duplicate_request_does_not_create_second_event_or_write() -> None:
         requested_status=RegistryStatus.REVOKED,
         lifecycle_request_id=first.lifecycle_request_id,
     )
-    result = enforce_registry_lifecycle(duplicate, registry=store, admission_request=admission_request)
+    result = enforce_registry_lifecycle(
+        duplicate, registry=store, admission_request=admission_request
+    )
     assert result.applied is False
     assert RegistryLifecycleReason.DUPLICATE_TRANSITION in result.reason_categories
     assert store.mutation_count == store.write_count == 1
@@ -222,7 +242,9 @@ def test_duplicate_request_does_not_create_second_event_or_write() -> None:
 def test_result_and_error_do_not_disclose_unsafe_details() -> None:
     admission_request, entry, store = full_context()
     request = lifecycle_request(admission_request, entry)
-    result = enforce_registry_lifecycle(request, registry=store, admission_request=admission_request)
+    result = enforce_registry_lifecycle(
+        request, registry=store, admission_request=admission_request
+    )
     text = repr(result.safe_summary).lower()
     for forbidden in (
         "endpoint",

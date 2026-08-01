@@ -2,6 +2,30 @@
 
 [![Tests](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml)
 
+## RAG Benchmark Harness v0.12 registry lifecycle governance
+
+v0.12 adds fail-closed post-admission revalidation and one-way lifecycle governance for entries
+that already exist in the test-only registry contract. Immutable trigger, requirement, request,
+event, and result contracts bind exact profile/product/protocol identity, the current entry digest,
+the admission-decision/evidence chain, explicit microsecond-precision time, restrictions, status,
+and a lifecycle administrator distinct from the validation operator, evidence reviewer, and
+approver.
+
+Allowed transitions are `active -> suspended|deprecated|revoked`,
+`suspended -> deprecated|revoked`, and `deprecated -> revoked`. `revoked` is terminal. Same-status
+writes, fallback, nearest-version selection, schema inference, implicit transitions, automatic
+rollback, recovery, or reactivation are rejected before mutation. A denied transition leaves
+lifecycle mutation, event, write, transport, and HTTP counts at zero.
+
+Revalidation required is not approval, suspension is not revocation, and successful revalidation
+does not restore `active`. A replacement requires fresh evidence, a new review, approval,
+admission decision, and registry admission. The implementation mutates only an in-memory test-only
+store and adds no production registry write, persistence, runtime authorization, product
+connection, credential, real document, external/private-LAN access, transport, HTTP, workflow, or
+Node runtime maintenance. See the
+[v0.12 Registry Lifecycle Design](docs/REGISTRY_LIFECYCLE_DESIGN_V0.12.md) and
+[v0.12.0 Release Checklist](docs/RELEASE_CHECKLIST_V0.12.0.md).
+
 ## RAG Benchmark Harness v0.11.0 production admission
 
 v0.11.0 adds immutable manual-validation plan and evidence contracts, exact plan/evidence binding,

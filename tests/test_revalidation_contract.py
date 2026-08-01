@@ -137,17 +137,72 @@ def test_all_required_trigger_kinds_are_explicit() -> None:
 @pytest.mark.parametrize(
     ("kind", "action", "status", "required"),
     [
-        (RevalidationTriggerKind.EVIDENCE_EXPIRED, RevalidationAction.SUSPEND, RegistryStatus.SUSPENDED, True),
-        (RevalidationTriggerKind.EVIDENCE_REVOKED, RevalidationAction.SUSPEND, RegistryStatus.SUSPENDED, True),
-        (RevalidationTriggerKind.APPROVAL_REVOKED, RevalidationAction.SUSPEND, RegistryStatus.SUSPENDED, True),
-        (RevalidationTriggerKind.SECURITY_POLICY_CHANGED, RevalidationAction.REVOKE, RegistryStatus.REVOKED, False),
-        (RevalidationTriggerKind.PRODUCT_VERSION_CHANGED, RevalidationAction.DEPRECATE, RegistryStatus.DEPRECATED, True),
-        (RevalidationTriggerKind.PROTOCOL_VERSION_CHANGED, RevalidationAction.DEPRECATE, RegistryStatus.DEPRECATED, True),
-        (RevalidationTriggerKind.RESTRICTION_CHANGED, RevalidationAction.DEPRECATE, RegistryStatus.DEPRECATED, True),
-        (RevalidationTriggerKind.SCHEDULED_REVALIDATION, RevalidationAction.REVALIDATION_REQUIRED, None, True),
-        (RevalidationTriggerKind.ADMINISTRATOR_SUSPENSION, RevalidationAction.SUSPEND, RegistryStatus.SUSPENDED, False),
-        (RevalidationTriggerKind.ADMINISTRATOR_DEPRECATION, RevalidationAction.DEPRECATE, RegistryStatus.DEPRECATED, False),
-        (RevalidationTriggerKind.ADMINISTRATOR_REVOCATION, RevalidationAction.REVOKE, RegistryStatus.REVOKED, False),
+        (
+            RevalidationTriggerKind.EVIDENCE_EXPIRED,
+            RevalidationAction.SUSPEND,
+            RegistryStatus.SUSPENDED,
+            True,
+        ),
+        (
+            RevalidationTriggerKind.EVIDENCE_REVOKED,
+            RevalidationAction.SUSPEND,
+            RegistryStatus.SUSPENDED,
+            True,
+        ),
+        (
+            RevalidationTriggerKind.APPROVAL_REVOKED,
+            RevalidationAction.SUSPEND,
+            RegistryStatus.SUSPENDED,
+            True,
+        ),
+        (
+            RevalidationTriggerKind.SECURITY_POLICY_CHANGED,
+            RevalidationAction.REVOKE,
+            RegistryStatus.REVOKED,
+            False,
+        ),
+        (
+            RevalidationTriggerKind.PRODUCT_VERSION_CHANGED,
+            RevalidationAction.DEPRECATE,
+            RegistryStatus.DEPRECATED,
+            True,
+        ),
+        (
+            RevalidationTriggerKind.PROTOCOL_VERSION_CHANGED,
+            RevalidationAction.DEPRECATE,
+            RegistryStatus.DEPRECATED,
+            True,
+        ),
+        (
+            RevalidationTriggerKind.RESTRICTION_CHANGED,
+            RevalidationAction.DEPRECATE,
+            RegistryStatus.DEPRECATED,
+            True,
+        ),
+        (
+            RevalidationTriggerKind.SCHEDULED_REVALIDATION,
+            RevalidationAction.REVALIDATION_REQUIRED,
+            None,
+            True,
+        ),
+        (
+            RevalidationTriggerKind.ADMINISTRATOR_SUSPENSION,
+            RevalidationAction.SUSPEND,
+            RegistryStatus.SUSPENDED,
+            False,
+        ),
+        (
+            RevalidationTriggerKind.ADMINISTRATOR_DEPRECATION,
+            RevalidationAction.DEPRECATE,
+            RegistryStatus.DEPRECATED,
+            False,
+        ),
+        (
+            RevalidationTriggerKind.ADMINISTRATOR_REVOCATION,
+            RevalidationAction.REVOKE,
+            RegistryStatus.REVOKED,
+            False,
+        ),
     ],
 )
 def test_deterministic_trigger_priority(
