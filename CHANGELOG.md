@@ -2,7 +2,19 @@
 
 ## Unreleased
 
-### v0.11 production admission design
+### v0.11.0 production admission
+
+The v0.11 production admission design and Phase A-E contracts are prepared for release as follows:
+
+- Prepared the Phase F documentation, release checklist, release-note draft, and release contract
+  tests without creating a tag or GitHub Release.
+- Kept the existing Python 3.11/3.12 full-pytest workflow: it already includes every Phase A-E,
+  approval, compatibility, profile-integration, and HTTP-security suite, so no duplicate targeted
+  workflow step was added.
+- Preserved public CLI exit codes `0` / `1` / `2` / `3`, report top-level schemas, the v0.9
+  Compatibility Profile path, v0.10 approval enforcement, and synthetic/in-memory/loopback paths.
+- Documented that synthetic safe fixtures are not real-product compatibility evidence and that
+  successful test-registry admission is not a production entry or runtime authorization.
 
 - Added Phase E immutable `RegistryAdmissionRequest`, `RegistryAdmissionEntry`,
   `RegistryAdmissionResult`, safe summaries, deterministic reason categories, and

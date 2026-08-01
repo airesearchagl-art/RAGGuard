@@ -540,12 +540,17 @@ temporal, maturity, restriction, reviewer, approver, or revalidation failure.
 ### Phase F: documentation, CI, and release preparation
 
 - Purpose: document the delivered contracts and prepare a separate release checklist.
-- Implementation: docs and design/release contract tests; add CI only when existing full-suite
-  coverage is insufficient.
+- Implementation: delivered through responsibility-separated README, Usage, Design Notes,
+  changelog, roadmap, v0.11.0 release checklist, and release contract tests. Existing full-suite CI
+  coverage is sufficient, so no duplicate targeted workflow step is added.
 - Non-goals: tag, GitHub Release, Vault update, product connection, production profile/entry.
 - Tests: full and targeted suites, CLI help, compile, YAML parse, diff/bidi/CR/secret scans.
 - Security: restate synthetic-only status and manual-validation non-completion.
 - Merge gate: clean reviewed PR and Python 3.11/3.12 Actions success.
+
+Phase F changes no Phase A-E runtime contract. It prepares release notes but does not create or
+push `v0.11.0`, publish a GitHub Release, perform manual validation, create a production profile or
+real registry entry, add persistence, connect to a product, or grant runtime production authority.
 
 ## Approval checklist before any real-product validation
 

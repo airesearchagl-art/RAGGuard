@@ -2,6 +2,35 @@
 
 [![Tests](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml)
 
+## RAG Benchmark Harness v0.11.0 production admission
+
+v0.11.0 adds immutable manual-validation plan and evidence contracts, exact plan/evidence binding,
+structural and temporal evidence validity, a pure production-admission evaluator, offline
+`inline_safe_fixture` import, and atomic admission to an explicitly test-only registry. Reviewer,
+approver, validation-operator, and registry-administrator responsibilities remain distinct, and
+review must precede approval strictly.
+
+Admission is deterministic and fail-closed. Phase C binds exact profile, protocol, product,
+version, reviewer, operator, evidence, and approval identities into its canonical digest chain.
+Phase E compares those decision-bound identities exactly, treats safe summaries only as checked
+advisory output, and leaves entry, write, event, transport, and HTTP counts at zero on denial.
+Resolution never performs fallback, nearest-version selection, schema inference, automatic
+approval, recovery, or rollback.
+
+This is a synthetic-safe-fixture release boundary. No manual validation was performed, no
+production profile or real production-registry entry exists, and no registry persistence or
+runtime production authorization is provided. It includes no real-product compatibility evidence,
+credentials, real documents, external/private-LAN access, or Phase D/E filesystem, network, or
+subprocess path. Synthetic fixtures are not evidence of real-product compatibility, and test-only
+registry admission is not runtime production authorization.
+
+The public CLI remains `check-mask` and `benchmark`; exit codes `0` / `1` / `2` / `3`, report
+top-level schemas, the v0.9 Compatibility Profile path, v0.10 approval enforcement, and existing
+synthetic/in-memory/loopback paths remain compatible. See [Usage](docs/USAGE.md),
+[Design Notes](docs/DESIGN_NOTES.md), the
+[v0.11 Production Admission Design](docs/PRODUCTION_ADMISSION_DESIGN_V0.11.md), and the
+[v0.11.0 Release Checklist](docs/RELEASE_CHECKLIST_V0.11.0.md).
+
 ## RAG Benchmark Harness v0.10.0 approval governance
 
 v0.10.0 is prepared as a synthetic-only governance release. Phases A-E implement immutable profile
