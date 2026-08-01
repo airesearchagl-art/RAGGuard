@@ -77,6 +77,13 @@ class RegistryLifecycleReason(str, Enum):
     REGISTRY_COMMIT_FAILED = "registry_commit_failed"
 
 
+class RegistryLifecycleCommitFault(str, Enum):
+    ADMISSION_STATE_CANDIDATE = "admission_state_candidate"
+    EVENT_CANDIDATE = "event_candidate"
+    COUNTER_AND_REQUEST_CANDIDATE = "counter_and_request_candidate"
+    BEFORE_COMMIT = "before_commit"
+
+
 _REASON_ORDER = tuple(RegistryLifecycleReason)
 
 
@@ -196,6 +203,14 @@ class RegistryLifecycleEvent:
     resulting_entry_digest: str
     restriction_count: int
     safe_summary: str = "test_registry_lifecycle_transition"
+
+
+@dataclass(frozen=True)
+class _RegistryLifecycleCommitState:
+    events: tuple[RegistryLifecycleEvent, ...]
+    write_count: int
+    mutation_count: int
+    committed_request_ids: frozenset[str]
 
 
 @dataclass(frozen=True)
@@ -355,18 +370,46 @@ class TestRegistryLifecycleStore:
         admission_registry: TestRegistryAdmissionStore,
         *,
         fail_commit: bool = False,
+        failure_point: RegistryLifecycleCommitFault | None = None,
     ) -> None:
         if (
             not isinstance(admission_registry, TestRegistryAdmissionStore)
             or type(fail_commit) is not bool
+            or (
+                failure_point is not None
+                and not isinstance(failure_point, RegistryLifecycleCommitFault)
+            )
+            or (fail_commit and failure_point is not None)
         ):
             _raise(RegistryLifecycleReason.REGISTRY_KIND_INVALID)
         self._admission_registry = admission_registry
-        self._events: tuple[RegistryLifecycleEvent, ...] = ()
-        self._write_count = 0
-        self._mutation_count = 0
-        self._committed_requests: frozenset[str] = frozenset()
-        self._fail_commit = fail_commit
+        initial_state = _RegistryLifecycleCommitState(
+            events=(),
+            write_count=0,
+            mutation_count=0,
+            committed_request_ids=frozenset(),
+        )
+        extension_state = admission_registry._test_extension_state
+        if extension_state is None:
+            admission_state = admission_registry._build_test_state_bundle(
+                entries=admission_registry.snapshot,
+                extension_state=initial_state,
+            )
+            admission_registry._replace_test_state_bundle(admission_state)
+        elif not isinstance(extension_state, _RegistryLifecycleCommitState):
+            _raise(RegistryLifecycleReason.REGISTRY_KIND_INVALID)
+        self._failure_point = (
+            RegistryLifecycleCommitFault.BEFORE_COMMIT
+            if fail_commit
+            else failure_point
+        )
+
+    @property
+    def _commit_state(self) -> _RegistryLifecycleCommitState:
+        state = self._admission_registry._test_extension_state
+        if not isinstance(state, _RegistryLifecycleCommitState):
+            _raise(RegistryLifecycleReason.REGISTRY_COMMIT_FAILED)
+        return state
 
     @property
     def kind(self) -> RegistryKind:
@@ -374,15 +417,23 @@ class TestRegistryLifecycleStore:
 
     @property
     def events(self) -> tuple[RegistryLifecycleEvent, ...]:
-        return self._events
+        return self._commit_state.events
 
     @property
     def write_count(self) -> int:
-        return self._write_count
+        return self._commit_state.write_count
 
     @property
     def mutation_count(self) -> int:
-        return self._mutation_count
+        return self._commit_state.mutation_count
+
+    @property
+    def committed_request_ids(self) -> frozenset[str]:
+        return self._commit_state.committed_request_ids
+
+    @property
+    def admission_snapshot(self) -> object:
+        return self._admission_registry.snapshot
 
     @property
     def transport_count(self) -> int:
@@ -423,25 +474,55 @@ class TestRegistryLifecycleStore:
         return entry
 
     def _is_duplicate(self, lifecycle_request_id: str) -> bool:
-        return lifecycle_request_id in self._committed_requests
+        return lifecycle_request_id in self._commit_state.committed_request_ids
+
+    def _disable_failure_injection(self) -> None:
+        self._failure_point = None
+
+    def _fail_if(self, point: RegistryLifecycleCommitFault) -> None:
+        if self._failure_point is point:
+            _raise(RegistryLifecycleReason.REGISTRY_COMMIT_FAILED)
 
     def _commit_transition(
         self,
         *,
         request: RegistryLifecycleRequest,
         event: RegistryLifecycleEvent,
+        expected_entry: RegistryAdmissionEntry,
+        replacement_entry: RegistryAdmissionEntry,
     ) -> None:
-        if self._fail_commit:
-            _raise(RegistryLifecycleReason.REGISTRY_COMMIT_FAILED)
-        self._admission_registry.transition_status(
-            profile_id=request.trigger.profile_id,
-            profile_version=request.trigger.profile_version,
-            target=request.requested_status,
+        current_state = self._commit_state
+
+        self._fail_if(RegistryLifecycleCommitFault.ADMISSION_STATE_CANDIDATE)
+        entries_candidate = (
+            self._admission_registry._build_replacement_entries_candidate(
+                expected_entry=expected_entry,
+                replacement_entry=replacement_entry,
+            )
         )
-        self._events = (*self._events, event)
-        self._write_count += 1
-        self._mutation_count += 1
-        self._committed_requests = self._committed_requests | {request.lifecycle_request_id}
+
+        self._fail_if(RegistryLifecycleCommitFault.EVENT_CANDIDATE)
+        events_candidate = (*current_state.events, event)
+
+        self._fail_if(
+            RegistryLifecycleCommitFault.COUNTER_AND_REQUEST_CANDIDATE
+        )
+        commit_state_candidate = _RegistryLifecycleCommitState(
+            events=events_candidate,
+            write_count=current_state.write_count + 1,
+            mutation_count=current_state.mutation_count + 1,
+            committed_request_ids=current_state.committed_request_ids
+            | {request.lifecycle_request_id},
+        )
+        state_bundle_candidate = self._admission_registry._build_test_state_bundle(
+            entries=entries_candidate,
+            extension_state=commit_state_candidate,
+        )
+
+        self._fail_if(RegistryLifecycleCommitFault.BEFORE_COMMIT)
+        self._admission_registry._replace_test_state_bundle(
+            state_bundle_candidate
+        )
 
     def __repr__(self) -> str:
         return "TestRegistryLifecycleStore(<safe>)"
@@ -541,7 +622,12 @@ def enforce_registry_lifecycle(
     event = _event(request, entry, transitioned)
     result = _result(request, entry=entry, transitioned=transitioned, event=event)
     try:
-        registry._commit_transition(request=request, event=event)
+        registry._commit_transition(
+            request=request,
+            event=event,
+            expected_entry=entry,
+            replacement_entry=transitioned,
+        )
     except Exception:
         return _result(
             request,

@@ -578,22 +578,32 @@ class RegistryAdmissionEvent:
     category: str = "test_registry_admitted"
 
 
+_TestRegistryEntryKey = tuple[
+    str,
+    SemanticVersion,
+    str,
+    SemanticVersion,
+    SemanticVersion,
+]
+
+
+@dataclass(frozen=True)
+class _TestRegistryAdmissionState:
+    entries: Mapping[_TestRegistryEntryKey, RegistryAdmissionEntry]
+    events: tuple[RegistryAdmissionEvent, ...]
+    write_count: int
+    extension_state: object | None = None
+
+
 class TestRegistryAdmissionStore:
     __test__ = False
 
     def __init__(self) -> None:
-        self._entries: dict[
-            tuple[
-                str,
-                SemanticVersion,
-                str,
-                SemanticVersion,
-                SemanticVersion,
-            ],
-            RegistryAdmissionEntry,
-        ] = {}
-        self._events: tuple[RegistryAdmissionEvent, ...] = ()
-        self._write_count = 0
+        self._state = _TestRegistryAdmissionState(
+            entries=MappingProxyType({}),
+            events=(),
+            write_count=0,
+        )
 
     @property
     def kind(self) -> RegistryKind:
@@ -612,15 +622,15 @@ class TestRegistryAdmissionStore:
         ],
         RegistryAdmissionEntry,
     ]:
-        return MappingProxyType(dict(self._entries))
+        return MappingProxyType(dict(self._state.entries))
 
     @property
     def events(self) -> tuple[RegistryAdmissionEvent, ...]:
-        return self._events
+        return self._state.events
 
     @property
     def write_count(self) -> int:
-        return self._write_count
+        return self._state.write_count
 
     @property
     def transport_count(self) -> int:
@@ -637,7 +647,7 @@ class TestRegistryAdmissionStore:
     ) -> bool:
         return any(
             key[0] == profile_id and key[1] == profile_version
-            for key in self._entries
+            for key in self._state.entries
         )
 
     def profile_version_status(
@@ -645,7 +655,7 @@ class TestRegistryAdmissionStore:
         profile_id: str,
         profile_version: SemanticVersion,
     ) -> RegistryStatus | None:
-        for key, entry in self._entries.items():
+        for key, entry in self._state.entries.items():
             if key[0] == profile_id and key[1] == profile_version:
                 return entry.registry_status
         return None
@@ -677,7 +687,7 @@ class TestRegistryAdmissionStore:
             )
         ):
             _raise(RegistryAdmissionReason.IDENTITY_MISMATCH)
-        entry = self._entries.get(
+        entry = self._state.entries.get(
             (
                 profile_id,
                 profile_version,
@@ -701,7 +711,7 @@ class TestRegistryAdmissionStore:
     ) -> None:
         matches = [
             (key, entry)
-            for key, entry in self._entries.items()
+            for key, entry in self._state.entries.items()
             if key[0] == profile_id and key[1] == profile_version
         ]
         if len(matches) != 1 or not isinstance(target, RegistryStatus):
@@ -709,14 +719,65 @@ class TestRegistryAdmissionStore:
         key, entry = matches[0]
         if (entry.registry_status, target) not in _TEST_STATUS_TRANSITIONS:
             _raise(RegistryAdmissionReason.STATUS_INELIGIBLE)
-        self._entries = {
-            **self._entries,
-            key: replace(entry, registry_status=target),
-        }
+        self._state = _TestRegistryAdmissionState(
+            entries=MappingProxyType(
+                {
+                    **self._state.entries,
+                    key: replace(entry, registry_status=target),
+                }
+            ),
+            events=self._state.events,
+            write_count=self._state.write_count,
+            extension_state=self._state.extension_state,
+        )
+
+    @property
+    def _test_extension_state(self) -> object | None:
+        return self._state.extension_state
+
+    def _build_replacement_entries_candidate(
+        self,
+        *,
+        expected_entry: RegistryAdmissionEntry,
+        replacement_entry: RegistryAdmissionEntry,
+    ) -> Mapping[_TestRegistryEntryKey, RegistryAdmissionEntry]:
+        expected_key = _entry_key(expected_entry)
+        if (
+            _entry_key(replacement_entry) != expected_key
+            or self._state.entries.get(expected_key) != expected_entry
+        ):
+            _raise(RegistryAdmissionReason.STATUS_INELIGIBLE)
+        return MappingProxyType(
+            {
+                **self._state.entries,
+                expected_key: replacement_entry,
+            }
+        )
+
+    def _build_test_state_bundle(
+        self,
+        *,
+        entries: Mapping[_TestRegistryEntryKey, RegistryAdmissionEntry],
+        extension_state: object,
+    ) -> _TestRegistryAdmissionState:
+        return _TestRegistryAdmissionState(
+            entries=MappingProxyType(dict(entries)),
+            events=self._state.events,
+            write_count=self._state.write_count,
+            extension_state=extension_state,
+        )
+
+    def _replace_test_state_bundle(
+        self,
+        candidate: _TestRegistryAdmissionState,
+    ) -> None:
+        if not isinstance(candidate, _TestRegistryAdmissionState):
+            _raise(RegistryAdmissionReason.STATUS_INELIGIBLE)
+        self._state = candidate
 
     def _commit(self, entry: RegistryAdmissionEntry) -> None:
         key = _entry_key(entry)
-        if key in self._entries or self.contains_profile_version(
+        if key in self._state.entries or self.contains_profile_version(
             entry.profile_id, entry.profile_version
         ):
             _raise(RegistryAdmissionReason.DUPLICATE_ENTRY)
@@ -725,9 +786,12 @@ class TestRegistryAdmissionStore:
             profile_id=entry.profile_id,
             profile_version=str(entry.profile_version),
         )
-        self._entries = {**self._entries, key: entry}
-        self._events = (*self._events, event)
-        self._write_count += 1
+        self._state = _TestRegistryAdmissionState(
+            entries=MappingProxyType({**self._state.entries, key: entry}),
+            events=(*self._state.events, event),
+            write_count=self._state.write_count + 1,
+            extension_state=self._state.extension_state,
+        )
 
     def __repr__(self) -> str:
         return "TestRegistryAdmissionStore(<safe>)"

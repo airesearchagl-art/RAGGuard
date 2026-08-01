@@ -12,9 +12,12 @@ the lifecycle actor to the explicit request while separating that actor from the
 operator, evidence reviewer, and approver.
 
 Status movement is monotonic: active may become suspended, deprecated, or revoked; suspended may
-become deprecated or revoked; deprecated may become revoked; revoked is terminal. A denied or
-failed transition cannot leave a partial entry, result, event, write, transport, or HTTP effect.
-Safe summaries remain bounded output and never replace canonical identity.
+become deprecated or revoked; deprecated may become revoked; revoked is terminal. Lifecycle commit
+first builds a complete immutable candidate containing the admission snapshot, event tuple,
+counters, and committed request IDs, then replaces one test-only internal state-bundle reference.
+It does not mutate admission status first or rely on rollback. A denied or failed transition leaves
+the snapshot, status, events, counters, request IDs, transport, and HTTP state unchanged. Safe
+summaries remain bounded output and never replace canonical identity.
 
 Revalidation completion is deliberately not an active rollback. Fresh evidence, independent
 review, approval, admission decision, and admission are required for a future replacement entry.

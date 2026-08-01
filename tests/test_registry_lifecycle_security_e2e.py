@@ -9,6 +9,7 @@ import test_registry_admission_security_e2e as phase_e
 from ragguard.production_registry import RegistryKind, RegistryStatus, TrustedProductionRegistry
 from ragguard.registry_admission import TestRegistryAdmissionStore, enforce_registry_admission
 from ragguard.registry_lifecycle import (
+    RegistryLifecycleCommitFault,
     RegistryLifecycleReason,
     RegistryLifecycleRequest,
     TestRegistryLifecycleStore,
@@ -18,7 +19,9 @@ from ragguard.revalidation import RevalidationTrigger, RevalidationTriggerKind
 from test_revalidation_contract import SAFE_CONTEXT
 
 
-def full_context():
+def full_context(
+    failure_point: RegistryLifecycleCommitFault | None = None,
+):
     admission_request = phase_e.lifecycle_request()
     admission_registry = TestRegistryAdmissionStore()
     admission_result = enforce_registry_admission(
@@ -27,7 +30,10 @@ def full_context():
     )
     assert admission_result.admitted is True
     assert admission_result.entry is not None
-    lifecycle_store = TestRegistryLifecycleStore(admission_registry)
+    lifecycle_store = TestRegistryLifecycleStore(
+        admission_registry,
+        failure_point=failure_point,
+    )
     return admission_request, admission_result.entry, lifecycle_store
 
 
@@ -118,6 +124,39 @@ def test_full_phase_a_to_v012_lifecycle_is_test_only_and_transport_free() -> Non
     assert current.plan_digest == entry.plan_digest
     assert current.evidence_digest == entry.evidence_digest
     assert current.admission_decision_digest == entry.admission_decision_digest
+
+
+@pytest.mark.parametrize("failure_point", tuple(RegistryLifecycleCommitFault))
+def test_full_chain_commit_faults_leave_zero_side_effects(
+    failure_point: RegistryLifecycleCommitFault,
+) -> None:
+    admission_request, entry, store = full_context(failure_point)
+    request = lifecycle_request(admission_request, entry)
+    snapshot_before = dict(store.admission_snapshot)
+
+    result = enforce_registry_lifecycle(
+        request,
+        registry=store,
+        admission_request=admission_request,
+    )
+
+    assert result.applied is False
+    assert result.reason_categories == (
+        RegistryLifecycleReason.REGISTRY_COMMIT_FAILED,
+    )
+    assert dict(store.admission_snapshot) == snapshot_before
+    assert store.events == ()
+    assert store.write_count == store.mutation_count == 0
+    assert store.committed_request_ids == frozenset()
+    assert store.transport_count == store.http_count == 0
+    current = store.resolve_status_exact(
+        profile_id=entry.profile_id,
+        profile_version=entry.profile_version,
+        product_id=entry.product_id,
+        product_version=entry.product_version,
+        protocol_version=entry.protocol_version,
+    )
+    assert current.registry_status is RegistryStatus.ACTIVE
 
 
 def test_future_trigger_denial_has_zero_side_effects() -> None:

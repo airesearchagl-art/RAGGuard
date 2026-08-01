@@ -147,13 +147,22 @@ Forbidden:
 The operation is separated into:
 
 1. validate all structural, identity, digest, role, temporal, status, and boundary gates;
-2. construct the replacement immutable entry, event, and result;
-3. commit exactly once to the test-only in-memory registry.
+2. construct the replacement immutable entry and result;
+3. build every candidate locally: the complete admission-entry snapshot, lifecycle event tuple,
+   write/mutation counters, committed request-ID set, and their enclosing immutable state bundle;
+4. commit exactly once by replacing the test-only admission store's internal state-bundle
+   reference.
 
-Commit occurs only after every validation succeeds. A denied transition or injected commit failure
-leaves lifecycle mutation count, lifecycle event count, lifecycle write count, transport count,
-and HTTP count at zero; the entry status is unchanged and no partial transition result is exposed.
-Duplicate commits and overwrites are rejected.
+The lifecycle path does not call `transition_status()` before recording its event and counters.
+There is no sequential entry-first mutation and no rollback path. Commit occurs only after every
+candidate has been built successfully; after the single reference replacement there is no
+remaining fallible update. A denied transition or a fault injected while building the admission
+snapshot, event tuple, counters/request IDs, or immediately before commit leaves the admission
+snapshot, entry status, lifecycle events, counters, and committed request IDs unchanged. Transport
+and HTTP counts remain zero: specifically, lifecycle mutation count, lifecycle event count,
+lifecycle write count, transport count, and HTTP count are all unchanged. No partial transition
+result is exposed. A failed request ID is not consumed and may be retried after the fault or invalid
+input is corrected. Duplicate successful commits and overwrites are rejected.
 
 The admission entry is replaced immutably only to update status. It preserves admission ID,
 profile/product/protocol identity, plan digest, evidence digest, reviewer-attestation digest,

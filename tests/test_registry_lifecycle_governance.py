@@ -12,6 +12,7 @@ from ragguard.production_registry import RegistryKind, RegistryStatus, TrustedPr
 from ragguard.registry_admission import TestRegistryAdmissionStore, enforce_registry_admission
 from ragguard.registry_lifecycle import (
     CANONICAL_REGISTRY_LIFECYCLE_DIGEST_ALGORITHM,
+    RegistryLifecycleCommitFault,
     RegistryLifecycleError,
     RegistryLifecycleReason,
     RegistryLifecycleRequest,
@@ -47,7 +48,11 @@ def test_public_api_exports_v012_contracts() -> None:
     assert all(hasattr(ragguard, name) for name in expected)
 
 
-def context(*, fail_commit: bool = False):
+def context(
+    *,
+    fail_commit: bool = False,
+    failure_point: RegistryLifecycleCommitFault | None = None,
+):
     admission_request = admission_request_factory()
     admission_registry = TestRegistryAdmissionStore()
     admission_result = enforce_registry_admission(
@@ -59,6 +64,7 @@ def context(*, fail_commit: bool = False):
     lifecycle_store = TestRegistryLifecycleStore(
         admission_registry,
         fail_commit=fail_commit,
+        failure_point=failure_point,
     )
     return admission_request, admission_result.entry, lifecycle_store
 
@@ -374,16 +380,28 @@ def test_denied_bindings_leave_no_lifecycle_side_effects(override, reason) -> No
     assert store.transport_count == store.http_count == 0
 
 
-def test_commit_failure_is_atomic() -> None:
-    admission_request, entry, store = context(fail_commit=True)
+@pytest.mark.parametrize("failure_point", tuple(RegistryLifecycleCommitFault))
+def test_commit_failures_preserve_the_complete_state_bundle(
+    failure_point: RegistryLifecycleCommitFault,
+) -> None:
+    admission_request, entry, store = context(failure_point=failure_point)
     request = lifecycle_request(admission_request, entry)
+    snapshot_before = dict(store.admission_snapshot)
+    events_before = store.events
+    write_count_before = store.write_count
+    mutation_count_before = store.mutation_count
+    committed_before = store.committed_request_ids
     result = enforce_registry_lifecycle(
         request, registry=store, admission_request=admission_request
     )
     assert result.applied is False
     assert result.reason_categories == (RegistryLifecycleReason.REGISTRY_COMMIT_FAILED,)
-    assert store.mutation_count == store.write_count == 0
-    assert store.events == ()
+    assert dict(store.admission_snapshot) == snapshot_before
+    assert store.events == events_before == ()
+    assert store.write_count == write_count_before == 0
+    assert store.mutation_count == mutation_count_before == 0
+    assert store.committed_request_ids == committed_before == frozenset()
+    assert store.transport_count == store.http_count == 0
     current = store.resolve_status_exact(
         profile_id=entry.profile_id,
         profile_version=entry.profile_version,
@@ -392,6 +410,81 @@ def test_commit_failure_is_atomic() -> None:
         protocol_version=entry.protocol_version,
     )
     assert current.registry_status is RegistryStatus.ACTIVE
+
+
+def test_failed_commit_can_retry_the_same_request_after_fault_is_removed() -> None:
+    admission_request, entry, store = context(
+        failure_point=RegistryLifecycleCommitFault.BEFORE_COMMIT
+    )
+    request = lifecycle_request(admission_request, entry)
+    failed = enforce_registry_lifecycle(
+        request, registry=store, admission_request=admission_request
+    )
+    assert failed.applied is False
+    assert request.lifecycle_request_id not in store.committed_request_ids
+
+    store._disable_failure_injection()
+    retried = enforce_registry_lifecycle(
+        request, registry=store, admission_request=admission_request
+    )
+    assert retried.applied is True
+    assert store.mutation_count == store.write_count == 1
+    assert store.committed_request_ids == frozenset({request.lifecycle_request_id})
+    assert len(store.events) == 1
+
+
+def test_denied_request_id_can_retry_after_request_is_corrected() -> None:
+    admission_request, entry, store = context()
+    denied_request = lifecycle_request(
+        admission_request,
+        entry,
+        expected_current_status=RegistryStatus.DEPRECATED,
+    )
+    denied = enforce_registry_lifecycle(
+        denied_request,
+        registry=store,
+        admission_request=admission_request,
+    )
+    assert denied.applied is False
+    assert store.committed_request_ids == frozenset()
+
+    corrected = lifecycle_request(
+        admission_request,
+        entry,
+        lifecycle_request_id=denied_request.lifecycle_request_id,
+    )
+    retried = enforce_registry_lifecycle(
+        corrected, registry=store, admission_request=admission_request
+    )
+    assert retried.applied is True
+    assert store.committed_request_ids == frozenset(
+        {denied_request.lifecycle_request_id}
+    )
+
+
+def test_successful_commit_updates_the_complete_state_bundle() -> None:
+    admission_request, entry, store = context()
+    request = lifecycle_request(admission_request, entry)
+    snapshot_before = dict(store.admission_snapshot)
+
+    result = enforce_registry_lifecycle(
+        request, registry=store, admission_request=admission_request
+    )
+
+    assert result.applied is True
+    assert dict(store.admission_snapshot) != snapshot_before
+    current = store.resolve_status_exact(
+        profile_id=entry.profile_id,
+        profile_version=entry.profile_version,
+        product_id=entry.product_id,
+        product_version=entry.product_version,
+        protocol_version=entry.protocol_version,
+    )
+    assert current.registry_status is RegistryStatus.SUSPENDED
+    assert store.events == (result.event,)
+    assert store.write_count == store.mutation_count == 1
+    assert store.committed_request_ids == frozenset({request.lifecycle_request_id})
+    assert store.transport_count == store.http_count == 0
 
 
 def test_production_registry_mutation_is_rejected() -> None:
