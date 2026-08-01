@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### v0.12.0 registry lifecycle governance
+
+- Added immutable revalidation trigger/requirement and registry lifecycle request/result/event
+  contracts with separate SHA-256 canonical digests and UTC six-digit-microsecond timestamps.
+- Added a pure deterministic requirement evaluator for evidence/approval invalidation, security
+  changes, version/restriction supersession, scheduled revalidation, and administrator actions.
+- Added exact entry/admission/evidence identity and digest binding, explicit temporal gates, and
+  lifecycle-administrator separation from validation operator, evidence reviewer, and approver.
+- Added test-only atomic lifecycle transitions for the six allowed forward status changes. Revoked
+  is terminal; active recovery, rollback, no-op writes, fallback, nearest-version selection, and
+  schema inference are rejected.
+- Added full-chain synthetic Security E2E and atomic denial checks requiring zero lifecycle
+  mutation/event/write/transport/HTTP counts and unchanged entry state.
+- Added no production registry write, persistence, runtime authorization, transport, HTTP,
+  production profile, real entry, manual validation, real-product connection, credential, real
+  document, external/private-LAN access, workflow, or Node runtime warning change.
+
 ### v0.11.0 production admission
 
 The v0.11 production admission design and Phase A-E contracts are prepared for release as follows:

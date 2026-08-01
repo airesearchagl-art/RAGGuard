@@ -1,5 +1,25 @@
 # RAGGuard Roadmap
 
+## Delivery: RAG Benchmark Harness v0.12 registry lifecycle governance
+
+v0.12 is delivered as one design/contract/implementation/security/docs unit rather than separate
+phases. It governs post-admission revalidation and monotonic status changes only in the test-only
+registry contract.
+
+- Immutable revalidation trigger and pure deterministic requirement evaluator.
+- Exact entry/admission/evidence identity, digest, role, restriction, status, and time binding.
+- Allowed one-way suspension, deprecation, and revocation transitions with terminal revocation.
+- Validate/construct/commit separation and zero lifecycle side effects on denial.
+- Full-chain synthetic Security E2E with exact status resolution and zero transport/HTTP activity.
+- Documentation and v0.12.0 release-preparation contract without tag or Release creation.
+
+The next separately approved work is a future replacement-entry design requiring fresh evidence,
+review, approval, admission decision, and admission. Real production registry operation,
+persistence, runtime authorization, manual validation, and real-product connection remain outside
+v0.12. Node runtime warning maintenance remains a separate CI task.
+
+Authoritative design: [v0.12 Registry Lifecycle Design](docs/REGISTRY_LIFECYCLE_DESIGN_V0.12.md).
+
 ## Design: RAG Benchmark Harness v0.11 production admission
 
 v0.11 designs the manual-validation and evidence-review boundary required before an immutable

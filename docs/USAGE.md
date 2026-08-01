@@ -1,5 +1,30 @@
 # Usage
 
+## v0.12.0 registry-lifecycle usage boundary
+
+v0.12 adds no CLI command or production connection. The public CLI remains `check-mask` and
+`benchmark`, with unchanged report top-level schemas and exit codes `0` / `1` / `2` / `3`.
+
+The internal test-only sequence is:
+
+1. obtain an existing successful v0.11 test-registry admission;
+2. construct an immutable revalidation trigger with explicit identity, digests, actor, and time;
+3. evaluate a pure deterministic requirement;
+4. construct an immutable lifecycle request with the expected entry status/digest/restrictions;
+5. apply one allowed one-way transition through `TestRegistryLifecycleStore`;
+6. confirm the resulting status through exact profile/product/protocol resolution.
+
+Only `suspended`, `deprecated`, and `revoked` may be requested. Revalidation required is not
+approval, suspension is not revocation, and revoked is terminal. There is no automatic active
+recovery. A replacement requires fresh evidence, a new review, a new approval decision, a new
+admission decision, and a new registry admission.
+
+Do not pass a production registry, endpoint, path, credential, raw request/response, real document,
+or real-product identity into this contract. Test-only lifecycle mutation is not runtime production
+authorization. The complete boundary is in
+[v0.12 Registry Lifecycle Design](REGISTRY_LIFECYCLE_DESIGN_V0.12.md), and release verification is
+in [v0.12.0 Release Checklist](RELEASE_CHECKLIST_V0.12.0.md).
+
 ## v0.11.0 production-admission usage boundary
 
 v0.11.0 adds no public production-admission command. The supported public CLI remains

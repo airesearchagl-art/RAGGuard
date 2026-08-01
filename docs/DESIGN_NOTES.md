@@ -1,5 +1,30 @@
 # Design Notes
 
+## RAG Benchmark Harness v0.12 registry lifecycle governance
+
+v0.12 governs an already admitted test-only entry after v0.11 admission. The authoritative design
+is [v0.12 Registry Lifecycle Design](REGISTRY_LIFECYCLE_DESIGN_V0.12.md).
+
+The implementation separates an immutable trigger, a pure requirement evaluator, an immutable
+lifecycle request/result/event chain, and a test-only atomic commit boundary. It recalculates and
+compares the current entry, admission request, admission decision, and evidence digests and binds
+the lifecycle actor to the explicit request while separating that actor from the validation
+operator, evidence reviewer, and approver.
+
+Status movement is monotonic: active may become suspended, deprecated, or revoked; suspended may
+become deprecated or revoked; deprecated may become revoked; revoked is terminal. Lifecycle commit
+first builds a complete immutable candidate containing the admission snapshot, event tuple,
+counters, and committed request IDs, then replaces one test-only internal state-bundle reference.
+It does not mutate admission status first or rely on rollback. A denied or failed transition leaves
+the snapshot, status, events, counters, request IDs, transport, and HTTP state unchanged. Safe
+summaries remain bounded output and never replace canonical identity.
+
+Revalidation completion is deliberately not an active rollback. Fresh evidence, independent
+review, approval, admission decision, and admission are required for a future replacement entry.
+No production registry mutation, persistence, runtime authorization, transport/HTTP integration,
+manual validation, real-product connection, credential, real document, workflow, or Node runtime
+warning change is part of v0.12.
+
 ## RAG Benchmark Harness v0.11 production admission design
 
 v0.11 separates real-product manual evidence and production admission from the v0.10 synthetic
