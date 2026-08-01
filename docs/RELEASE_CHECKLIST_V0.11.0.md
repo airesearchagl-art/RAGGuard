@@ -95,7 +95,8 @@ Highlights:
 
 Limitations:
 
-- No performed manual validation, production profile, real production-registry entry, persistence,
+- No manual validation was performed; no production profile, real production-registry entry,
+  persistence,
   real-product connection, credentials, real documents, or external/private-LAN access.
 - Synthetic fixtures are not evidence of real-product compatibility.
 - Registry admission success is not runtime production authorization.

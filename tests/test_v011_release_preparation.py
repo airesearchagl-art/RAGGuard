@@ -138,6 +138,20 @@ def test_v011_release_preparation_does_not_define_runtime_artifacts() -> None:
         "real production-registry entry",
         "registry persistence",
         "runtime production authorization",
-        "no performed manual validation",
+        "no manual validation was performed",
     ):
         assert excluded in checklist
+
+
+def test_v011_usage_separates_plan_evidence_review_and_approval() -> None:
+    usage = " ".join(_read("docs/USAGE.md").lower().split())
+    assert "approved immutable manual-validation plan" not in usage
+    assert (
+        "immutable manual-validation plan that passes the phase a plan contract"
+        in usage
+    )
+    assert "a valid plan is not approval" in usage
+    assert "is not manual evidence" in usage
+    assert "a reviewer attestation precedes a decision by a distinct approver" in usage
+    assert "approval occurs only at that later decision stage" in usage
+    assert "test-registry admission is not runtime production authorization" in usage
