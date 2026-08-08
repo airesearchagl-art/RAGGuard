@@ -1932,3 +1932,8 @@ The test-only store follows validate, construct all candidate state, then one im
 swap. Denial and injected commit failures leave both entries, events, counters, replay sets, and
 committed IDs unchanged. This boundary adds no persistence, production registry, runtime
 authorization, transport, HTTP, workflow, or Node action maintenance.
+
+Successful replacements also atomically record the v0.13 approval-metadata digest and reviewer
+attestation digest. Those identities cannot be replayed by another successful replacement chain.
+Validation denial or commit failure leaves both used-digest sets unchanged and does not prevent a
+corrected retry.

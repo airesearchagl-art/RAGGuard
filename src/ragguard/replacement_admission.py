@@ -888,6 +888,8 @@ class _ReplacementStoreState:
     committed_request_ids: frozenset[str]
     replaced_predecessor_digests: frozenset[str]
     committed_pairs: frozenset[tuple[str, str]]
+    used_approval_metadata_digests: frozenset[str]
+    used_attestation_digests: frozenset[str]
     used_evidence_digests: frozenset[str]
     used_decision_digests: frozenset[str]
 
@@ -926,6 +928,8 @@ class TestReplacementAdmissionStore:
             committed_request_ids=frozenset(),
             replaced_predecessor_digests=frozenset(),
             committed_pairs=frozenset(),
+            used_approval_metadata_digests=frozenset(),
+            used_attestation_digests=frozenset(),
             used_evidence_digests=frozenset(),
             used_decision_digests=frozenset(),
         )
@@ -954,6 +958,14 @@ class TestReplacementAdmissionStore:
     @property
     def committed_request_ids(self) -> frozenset[str]:
         return self._state.committed_request_ids
+
+    @property
+    def used_approval_metadata_digests(self) -> frozenset[str]:
+        return self._state.used_approval_metadata_digests
+
+    @property
+    def used_attestation_digests(self) -> frozenset[str]:
+        return self._state.used_attestation_digests
 
     @property
     def transport_count(self) -> int:
@@ -1036,6 +1048,16 @@ class TestReplacementAdmissionStore:
             reasons.add(ReplacementAdmissionReason.CHAIN_REUSE)
         if request.new_evidence_digest in self._state.used_evidence_digests:
             reasons.add(ReplacementAdmissionReason.CHAIN_REUSE)
+        approval_digest = _approval_digest(
+            request.new_production_admission_request.profile_approval_metadata
+        )
+        if approval_digest in self._state.used_approval_metadata_digests:
+            reasons.add(ReplacementAdmissionReason.CHAIN_REUSE)
+        if (
+            request.new_attestation_digest
+            in self._state.used_attestation_digests
+        ):
+            reasons.add(ReplacementAdmissionReason.CHAIN_REUSE)
         if (
             request.new_admission_decision_digest
             in self._state.used_decision_digests
@@ -1081,6 +1103,9 @@ class TestReplacementAdmissionStore:
         )
         self._fail_if(ReplacementCommitFault.EVENT_CANDIDATE)
         events_candidate = (*current.events, event)
+        approval_digest = _approval_digest(
+            request.new_production_admission_request.profile_approval_metadata
+        )
         self._fail_if(ReplacementCommitFault.COUNTER_AND_REQUEST_CANDIDATE)
         candidate = _ReplacementStoreState(
             entries=entries_candidate,
@@ -1100,6 +1125,12 @@ class TestReplacementAdmissionStore:
                     request.new_admission_decision_digest,
                 )
             },
+            used_approval_metadata_digests=(
+                current.used_approval_metadata_digests
+                | {approval_digest}
+            ),
+            used_attestation_digests=current.used_attestation_digests
+            | {request.new_attestation_digest},
             used_evidence_digests=current.used_evidence_digests
             | {request.new_evidence_digest},
             used_decision_digests=current.used_decision_digests

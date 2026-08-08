@@ -25,6 +25,10 @@ Evidence completion must postdate the predecessor admission, and the new chain m
 The predecessor production-admission request is re-evaluated and bound to the predecessor entry's
 decision, plan, evidence, and attestation digests. Approval metadata receives a v0.13 canonical
 digest so exact approval-record reuse is also rejected rather than inferred from a safe summary.
+Fresh approval metadata and reviewer attestation are one-time chain identities across all
+successful replacements in the test-only store. A later replacement cannot replay either digest,
+even when it targets a different request or successor identity. Denials and commit faults do not
+consume these identities, so a corrected request remains retryable.
 
 `evidence completion < review < approval <= admission decision <= replacement evaluation < expiry`
 

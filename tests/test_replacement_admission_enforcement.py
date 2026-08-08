@@ -13,6 +13,7 @@ from ragguard.replacement_admission import (
     enforce_replacement_admission,
 )
 from test_replacement_admission_contract import (
+    fresh_production_request,
     replacement_context,
     replacement_request,
 )
@@ -27,6 +28,15 @@ def _counts(store: TestReplacementAdmissionStore) -> tuple[int, ...]:
         len(store.committed_request_ids),
         store.transport_count,
         store.http_count,
+    )
+
+
+def _used_chain_sets(
+    store: TestReplacementAdmissionStore,
+) -> tuple[frozenset[str], ...]:
+    return (
+        store.used_approval_metadata_digests,
+        store.used_attestation_digests,
     )
 
 
@@ -45,6 +55,7 @@ def test_replacement_is_atomic_and_keeps_predecessor_immutable(status) -> None:
     assert store.snapshot[before.admission_id].registry_status is status
     assert result.successor_entry.registry_status is RegistryStatus.ACTIVE
     assert _counts(store) == (2, 1, 1, 1, 1, 0, 0)
+    assert all(len(values) == 1 for values in _used_chain_sets(store))
 
 
 @pytest.mark.parametrize("fault", tuple(ReplacementCommitFault))
@@ -63,11 +74,13 @@ def test_commit_fault_leaves_all_state_unchanged_and_allows_retry(fault) -> None
     )
     assert dict(store.snapshot) == before
     assert _counts(store) == (1, 0, 0, 0, 0, 0, 0)
+    assert _used_chain_sets(store) == (frozenset(), frozenset())
 
     store._disable_failure_injection()
     retried = enforce_replacement_admission(request, registry=store)
     assert retried.applied is True
     assert _counts(store) == (2, 1, 1, 1, 1, 0, 0)
+    assert all(len(values) == 1 for values in _used_chain_sets(store))
 
 
 def test_successful_duplicate_retry_is_denied_without_side_effects() -> None:
@@ -162,3 +175,103 @@ def test_replacement_before_new_admission_decision_is_denied() -> None:
     assert result.applied is False
     assert ReplacementAdmissionReason.TEMPORAL_INVALID in result.reason_categories
     assert _counts(context[4]) == (1, 0, 0, 0, 0, 0, 0)
+
+
+def test_failed_validation_does_not_consume_chain_and_retry_succeeds() -> None:
+    context, request = replacement_request()
+    store = context[4]
+    denied = replace(
+        request,
+        registry_administrator_id=request.new_admission_decision.approver_id,
+    )
+    result = enforce_replacement_admission(denied, registry=store)
+    assert result.applied is False
+    assert ReplacementAdmissionReason.ROLE_CONFLICT in result.reason_categories
+    assert _counts(store) == (1, 0, 0, 0, 0, 0, 0)
+    assert _used_chain_sets(store) == (frozenset(), frozenset())
+
+    retried = enforce_replacement_admission(request, registry=store)
+    assert retried.applied is True
+    assert all(len(values) == 1 for values in _used_chain_sets(store))
+
+
+def test_successful_replacement_approval_replay_is_denied() -> None:
+    context, request_a = replacement_request()
+    store = context[4]
+    assert enforce_replacement_admission(request_a, registry=store).applied
+    approval_a = request_a.new_production_admission_request.profile_approval_metadata
+    fresh_b = fresh_production_request(
+        plan_overrides={"plan_id": "manual-plan-003"},
+        evidence_overrides={"evidence_id": "manual-evidence-c3d4e5f6"},
+        attestation_overrides={"attestation_id": "attestation-003"},
+        request_overrides={
+            "profile_approval_metadata": approval_a,
+            "approver_identity": approval_a.approver_id,
+            "requested_restrictions": approval_a.restrictions,
+        },
+    )
+    _, request_b = replacement_request(
+        fresh_request=fresh_b,
+        existing_context=context,
+        request_overrides={
+            "replacement_request_id": "replacement-request-002",
+            "replacement_entry_id": "replacement-entry-002",
+        },
+    )
+    before = (
+        dict(store.snapshot),
+        store.events,
+        _counts(store),
+        _used_chain_sets(store),
+    )
+    denied = enforce_replacement_admission(request_b, registry=store)
+    assert denied.applied is False
+    assert ReplacementAdmissionReason.CHAIN_REUSE in denied.reason_categories
+    assert (
+        dict(store.snapshot),
+        store.events,
+        _counts(store),
+        _used_chain_sets(store),
+    ) == before
+
+
+def test_successful_replacement_attestation_replay_is_denied() -> None:
+    context, request_a = replacement_request()
+    store = context[4]
+    assert enforce_replacement_admission(request_a, registry=store).applied
+    attestation_a = request_a.new_production_admission_request.reviewer_attestation
+    assert attestation_a is not None
+    fresh_b = fresh_production_request(
+        plan_overrides={"plan_id": "manual-plan-003"},
+        evidence_overrides={"evidence_id": "manual-evidence-c3d4e5f6"},
+        request_overrides={"reviewer_attestation": attestation_a},
+    )
+    _, request_b = replacement_request(
+        fresh_request=fresh_b,
+        existing_context=context,
+        request_overrides={
+            "replacement_request_id": "replacement-request-002",
+            "replacement_entry_id": "replacement-entry-002",
+        },
+    )
+    before = (
+        dict(store.snapshot),
+        store.events,
+        _counts(store),
+        _used_chain_sets(store),
+    )
+    denied = enforce_replacement_admission(request_b, registry=store)
+    assert denied.applied is False
+    assert ReplacementAdmissionReason.CHAIN_REUSE in denied.reason_categories
+    # The reused attestation is bound to chain A's plan/evidence, so the pure
+    # production evaluator also rejects chain B before registry mutation.
+    assert (
+        ReplacementAdmissionReason.SECURITY_BOUNDARY_VIOLATION
+        in denied.reason_categories
+    )
+    assert (
+        dict(store.snapshot),
+        store.events,
+        _counts(store),
+        _used_chain_sets(store),
+    ) == before
