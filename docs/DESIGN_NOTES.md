@@ -1920,3 +1920,15 @@ v0.2では `mode` は `extend_builtin` のみを許容します。それ以外�
 `matched_text` は引き続き伏せ字化します。入力ファイルは変更せず、自動修正、削除、移動、上書きは行いません。
 
 外部API、クラウドサービス、外部MCPは使いません。fixtureやサンプル設定には実資料、実案件名、実会社名、実個人名を使いません。
+
+## v0.13 replacement admission boundary
+
+Replacement is modeled as a new admission chain, not an inactive-entry status mutation. The old
+entry remains suspended or deprecated and immutable; revoked is terminal. The successor owns new
+digest-bound plan, evidence, reviewer attestation, approval/admission decision, exact identities,
+effective restrictions, and a predecessor link.
+
+The test-only store follows validate, construct all candidate state, then one immutable bundle
+swap. Denial and injected commit failures leave both entries, events, counters, replay sets, and
+committed IDs unchanged. This boundary adds no persistence, production registry, runtime
+authorization, transport, HTTP, workflow, or Node action maintenance.
