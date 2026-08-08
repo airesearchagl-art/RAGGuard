@@ -622,3 +622,13 @@ RAG回答の失敗ログを分類し、改善候補を抽出する分析ツー�
 ## 8. Local RAG Dashboard
 
 ローカル環境で検査結果や投入状況を一覧するDashboard。今回のMVP範囲外。
+
+## v0.13 Replacement Admission Chain
+
+- Complete: immutable replacement request, decision, successor, event, and safe result contracts.
+- Complete: fresh-chain, exact identity/digest/role/restriction, and temporal gates.
+- Complete: test-only atomic state-bundle commit, retry contract, replay protection, and Security
+  E2E.
+- Release preparation: documentation, release contract, regressions, and Python 3.11/3.12 CI.
+- Later, separately approved work: production operation, persistence, runtime authorization, and
+  Node action runtime maintenance.

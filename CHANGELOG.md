@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### v0.13.0 replacement admission chain
+
+- Added immutable replacement request, decision, successor-entry, link-event, and safe-result
+  contracts with separate deterministic SHA-256 canonical digests.
+- Added a pure fail-closed evaluator requiring an exact suspended/deprecated predecessor and a
+  fresh evidence, review, approval, and admission chain. Revoked remains terminal.
+- Added test-only atomic successor admission without predecessor mutation, plus duplicate, replay,
+  chain-reuse, successor-collision, and loop protection.
+- Added exact old/new resolution without current/latest aliases, fallback, nearest-version
+  selection, schema inference, or automatic predecessor hiding.
+- Added full-chain synthetic Security E2E and failure injection requiring unchanged state and zero
+  write/mutation/event/transport/HTTP side effects on denial or commit failure.
+- Added no production-registry write, persistence, runtime authorization, manual validation,
+  real-product connection, credential, real document, transport, HTTP, workflow, or Node runtime
+  warning change.
+
 ### v0.12.0 registry lifecycle governance
 
 - Added immutable revalidation trigger/requirement and registry lifecycle request/result/event

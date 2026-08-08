@@ -511,3 +511,11 @@ and CLI error `3` cases with synthetic query files.
 - 外部API、クラウドサービス、外部MCPは使わない方針です。
 - config YAMLもローカルファイルとして扱い、実資料・実案件名・実会社名・実個人名を含めないでください。
 - 入力ファイルは変更しません。自動修正も行いません。
+
+## v0.13 Replacement Admission Chain
+
+v0.13 adds immutable replacement-admission contracts and a test-only atomic registry harness.
+Replacement is not reactivation: a suspended or deprecated predecessor stays inactive and a new
+active successor requires a fresh evidence, review, approval, and admission chain. Revoked remains
+terminal. This does not provide production persistence or runtime production authorization. See
+`docs/REPLACEMENT_ADMISSION_DESIGN_V0.13.md`.

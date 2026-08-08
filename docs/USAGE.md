@@ -684,3 +684,14 @@ YAML不備、未対応mode、未対応version、必須キー不足、重複 `rul
 configやfixtureには、実資料・実案件名・実会社名・実個人名を含めないでください。
 
 Windowsで `ragguard` がPATH上にない場合は、上記のように `python -m ragguard` を使ってください。
+
+## v0.13 replacement admission contract
+
+The Python contract can evaluate and apply a replacement only to the explicit in-memory test
+registry. A suspended or deprecated entry is never reactivated. A distinct active successor is
+created only after a fresh plan/evidence/reviewer/approver/admission chain passes every exact gate.
+The predecessor remains exactly resolvable at its inactive status.
+
+Do not treat this test-only result as production admission or runtime authorization. There is no
+production entry, persistence, current/latest alias, fallback, nearest-version selection, schema
+inference, manual validation execution, real-product connection, or credential handling.
