@@ -643,3 +643,15 @@ RAG回答の失敗ログを分類し、改善候補を抽出する分析ツー�
   evidence is insufficient.
 - Later, separately approved work: performed manual validation, production persistence,
   production registry operation, and runtime authorization activation.
+
+## v0.15 Persistence / Authorization Activation Boundary
+
+- Complete: immutable persistence policy and authorization-record contracts.
+- Complete: canonical tamper-evident generation and predecessor binding.
+- Complete: test-only atomic in-memory persistence and replay semantics.
+- Complete: pure activation-request evaluator and immutable commit-plan boundary.
+- Complete: role, temporal, lifecycle, digest, stale-state, and replay gates.
+- Complete: Security E2E, documentation, and a v0.15.0 release checklist.
+- Pending: merge after review, followed by separate post-merge verification, tag, and Release.
+- Later, separately approved work: production persistence, runtime activation, production-registry
+  mutation, and operational manual validation.

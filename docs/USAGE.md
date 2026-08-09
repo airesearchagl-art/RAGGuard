@@ -706,3 +706,14 @@ authorized, active, or production-enabled.
 The current repository has synthetic-only evidence, so it cannot reach review eligibility without
 explicit typed test fixtures. No manual validation was performed. No activation API, token,
 credential, persistence, production registry write, transport, or HTTP path is provided.
+
+## v0.15 persistence / activation contract usage
+
+The Python contract can construct a `PersistencePolicy`, derive an immutable
+`PersistedAuthorizationRecord` from one exact v0.14 candidate, and test atomic append-only behavior
+with `InMemoryPersistenceStore`. The store is test-only and does not use files or a database.
+
+An `ActivationRequest` may then be evaluated with the exact record, candidate, boundary evidence,
+registry snapshot, and explicit evaluation time. A successful result is
+`ready_for_activation_commit`, not runtime authorization or activation. No command, runtime switch,
+credential, token, transport, HTTP path, production-registry write, or real persistence is added.

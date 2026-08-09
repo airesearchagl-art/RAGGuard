@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### v0.15.0 persistence / authorization activation boundary
+
+- Added immutable persistence-policy and persisted-authorization record contracts.
+- Added canonical integrity chaining across candidate, policy, generation, and predecessor digest.
+- Added a test-only atomic in-memory persistence store with failure-safe retry and replay rejection.
+- Added an immutable activation request, pure deterministic evaluator, replay ledger, and
+  `ActivationCommitPlan` boundary.
+- Added exact identity, digest, registry snapshot, lifecycle, replacement, temporal, role, and
+  evidence-expiry checks with zero external/runtime side effects.
+- Added v0.15 Security E2E, documentation, and release-contract coverage.
+- CLI exit codes `0 / 1 / 2 / 3` remain unchanged; the report top-level schema remains unchanged.
+- No runtime activation, filesystem/DB persistence, production-registry write, manual validation,
+  token/credential generation, transport, HTTP, or real-product connection was added.
+
 ### v0.14.0 production authorization boundary
 
 - Added immutable exact-source production-boundary evidence with explicit readiness, role,

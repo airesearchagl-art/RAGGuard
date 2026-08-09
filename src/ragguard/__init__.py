@@ -1,5 +1,18 @@
 """RAGGuard package."""
 
+from ragguard.authorization_activation import (
+    CANONICAL_AUTHORIZATION_ACTIVATION_DIGEST_ALGORITHM,
+    ActivationCommitPlan,
+    ActivationEvaluation,
+    ActivationEvaluationResult,
+    ActivationEvaluationSafeSummary,
+    ActivationReason,
+    ActivationRequest,
+    AuthorizationActivationError,
+    InMemoryActivationReplayStore,
+    evaluate_activation_request,
+)
+
 from ragguard.production_authorization import (
     CANONICAL_PRODUCTION_AUTHORIZATION_DIGEST_ALGORITHM,
     ProductionAuthorizationCandidate,
@@ -22,6 +35,22 @@ from ragguard.production_boundary import (
     RuntimeAuthorizationState,
     SecurityReviewState,
     canonical_registry_state_digest,
+)
+from ragguard.production_persistence import (
+    CANONICAL_PRODUCTION_PERSISTENCE_DIGEST_ALGORITHM,
+    DurabilityMode,
+    InMemoryPersistenceStore,
+    PersistedAuthorizationRecord,
+    PersistedAuthorizationSafeSummary,
+    PersistenceCommitFault,
+    PersistenceCommitRequest,
+    PersistenceCommitResult,
+    PersistencePolicy,
+    PersistenceReason,
+    PersistenceRetentionPolicy,
+    PersistenceRollbackPolicy,
+    ProductionPersistenceError,
+    create_persisted_authorization_record,
 )
 
 from ragguard.manual_evidence_import import (
@@ -106,20 +135,41 @@ from ragguard.replacement_admission import (
 __version__ = "0.1.0"
 
 __all__ = [
+    "CANONICAL_AUTHORIZATION_ACTIVATION_DIGEST_ALGORITHM",
     "CANONICAL_PRODUCTION_AUTHORIZATION_DIGEST_ALGORITHM",
     "CANONICAL_PRODUCTION_BOUNDARY_DIGEST_ALGORITHM",
+    "CANONICAL_PRODUCTION_PERSISTENCE_DIGEST_ALGORITHM",
     "CANONICAL_REGISTRY_ADMISSION_DIGEST_ALGORITHM",
     "CANONICAL_REGISTRY_LIFECYCLE_DIGEST_ALGORITHM",
     "CANONICAL_REVALIDATION_DIGEST_ALGORITHM",
     "CANONICAL_REPLACEMENT_ADMISSION_DIGEST_ALGORITHM",
+    "ActivationCommitPlan",
+    "ActivationEvaluation",
+    "ActivationEvaluationResult",
+    "ActivationEvaluationSafeSummary",
+    "ActivationReason",
+    "ActivationRequest",
+    "AuthorizationActivationError",
     "ManualEvidenceImportError",
     "ManualEvidenceImportErrorCategory",
     "ManualEvidenceImportRequest",
     "ManualEvidenceImportResult",
     "ManualEvidenceSourceKind",
     "CompatibilityEvidenceKind",
+    "DurabilityMode",
+    "InMemoryActivationReplayStore",
+    "InMemoryPersistenceStore",
     "ManualValidationState",
     "PersistenceBoundaryMetadata",
+    "PersistedAuthorizationRecord",
+    "PersistedAuthorizationSafeSummary",
+    "PersistenceCommitFault",
+    "PersistenceCommitRequest",
+    "PersistenceCommitResult",
+    "PersistencePolicy",
+    "PersistenceReason",
+    "PersistenceRetentionPolicy",
+    "PersistenceRollbackPolicy",
     "PersistenceState",
     "ProductionAuthorizationCandidate",
     "ProductionAuthorizationError",
@@ -129,6 +179,7 @@ __all__ = [
     "ProductionBoundaryError",
     "ProductionBoundaryErrorCategory",
     "ProductionBoundaryEvidence",
+    "ProductionPersistenceError",
     "RollbackSemantics",
     "RuntimeAuthorizationState",
     "SecurityReviewState",
@@ -188,7 +239,9 @@ __all__ = [
     "evaluate_revalidation_requirement",
     "import_manual_validation_evidence",
     "enforce_replacement_admission",
+    "evaluate_activation_request",
     "evaluate_production_authorization",
+    "create_persisted_authorization_record",
     "canonical_registry_state_digest",
     "canonical_approval_metadata_digest",
 ]

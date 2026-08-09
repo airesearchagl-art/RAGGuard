@@ -16,6 +16,20 @@ profile, or performed manual validation. See the
 [v0.14 Production Boundary Design](docs/PRODUCTION_BOUNDARY_DESIGN_V0.14.md) and
 [v0.14.0 Release Checklist](docs/RELEASE_CHECKLIST_V0.14.0.md).
 
+## v0.15 persistence and activation-commit boundary
+
+v0.15 adds immutable persistence-policy and persisted-authorization contracts, a test-only atomic
+in-memory store, and a pure activation-request evaluator. The exact v0.14 candidate, boundary
+evidence, registry entry/state, lifecycle, replacement chain, persistence generation, roles, and
+timestamps remain digest-bound and fail closed.
+
+`ready_for_activation_commit` is only a commit-plan contract. It is not active, activated,
+production-enabled, or runtime-authorized. The repository still has no filesystem/DB persistence,
+production-registry write, runtime activation API, token/credential generation, transport, HTTP,
+manual-validation execution, or real-product connection. See the
+[v0.15 Persistence / Activation Design](docs/PERSISTENCE_ACTIVATION_DESIGN_V0.15.md) and
+[v0.15.0 Release Checklist](docs/RELEASE_CHECKLIST_V0.15.0.md).
+
 ## RAG Benchmark Harness v0.12 registry lifecycle governance
 
 v0.12 adds fail-closed post-admission revalidation and one-way lifecycle governance for entries

@@ -1957,3 +1957,21 @@ the successor. v0.14 accepts the exact source decision object and recomputes its
 matching the three decision-bound roles, entry-bound registry administrator, approval digest, and
 admission-decision digest. Readiness enums remain untrusted fixture claims unless this accepted
 chain binding succeeds.
+
+## v0.15 persistence / activation boundary
+
+v0.15 carries the exact v0.14 authorization-candidate chain into an immutable persisted record and
+then into a pure activation-request evaluation. The record binds the candidate, boundary evidence,
+admission decision, accepted registry entry/state, lifecycle/replacement state, persistence policy,
+generation, predecessor, explicit time, and separated operator through canonical SHA-256 digests.
+
+The test-only persistence store builds the complete candidate record tuple, replay sets, and
+counters before one immutable state-bundle swap. Every validation or injected commit failure leaves
+all state unchanged, consumes no replay identity, and permits retry. Successful record/candidate
+replay is rejected.
+
+The activation evaluator has explicit time and exact snapshot inputs. Its terminal positive result
+is only `ready_for_activation_commit` with an immutable plan. It never activates a runtime and all
+write, mutation, persistence, filesystem, database, transport, HTTP, and activation counts remain
+zero. Synthetic-only evidence remains insufficient. See
+[v0.15 Persistence / Activation Design](PERSISTENCE_ACTIVATION_DESIGN_V0.15.md).
