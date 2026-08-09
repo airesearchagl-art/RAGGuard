@@ -270,6 +270,7 @@ class RegistryAdmissionEntrySafeSummary:
     product_version: str
     registry_status: str
     approval_decision: str
+    approval_digest: str
     restriction_count: int
     admission_decision_digest: str
     admitted_at: str
@@ -286,6 +287,7 @@ class RegistryAdmissionEntry:
     product_version: SemanticVersion
     maturity: ProfileMaturity
     approval_decision: ApprovalDecision
+    approval_digest: str
     restrictions: ApprovalRestrictions | None
     plan_digest: str
     evidence_digest: str
@@ -330,6 +332,7 @@ class RegistryAdmissionEntry:
             or not all(
                 _is_digest(value)
                 for value in (
+                    self.approval_digest,
                     self.plan_digest,
                     self.evidence_digest,
                     self.reviewer_attestation_digest,
@@ -366,6 +369,7 @@ class RegistryAdmissionEntry:
                 product_version=str(self.product_version),
                 registry_status=self.registry_status.value,
                 approval_decision=self.approval_decision.value,
+                approval_digest=self.approval_digest,
                 restriction_count=_restriction_count(self.restrictions),
                 admission_decision_digest=self.admission_decision_digest,
                 admitted_at=_canonical_datetime(self.admitted_at),
@@ -376,6 +380,7 @@ class RegistryAdmissionEntry:
     def canonical_json(self) -> str:
         return _canonical_json(
             {
+                "approval_digest": self.approval_digest,
                 "admission_decision_digest": (
                     self.admission_decision_digest
                 ),
@@ -979,6 +984,7 @@ def _decision_summary_identity_valid(
         and summary.evidence_reviewer_id == decision.evidence_reviewer_id
         and summary.validation_operator_id == decision.validation_operator_id
         and summary.approver_id == decision.approver_id
+        and summary.approval_digest == decision.approval_digest
         and summary.reason_categories
         == tuple(reason.value for reason in decision.reason_categories)
         and summary.restriction_count
@@ -1002,6 +1008,7 @@ def _construct_entry(
         product_version=request.expected_product_version,
         maturity=ProfileMaturity.APPROVED,
         approval_decision=decision.decision,
+        approval_digest=decision.approval_digest,
         restrictions=request.expected_restrictions,
         plan_digest=decision.plan_digest,
         evidence_digest=decision.evidence_digest,

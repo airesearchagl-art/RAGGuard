@@ -54,6 +54,10 @@ def test_replacement_is_atomic_and_keeps_predecessor_immutable(status) -> None:
     assert store.snapshot[before.admission_id] == before
     assert store.snapshot[before.admission_id].registry_status is status
     assert result.successor_entry.registry_status is RegistryStatus.ACTIVE
+    assert (
+        result.successor_entry.approval_digest
+        == request.new_admission_decision.approval_digest
+    )
     assert _counts(store) == (2, 1, 1, 1, 1, 0, 0)
     assert all(len(values) == 1 for values in _used_chain_sets(store))
 

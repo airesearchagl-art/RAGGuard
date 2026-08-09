@@ -1937,3 +1937,23 @@ Successful replacements also atomically record the v0.13 approval-metadata diges
 attestation digest. Those identities cannot be replayed by another successful replacement chain.
 Validation denial or commit failure leaves both used-digest sets unchanged and does not prevent a
 corrected retry.
+
+## v0.14 production boundary
+
+Production-boundary evidence is an immutable, digest-covered declaration of exact source,
+registry snapshot, readiness, roles, and time. The evaluator is pure and resolves no alias,
+fallback, nearest version, predecessor, successor, or schema. Its deterministic priority is:
+structural/security failure, inactive source, freshness/revalidation failure, manual validation,
+security review, persistence boundary, runtime boundary, then authorization-review eligibility.
+
+Six actor roles are distinct. UTC canonical values preserve six-digit microsecond precision.
+Persistence metadata describes required durability/audit/tamper/backup/secret/rollback controls
+but performs no I/O. Runtime `active` is rejected because v0.14 deliberately exposes no activation
+surface. Safe summaries contain only opaque IDs, enums, digests, and timestamps.
+
+The Phase C decision digest includes the canonical ApprovalMetadata digest. Registry admission
+copies that digest into the accepted entry, and replacement admission copies the fresh digest into
+the successor. v0.14 accepts the exact source decision object and recomputes its digest before
+matching the three decision-bound roles, entry-bound registry administrator, approval digest, and
+admission-decision digest. Readiness enums remain untrusted fixture claims unless this accepted
+chain binding succeeds.

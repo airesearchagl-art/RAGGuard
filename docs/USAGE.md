@@ -695,3 +695,14 @@ The predecessor remains exactly resolvable at its inactive status.
 Do not treat this test-only result as production admission or runtime authorization. There is no
 production entry, persistence, current/latest alias, fallback, nearest-version selection, schema
 inference, manual validation execution, real-product connection, or credential handling.
+
+## v0.14 production authorization candidate
+
+The Python API can construct immutable `ProductionBoundaryEvidence` and call
+`evaluate_production_authorization()` with an exact registry entry and exact registry snapshot.
+The result is advisory contract output only. `eligible_for_authorization_review` does not mean
+authorized, active, or production-enabled.
+
+The current repository has synthetic-only evidence, so it cannot reach review eligibility without
+explicit typed test fixtures. No manual validation was performed. No activation API, token,
+credential, persistence, production registry write, transport, or HTTP path is provided.

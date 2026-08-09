@@ -2,6 +2,20 @@
 
 [![Tests](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml)
 
+## v0.14 production authorization boundary
+
+v0.14 adds immutable production-boundary evidence and a pure, fail-closed authorization-candidate
+evaluator. It binds an exact active admission/replacement entry and registry snapshot to explicit
+manual-validation, compatibility, security-review, persistence, and runtime-boundary states.
+Synthetic-only evidence stops at `needs_manual_validation`; even complete typed fixtures stop at
+`eligible_for_authorization_review`.
+
+This is not production activation. There is no activation API, token, credential, runtime switch,
+production-registry write, persistence, transport, HTTP, real-product connection, production
+profile, or performed manual validation. See the
+[v0.14 Production Boundary Design](docs/PRODUCTION_BOUNDARY_DESIGN_V0.14.md) and
+[v0.14.0 Release Checklist](docs/RELEASE_CHECKLIST_V0.14.0.md).
+
 ## RAG Benchmark Harness v0.12 registry lifecycle governance
 
 v0.12 adds fail-closed post-admission revalidation and one-way lifecycle governance for entries

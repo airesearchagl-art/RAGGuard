@@ -489,6 +489,7 @@ class ReplacementRegistryEntrySafeSummary:
     predecessor_entry_digest: str
     predecessor_status: str
     replacement_request_digest: str
+    approval_digest: str
     profile_id: str
     profile_version: str
     product_id: str
@@ -506,6 +507,7 @@ class ReplacementRegistryEntry:
     predecessor_entry_digest: str
     predecessor_status: RegistryStatus
     replacement_request_digest: str
+    approval_digest: str
     profile_id: str
     profile_version: SemanticVersion
     product_id: str
@@ -542,6 +544,7 @@ class ReplacementRegistryEntry:
                 for value in (
                     self.predecessor_entry_digest,
                     self.replacement_request_digest,
+                    self.approval_digest,
                     self.plan_digest,
                     self.evidence_digest,
                     self.reviewer_attestation_digest,
@@ -578,6 +581,7 @@ class ReplacementRegistryEntry:
                 predecessor_entry_digest=self.predecessor_entry_digest,
                 predecessor_status=self.predecessor_status.value,
                 replacement_request_digest=self.replacement_request_digest,
+                approval_digest=self.approval_digest,
                 profile_id=self.profile_id,
                 profile_version=str(self.profile_version),
                 product_id=self.product_id,
@@ -603,6 +607,7 @@ class ReplacementRegistryEntry:
     def canonical_json(self) -> str:
         return _canonical_json(
             {
+                "approval_digest": self.approval_digest,
                 "admission_decision_digest": self.admission_decision_digest,
                 "admitted_at": _canonical_datetime(self.admitted_at),
                 "effective_restrictions": _canonical_restrictions(
@@ -1409,6 +1414,7 @@ def _successor(
         predecessor_entry_digest=predecessor.canonical_digest,
         predecessor_status=predecessor.registry_status,
         replacement_request_digest=request.canonical_digest,
+        approval_digest=decision.approval_digest,
         profile_id=decision.profile_id,
         profile_version=SemanticVersion.parse(decision.profile_version),
         product_id=decision.product_id,
