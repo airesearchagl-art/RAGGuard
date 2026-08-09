@@ -41,6 +41,7 @@ from ragguard.production_admission import (
     ReviewerAttestation,
     ReviewerAttestationOutcome,
     RevalidationTrigger,
+    canonical_approval_metadata_digest,
     evaluate_production_admission,
 )
 from ragguard.registry_admission import (
@@ -189,4 +190,5 @@ __all__ = [
     "enforce_replacement_admission",
     "evaluate_production_authorization",
     "canonical_registry_state_digest",
+    "canonical_approval_metadata_digest",
 ]

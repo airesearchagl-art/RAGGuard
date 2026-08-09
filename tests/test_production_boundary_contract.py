@@ -18,6 +18,7 @@ from ragguard.production_boundary import (
     SecurityReviewState,
     canonical_registry_state_digest,
 )
+from ragguard.production_admission import ProductionAdmissionDecision
 from ragguard.production_registry import RegistryKind, RegistryStatus
 from ragguard.profile_approval import ApprovalDecision, ProfileMaturity
 from ragguard.registry_admission import RegistryAdmissionEntry
@@ -30,7 +31,36 @@ DIGEST_D = "sha256:" + "d" * 64
 DIGEST_E = "sha256:" + "e" * 64
 
 
+def source_decision() -> ProductionAdmissionDecision:
+    return ProductionAdmissionDecision(
+        decision=ApprovalDecision.APPROVED,
+        eligible_for_registry_admission=True,
+        effective_restrictions=None,
+        reason_categories=(),
+        evaluated_at=datetime(2026, 8, 1, tzinfo=timezone.utc),
+        plan_id="manual-plan-v014",
+        plan_digest=DIGEST_A,
+        evidence_id="manual-evidence-v014",
+        evidence_digest=DIGEST_B,
+        reviewer_attestation_id="attestation-v014",
+        reviewer_attestation_digest=DIGEST_C,
+        evidence_reviewer_id="evidence-reviewer",
+        validation_operator_id="validation-operator",
+        approver_id="admission-approver",
+        approval_digest=DIGEST_E,
+        requested_registry_kind=RegistryKind.PRODUCTION,
+        requested_initial_status=RegistryStatus.ACTIVE,
+        _request_id="admission-request-v014",
+        _profile_id="profile-v014",
+        _profile_version="1.0.0",
+        _protocol_version="1.0.0",
+        _product_id="product-v014",
+        _product_version="1.0.0",
+    )
+
+
 def source_entry(status: RegistryStatus = RegistryStatus.ACTIVE) -> RegistryAdmissionEntry:
+    decision = source_decision()
     return RegistryAdmissionEntry(
         admission_id="admission-v014",
         profile_id="profile-v014",
@@ -40,11 +70,12 @@ def source_entry(status: RegistryStatus = RegistryStatus.ACTIVE) -> RegistryAdmi
         product_version=SemanticVersion(1, 0, 0),
         maturity=ProfileMaturity.APPROVED,
         approval_decision=ApprovalDecision.APPROVED,
+        approval_digest=decision.approval_digest,
         restrictions=None,
         plan_digest=DIGEST_A,
         evidence_digest=DIGEST_B,
         reviewer_attestation_digest=DIGEST_C,
-        admission_decision_digest=DIGEST_D,
+        admission_decision_digest=decision.canonical_digest,
         admitted_at=datetime(2026, 8, 1, tzinfo=timezone.utc),
         registry_administrator_id="registry-admin",
         registry_status=status,

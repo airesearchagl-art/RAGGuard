@@ -13,6 +13,8 @@
 - Added typed persistence requirements without filesystem/database persistence and Security E2E
   requiring zero write/mutation/transport/HTTP/persistence/activation counts on every denial.
 - Preserved CLI/report compatibility and added no workflow or Node runtime warning change.
+- Bound canonical approval metadata and validation/review/approval identities through the
+  admission decision, accepted entry, replacement successor, and v0.14 source evaluation.
 
 ### v0.13.0 replacement admission chain
 

@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import ClassVar
 
+from ragguard.production_admission import ProductionAdmissionDecision
 from ragguard.production_boundary import (
     CompatibilityEvidenceKind,
     ManualValidationState,
@@ -70,6 +71,7 @@ class ProductionAuthorizationRequest:
     request_id: str
     evidence: ProductionBoundaryEvidence
     source_entry: RegistryAdmissionEntry | ReplacementRegistryEntry = field(repr=False)
+    source_admission_decision: ProductionAdmissionDecision = field(repr=False)
     registry_snapshot_digests: tuple[str, ...]
     use_current_alias: bool = False
     use_latest_alias: bool = False
@@ -85,6 +87,10 @@ class ProductionAuthorizationRequest:
             or not isinstance(
                 self.source_entry,
                 (RegistryAdmissionEntry, ReplacementRegistryEntry),
+            )
+            or not isinstance(
+                self.source_admission_decision,
+                ProductionAdmissionDecision,
             )
             or not all(
                 type(value) is bool
@@ -195,11 +201,17 @@ def evaluate_production_authorization(
         raise ProductionAuthorizationError()
     evidence = request.evidence
     entry = request.source_entry
+    decision = request.source_admission_decision
     reasons: set[ProductionAuthorizationReason] = set()
 
-    if not _identity_matches(evidence, entry):
+    if not _identity_matches(evidence, entry, decision):
         reasons.add(ProductionAuthorizationReason.IDENTITY_MISMATCH)
-    if not _digests_match(evidence, entry, request.registry_snapshot_digests):
+    if not _digests_match(
+        evidence,
+        entry,
+        decision,
+        request.registry_snapshot_digests,
+    ):
         reasons.add(ProductionAuthorizationReason.DIGEST_MISMATCH)
     if any(
         (
@@ -277,7 +289,11 @@ def _result(
     return ProductionAuthorizationResult.ELIGIBLE_FOR_AUTHORIZATION_REVIEW
 
 
-def _identity_matches(evidence: ProductionBoundaryEvidence, entry: object) -> bool:
+def _identity_matches(
+    evidence: ProductionBoundaryEvidence,
+    entry: object,
+    decision: ProductionAdmissionDecision,
+) -> bool:
     return all(
         (
             evidence.profile_id == entry.profile_id,
@@ -285,6 +301,11 @@ def _identity_matches(evidence: ProductionBoundaryEvidence, entry: object) -> bo
             evidence.protocol_version == entry.protocol_version,
             evidence.product_id == entry.product_id,
             evidence.product_version == entry.product_version,
+            evidence.validation_operator_id == decision.validation_operator_id,
+            evidence.evidence_reviewer_id == decision.evidence_reviewer_id,
+            evidence.approver_id == decision.approver_id,
+            evidence.registry_administrator_id
+            == entry.registry_administrator_id,
         )
     )
 
@@ -292,8 +313,21 @@ def _identity_matches(evidence: ProductionBoundaryEvidence, entry: object) -> bo
 def _digests_match(
     evidence: ProductionBoundaryEvidence,
     entry: object,
+    decision: ProductionAdmissionDecision,
     snapshot: tuple[str, ...],
 ) -> bool:
+    if _digest(entry.canonical_json()) != entry.canonical_digest:
+        return False
+    if _digest(decision.canonical_json()) != decision.canonical_digest:
+        return False
+    if evidence.admission_decision_digest != decision.canonical_digest:
+        return False
+    if entry.admission_decision_digest != decision.canonical_digest:
+        return False
+    if evidence.approval_digest != decision.approval_digest:
+        return False
+    if entry.approval_digest != decision.approval_digest:
+        return False
     if evidence.registry_entry_digest != entry.canonical_digest:
         return False
     if evidence.registry_state_digest != canonical_registry_state_digest(snapshot):

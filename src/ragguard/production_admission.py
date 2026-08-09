@@ -296,6 +296,7 @@ class ProductionAdmissionSafeSummary:
     evidence_reviewer_id: str
     validation_operator_id: str
     approver_id: str
+    approval_digest: str
     reason_categories: tuple[str, ...]
     restriction_count: int
     evaluated_at: str
@@ -318,6 +319,7 @@ class ProductionAdmissionDecision:
     evidence_reviewer_id: str
     validation_operator_id: str
     approver_id: str
+    approval_digest: str
     requested_registry_kind: RegistryKind
     requested_initial_status: RegistryStatus
     safe_summary: ProductionAdmissionSafeSummary = field(init=False)
@@ -332,6 +334,8 @@ class ProductionAdmissionDecision:
     digest_algorithm: ClassVar[str] = CANONICAL_ADMISSION_DIGEST_ALGORITHM
 
     def __post_init__(self) -> None:
+        if not _is_digest(self.approval_digest):
+            _raise(ProductionAdmissionErrorCategory.REQUEST_INVALID)
         digest = _digest(self.canonical_json())
         object.__setattr__(self, "canonical_digest", digest)
         object.__setattr__(
@@ -354,6 +358,7 @@ class ProductionAdmissionDecision:
                 evidence_reviewer_id=self.evidence_reviewer_id,
                 validation_operator_id=self.validation_operator_id,
                 approver_id=self.approver_id,
+                approval_digest=self.approval_digest,
                 reason_categories=tuple(
                     reason.value for reason in self.reason_categories
                 ),
@@ -368,6 +373,7 @@ class ProductionAdmissionDecision:
     def canonical_json(self) -> str:
         return _canonical_json(
             {
+                "approval_digest": self.approval_digest,
                 "approver_id": self.approver_id,
                 "decision": self.decision.value,
                 "effective_restrictions": _canonical_restrictions(
@@ -545,6 +551,7 @@ def evaluate_production_admission(
         evidence_reviewer_id=plan.evidence_reviewer_id,
         validation_operator_id=plan.validation_operator_id,
         approver_id=request.approver_identity,
+        approval_digest=canonical_approval_metadata_digest(approval),
         requested_registry_kind=request.requested_registry_kind,
         requested_initial_status=request.requested_initial_status,
         _request_id=request.request_id,
@@ -553,6 +560,49 @@ def evaluate_production_admission(
         _protocol_version=str(plan.protocol_version),
         _product_id=plan.product_id,
         _product_version=str(evidence.observed_product_version),
+    )
+
+
+def canonical_approval_metadata_digest(approval: ApprovalMetadata) -> str:
+    """Return the exact digest-covered identity of approval metadata."""
+    if not isinstance(approval, ApprovalMetadata):
+        _raise(ProductionAdmissionErrorCategory.REQUEST_INVALID)
+    version_range = approval.supported_product_version_range
+    return _digest(
+        _canonical_json(
+            {
+                "approval_record_id": approval.approval_record_id,
+                "approved_at": _canonical_datetime(approval.approved_at),
+                "approved_capabilities": list(approval.approved_capabilities),
+                "approved_score_semantics": (
+                    approval.approved_score_semantics.value
+                ),
+                "approved_source_identifier_policy": (
+                    approval.approved_source_identifier_policy.value
+                ),
+                "approver_id": approval.approver_id,
+                "decision": approval.decision.value,
+                "expires_at": (
+                    None
+                    if approval.expires_at is None
+                    else _canonical_datetime(approval.expires_at)
+                ),
+                "restrictions": _canonical_restrictions(
+                    approval.restrictions
+                ),
+                "reviewer_id": approval.reviewer_id,
+                "supported_product_version_range": {
+                    "maximum_version": (
+                        None
+                        if version_range.maximum_version is None
+                        else str(version_range.maximum_version)
+                    ),
+                    "minimum_version": str(version_range.minimum_version),
+                    "open_ended": version_range.open_ended,
+                },
+                "validation_record_id": approval.validation_record_id,
+            }
+        )
     )
 
 

@@ -28,6 +28,9 @@ The repository contains no factual production-equivalent evidence, production-re
 or active runtime authorization. Typed fixture states test decision behavior only and are not
 real-world readiness evidence.
 
+Readiness enums are claims inside a contract fixture, not independently trusted real-world
+evidence. They cannot override or replace the accepted admission/replacement chain.
+
 ## Deterministic decision priority
 
 1. identity, digest, structural, security, role, or temporal violation: `ineligible`;
@@ -50,6 +53,16 @@ The caller supplies the exact source entry and exact registry snapshot digest. R
 must identify their accepted successor explicitly. Current/latest aliases, fallback,
 nearest-version selection, inferred predecessor/successor, omitted digests, and schema inference
 are rejected.
+
+The authorization request also supplies the exact digest-covered `ProductionAdmissionDecision`.
+The evaluator recalculates its canonical digest and requires exact agreement among that decision,
+the accepted registry entry, and boundary evidence for approval metadata, admission decision,
+validation operator, evidence reviewer, approver, and registry administrator identities. A
+self-declared role or approval digest cannot satisfy this gate.
+
+Replacement successors retain the fresh approval-metadata digest and new admission-decision
+digest. These must match the exact new decision; predecessor or request-only values cannot stand
+in for the successor chain.
 
 The source must be active. A suspended, deprecated, or revoked entry cannot be revived through this
 boundary. Replacement does not erase or reactivate its predecessor.

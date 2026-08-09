@@ -26,6 +26,7 @@ from ragguard.production_admission import (
     ReviewerAttestation,
     ReviewerAttestationOutcome,
     RevalidationTrigger,
+    canonical_approval_metadata_digest,
     evaluate_production_admission,
 )
 from ragguard.production_registry import RegistryKind, RegistryStatus
@@ -287,7 +288,8 @@ def request(**overrides: object) -> ProductionAdmissionRequest:
 
 
 def test_valid_request_returns_approved_eligible_decision() -> None:
-    result = evaluate_production_admission(request())
+    admission_request = request()
+    result = evaluate_production_admission(admission_request)
 
     assert result.decision is ApprovalDecision.APPROVED
     assert result.eligible_for_registry_admission is True
@@ -295,6 +297,10 @@ def test_valid_request_returns_approved_eligible_decision() -> None:
     assert result.effective_restrictions is None
     assert result.canonical_digest.startswith("sha256:")
     assert result.safe_summary.canonical_digest == result.canonical_digest
+    assert result.approval_digest == canonical_approval_metadata_digest(
+        admission_request.profile_approval_metadata
+    )
+    assert result.safe_summary.approval_digest == result.approval_digest
     assert isinstance(result, ProductionAdmissionDecision)
 
 

@@ -75,6 +75,7 @@ def decision(**overrides: object) -> ProductionAdmissionDecision:
         "evidence_reviewer_id": "reviewer-001",
         "validation_operator_id": "operator-001",
         "approver_id": "approver-001",
+        "approval_digest": digest("approval"),
         "requested_registry_kind": RegistryKind.PRODUCTION,
         "requested_initial_status": RegistryStatus.ACTIVE,
         "_request_id": "admission-request-001",
@@ -166,6 +167,7 @@ def test_valid_approved_admission_is_committed_exactly_once() -> None:
         == digest("attestation")
     )
     assert result.entry.admission_decision_digest == decision().canonical_digest
+    assert result.entry.approval_digest == decision().approval_digest
 
 
 def test_public_api_exports_phase_e_contracts() -> None:
