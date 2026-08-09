@@ -632,3 +632,14 @@ RAG回答の失敗ログを分類し、改善候補を抽出する分析ツー�
 - Release preparation: documentation, release contract, regressions, and Python 3.11/3.12 CI.
 - Later, separately approved work: production operation, persistence, runtime authorization, and
   Node action runtime maintenance.
+
+## v0.14 Production Boundary / Authorization Contract
+
+- Complete: immutable exact-source boundary evidence and explicit readiness states.
+- Complete: pure deterministic authorization-candidate evaluator and fail-closed hard gates.
+- Complete: role/temporal/digest/snapshot binding, safe summaries, Security E2E, and release
+  contract documentation.
+- Boundary: candidate review eligibility is not authorization or activation; synthetic-only
+  evidence is insufficient.
+- Later, separately approved work: performed manual validation, production persistence,
+  production registry operation, and runtime authorization activation.

@@ -1,5 +1,29 @@
 """RAGGuard package."""
 
+from ragguard.production_authorization import (
+    CANONICAL_PRODUCTION_AUTHORIZATION_DIGEST_ALGORITHM,
+    ProductionAuthorizationCandidate,
+    ProductionAuthorizationError,
+    ProductionAuthorizationReason,
+    ProductionAuthorizationRequest,
+    ProductionAuthorizationResult,
+    evaluate_production_authorization,
+)
+from ragguard.production_boundary import (
+    CANONICAL_PRODUCTION_BOUNDARY_DIGEST_ALGORITHM,
+    CompatibilityEvidenceKind,
+    ManualValidationState,
+    PersistenceBoundaryMetadata,
+    PersistenceState,
+    ProductionBoundaryError,
+    ProductionBoundaryErrorCategory,
+    ProductionBoundaryEvidence,
+    RollbackSemantics,
+    RuntimeAuthorizationState,
+    SecurityReviewState,
+    canonical_registry_state_digest,
+)
+
 from ragguard.manual_evidence_import import (
     ManualEvidenceImportError,
     ManualEvidenceImportErrorCategory,
@@ -81,6 +105,8 @@ from ragguard.replacement_admission import (
 __version__ = "0.1.0"
 
 __all__ = [
+    "CANONICAL_PRODUCTION_AUTHORIZATION_DIGEST_ALGORITHM",
+    "CANONICAL_PRODUCTION_BOUNDARY_DIGEST_ALGORITHM",
     "CANONICAL_REGISTRY_ADMISSION_DIGEST_ALGORITHM",
     "CANONICAL_REGISTRY_LIFECYCLE_DIGEST_ALGORITHM",
     "CANONICAL_REVALIDATION_DIGEST_ALGORITHM",
@@ -90,6 +116,21 @@ __all__ = [
     "ManualEvidenceImportRequest",
     "ManualEvidenceImportResult",
     "ManualEvidenceSourceKind",
+    "CompatibilityEvidenceKind",
+    "ManualValidationState",
+    "PersistenceBoundaryMetadata",
+    "PersistenceState",
+    "ProductionAuthorizationCandidate",
+    "ProductionAuthorizationError",
+    "ProductionAuthorizationReason",
+    "ProductionAuthorizationRequest",
+    "ProductionAuthorizationResult",
+    "ProductionBoundaryError",
+    "ProductionBoundaryErrorCategory",
+    "ProductionBoundaryEvidence",
+    "RollbackSemantics",
+    "RuntimeAuthorizationState",
+    "SecurityReviewState",
     "ProductionAdmissionDecision",
     "ProductionAdmissionError",
     "ProductionAdmissionErrorCategory",
@@ -146,4 +187,6 @@ __all__ = [
     "evaluate_revalidation_requirement",
     "import_manual_validation_evidence",
     "enforce_replacement_admission",
+    "evaluate_production_authorization",
+    "canonical_registry_state_digest",
 ]

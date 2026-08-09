@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### v0.14.0 production authorization boundary
+
+- Added immutable exact-source production-boundary evidence with explicit readiness, role,
+  temporal, registry-snapshot, and digest-chain fields.
+- Added a pure deterministic evaluator that returns only ineligible, missing-boundary, or
+  authorization-review-candidate states; it cannot activate production.
+- Added fail-closed gates for inactive sources, stale/expired evidence, reuse, unresolved
+  revalidation, pending lifecycle actions, implicit resolution, role conflict, and tampering.
+- Added typed persistence requirements without filesystem/database persistence and Security E2E
+  requiring zero write/mutation/transport/HTTP/persistence/activation counts on every denial.
+- Preserved CLI/report compatibility and added no workflow or Node runtime warning change.
+
 ### v0.13.0 replacement admission chain
 
 - Added immutable replacement request, decision, successor-entry, link-event, and safe-result
