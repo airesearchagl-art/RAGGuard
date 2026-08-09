@@ -21,6 +21,7 @@ from ragguard.production_persistence import (
     DurabilityMode,
     InMemoryPersistenceStore,
     PersistenceCommitFault,
+    PersistenceCommitReceipt,
     PersistenceCommitRequest,
     PersistencePolicy,
     PersistenceReason,
@@ -187,7 +188,13 @@ def test_successful_commit_is_single_atomic_update() -> None:
     store = InMemoryPersistenceStore()
     result = store.commit(commit_request())
     assert result.applied
+    assert result.receipt is not None
     assert len(store.records) == 1
+    assert store.receipts == (result.receipt,)
+    assert result.receipt.persisted_record_digest == store.records[0].canonical_digest
+    assert result.receipt.persistence_policy_digest == approved_policy().canonical_digest
+    assert result.receipt.resulting_store_state_digest == store.state_digest
+    assert store.snapshot.latest_receipt_digest == result.receipt.canonical_digest
     assert store.write_count == store.mutation_count == 1
     assert result.write_count == result.mutation_count == 1
     assert_no_external_effects(result)
@@ -199,6 +206,7 @@ def test_successful_commit_is_single_atomic_update() -> None:
         PersistenceCommitFault.CANDIDATE_STATE,
         PersistenceCommitFault.RECORD_APPEND,
         PersistenceCommitFault.COUNTERS,
+        PersistenceCommitFault.RECEIPT,
         PersistenceCommitFault.BEFORE_SWAP,
     ],
 )
@@ -206,20 +214,25 @@ def test_commit_fault_leaves_all_state_unchanged(fault: PersistenceCommitFault) 
     store = InMemoryPersistenceStore()
     before = (
         store.records,
+        store.receipts,
         store.committed_record_ids,
         store.used_candidate_digests,
         store.write_count,
         store.mutation_count,
+        store.state_digest,
     )
     result = store.commit(commit_request(), fault=fault)
     after = (
         store.records,
+        store.receipts,
         store.committed_record_ids,
         store.used_candidate_digests,
         store.write_count,
         store.mutation_count,
+        store.state_digest,
     )
     assert not result.applied
+    assert result.receipt is None
     assert result.reason_categories == (PersistenceReason.COMMIT_FAILED,)
     assert before == after
     assert result.write_count == result.mutation_count == 0
@@ -230,7 +243,25 @@ def test_failed_request_can_be_retried() -> None:
     store = InMemoryPersistenceStore()
     request = commit_request()
     assert not store.commit(request, fault=PersistenceCommitFault.BEFORE_SWAP).applied
-    assert store.commit(request).applied
+    result = store.commit(request)
+    assert result.applied
+    assert result.receipt is not None
+
+
+def test_commit_receipt_cannot_be_self_issued() -> None:
+    request = commit_request()
+    with pytest.raises(ValueError):
+        PersistenceCommitReceipt(
+            persisted_record_id=request.record.persisted_record_id,
+            persisted_record_digest=request.record.canonical_digest,
+            persistence_policy_digest=request.policy.canonical_digest,
+            source_candidate_digest=request.source_candidate.canonical_digest,
+            persistence_generation=1,
+            previous_record_digest=None,
+            committed_at=request.evaluation_time,
+            evaluated_at=request.evaluation_time,
+            resulting_store_state_digest="sha256:" + "1" * 64,
+        )
 
 
 def test_successful_duplicate_record_id_is_rejected() -> None:

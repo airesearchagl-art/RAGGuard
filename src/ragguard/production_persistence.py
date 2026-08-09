@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from dataclasses import dataclass, field
+from dataclasses import InitVar, dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from typing import ClassVar
@@ -61,12 +61,17 @@ class PersistenceCommitFault(str, Enum):
     CANDIDATE_STATE = "candidate_state"
     RECORD_APPEND = "record_append"
     COUNTERS = "counters"
+    RECEIPT = "receipt"
     BEFORE_SWAP = "before_swap"
 
 
 class ProductionPersistenceError(ValueError):
     def __init__(self) -> None:
         super().__init__("production_persistence_contract_invalid")
+
+
+_RECEIPT_MARKER = object()
+_SNAPSHOT_MARKER = object()
 
 
 @dataclass(frozen=True, repr=False)
@@ -259,6 +264,105 @@ class PersistedAuthorizationRecord:
 
 
 @dataclass(frozen=True, repr=False)
+class PersistenceCommitReceipt:
+    persisted_record_id: str
+    persisted_record_digest: str
+    persistence_policy_digest: str
+    source_candidate_digest: str
+    persistence_generation: int
+    previous_record_digest: str | None
+    committed_at: datetime
+    evaluated_at: datetime
+    resulting_store_state_digest: str
+    _commit_marker: InitVar[object] = None
+    canonical_digest: str = field(init=False)
+
+    def __post_init__(self, _commit_marker: object) -> None:
+        if (
+            _commit_marker is not _RECEIPT_MARKER
+            or not _is_identifier(self.persisted_record_id)
+            or not all(
+                _is_digest(value)
+                for value in (
+                    self.persisted_record_digest,
+                    self.persistence_policy_digest,
+                    self.source_candidate_digest,
+                    self.resulting_store_state_digest,
+                )
+            )
+            or (
+                self.previous_record_digest is not None
+                and not _is_digest(self.previous_record_digest)
+            )
+            or type(self.persistence_generation) is not int
+            or self.persistence_generation < 1
+            or not _is_aware(self.committed_at)
+            or not _is_aware(self.evaluated_at)
+            or self.committed_at != self.evaluated_at
+        ):
+            raise ProductionPersistenceError()
+        object.__setattr__(self, "canonical_digest", _digest(self.canonical_json()))
+
+    def canonical_json(self) -> str:
+        return _canonical_json(
+            {
+                "committed_at": _canonical_datetime(self.committed_at),
+                "evaluated_at": _canonical_datetime(self.evaluated_at),
+                "persisted_record_digest": self.persisted_record_digest,
+                "persisted_record_id": self.persisted_record_id,
+                "persistence_generation": self.persistence_generation,
+                "persistence_policy_digest": self.persistence_policy_digest,
+                "previous_record_digest": self.previous_record_digest,
+                "resulting_store_state_digest": self.resulting_store_state_digest,
+                "source_candidate_digest": self.source_candidate_digest,
+            }
+        )
+
+    def __repr__(self) -> str:
+        return "PersistenceCommitReceipt(<safe>)"
+
+
+@dataclass(frozen=True, repr=False)
+class PersistenceStoreSnapshot:
+    state_digest: str
+    persistence_generation: int
+    latest_record_digest: str
+    latest_receipt_digest: str
+    _snapshot_marker: InitVar[object] = None
+    canonical_digest: str = field(init=False)
+
+    def __post_init__(self, _snapshot_marker: object) -> None:
+        if (
+            _snapshot_marker is not _SNAPSHOT_MARKER
+            or not all(
+                _is_digest(value)
+                for value in (
+                    self.state_digest,
+                    self.latest_record_digest,
+                    self.latest_receipt_digest,
+                )
+            )
+            or type(self.persistence_generation) is not int
+            or self.persistence_generation < 1
+        ):
+            raise ProductionPersistenceError()
+        object.__setattr__(self, "canonical_digest", _digest(self.canonical_json()))
+
+    def canonical_json(self) -> str:
+        return _canonical_json(
+            {
+                "latest_receipt_digest": self.latest_receipt_digest,
+                "latest_record_digest": self.latest_record_digest,
+                "persistence_generation": self.persistence_generation,
+                "state_digest": self.state_digest,
+            }
+        )
+
+    def __repr__(self) -> str:
+        return "PersistenceStoreSnapshot(<safe>)"
+
+
+@dataclass(frozen=True, repr=False)
 class PersistenceCommitRequest:
     record: PersistedAuthorizationRecord
     source_candidate: ProductionAuthorizationCandidate = field(repr=False)
@@ -307,6 +411,7 @@ class PersistenceCommitResult:
     evaluated_at: datetime
     write_count: int
     mutation_count: int
+    receipt: PersistenceCommitReceipt | None
     transport_count: int = field(init=False, default=0)
     http_count: int = field(init=False, default=0)
     filesystem_write_count: int = field(init=False, default=0)
@@ -316,18 +421,20 @@ class PersistenceCommitResult:
 
 @dataclass(frozen=True)
 class _PersistenceStoreState:
-    records: tuple[PersistedAuthorizationRecord, ...] = ()
-    committed_record_ids: frozenset[str] = frozenset()
-    used_candidate_digests: frozenset[str] = frozenset()
-    write_count: int = 0
-    mutation_count: int = 0
+    records: tuple[PersistedAuthorizationRecord, ...]
+    receipts: tuple[PersistenceCommitReceipt, ...]
+    committed_record_ids: frozenset[str]
+    used_candidate_digests: frozenset[str]
+    write_count: int
+    mutation_count: int
+    state_digest: str
 
 
 class InMemoryPersistenceStore:
     """Test-only atomic persistence semantics; never writes filesystem or DB state."""
 
     def __init__(self) -> None:
-        self._state = _PersistenceStoreState()
+        self._state = _empty_state()
 
     @property
     def records(self) -> tuple[PersistedAuthorizationRecord, ...]:
@@ -336,6 +443,26 @@ class InMemoryPersistenceStore:
     @property
     def write_count(self) -> int:
         return self._state.write_count
+
+    @property
+    def receipts(self) -> tuple[PersistenceCommitReceipt, ...]:
+        return self._state.receipts
+
+    @property
+    def state_digest(self) -> str:
+        return self._state.state_digest
+
+    @property
+    def snapshot(self) -> PersistenceStoreSnapshot:
+        if not self._state.records or not self._state.receipts:
+            raise ProductionPersistenceError()
+        return PersistenceStoreSnapshot(
+            state_digest=self._state.state_digest,
+            persistence_generation=len(self._state.records),
+            latest_record_digest=self._state.records[-1].canonical_digest,
+            latest_receipt_digest=self._state.receipts[-1].canonical_digest,
+            _snapshot_marker=_SNAPSHOT_MARKER,
+        )
 
     @property
     def mutation_count(self) -> int:
@@ -369,7 +496,12 @@ class InMemoryPersistenceStore:
             self._state = candidate
         except Exception:
             return _commit_result(request, {PersistenceReason.COMMIT_FAILED})
-        return _commit_result(request, set(), applied=True)
+        return _commit_result(
+            request,
+            set(),
+            applied=True,
+            receipt=candidate.receipts[-1],
+        )
 
     def _candidate_state(
         self,
@@ -389,12 +521,37 @@ class InMemoryPersistenceStore:
         }
         if fault is PersistenceCommitFault.COUNTERS:
             raise RuntimeError("fault")
+        write_count = self._state.write_count + 1
+        mutation_count = self._state.mutation_count + 1
+        state_digest = _store_state_digest(
+            records,
+            frozenset(record_ids),
+            frozenset(candidate_digests),
+            write_count,
+            mutation_count,
+        )
+        if fault is PersistenceCommitFault.RECEIPT:
+            raise RuntimeError("fault")
+        receipt = PersistenceCommitReceipt(
+            persisted_record_id=request.record.persisted_record_id,
+            persisted_record_digest=request.record.canonical_digest,
+            persistence_policy_digest=request.policy.canonical_digest,
+            source_candidate_digest=request.source_candidate.canonical_digest,
+            persistence_generation=request.record.persistence_generation,
+            previous_record_digest=request.record.previous_record_digest,
+            committed_at=request.evaluation_time,
+            evaluated_at=request.evaluation_time,
+            resulting_store_state_digest=state_digest,
+            _commit_marker=_RECEIPT_MARKER,
+        )
         return _PersistenceStoreState(
             records=records,
+            receipts=(*self._state.receipts, receipt),
             committed_record_ids=frozenset(record_ids),
             used_candidate_digests=frozenset(candidate_digests),
-            write_count=self._state.write_count + 1,
-            mutation_count=self._state.mutation_count + 1,
+            write_count=write_count,
+            mutation_count=mutation_count,
+            state_digest=state_digest,
         )
 
 
@@ -534,6 +691,7 @@ def _commit_result(
     reasons: set[PersistenceReason],
     *,
     applied: bool = False,
+    receipt: PersistenceCommitReceipt | None = None,
 ) -> PersistenceCommitResult:
     return PersistenceCommitResult(
         persisted_record_id=request.record.persisted_record_id,
@@ -544,6 +702,40 @@ def _commit_result(
         evaluated_at=request.evaluation_time,
         write_count=1 if applied else 0,
         mutation_count=1 if applied else 0,
+        receipt=receipt,
+    )
+
+
+def _empty_state() -> _PersistenceStoreState:
+    return _PersistenceStoreState(
+        records=(),
+        receipts=(),
+        committed_record_ids=frozenset(),
+        used_candidate_digests=frozenset(),
+        write_count=0,
+        mutation_count=0,
+        state_digest=_store_state_digest((), frozenset(), frozenset(), 0, 0),
+    )
+
+
+def _store_state_digest(
+    records: tuple[PersistedAuthorizationRecord, ...],
+    record_ids: frozenset[str],
+    candidate_digests: frozenset[str],
+    write_count: int,
+    mutation_count: int,
+) -> str:
+    return _digest(
+        _canonical_json(
+            {
+                "candidate_digests": sorted(candidate_digests),
+                "generation": len(records),
+                "mutation_count": mutation_count,
+                "record_digests": [record.canonical_digest for record in records],
+                "record_ids": sorted(record_ids),
+                "write_count": write_count,
+            }
+        )
     )
 
 
@@ -583,6 +775,7 @@ __all__ = [
     "InMemoryPersistenceStore",
     "PersistedAuthorizationRecord",
     "PersistedAuthorizationSafeSummary",
+    "PersistenceCommitReceipt",
     "PersistenceCommitFault",
     "PersistenceCommitRequest",
     "PersistenceCommitResult",
@@ -590,6 +783,7 @@ __all__ = [
     "PersistenceReason",
     "PersistenceRetentionPolicy",
     "PersistenceRollbackPolicy",
+    "PersistenceStoreSnapshot",
     "ProductionPersistenceError",
     "create_persisted_authorization_record",
 ]

@@ -17,6 +17,9 @@
 
 - [x] `ready_for_activation_commit` is not active or runtime-authorized.
 - [x] Persistence is a test-only in-memory semantic contract.
+- [x] Activation requires an exact store-issued commit receipt, approved policy, persisted record,
+  and current store snapshot; no self-declared persistence boolean is trusted.
+- [x] Failed persistence commits issue no receipt and leave the atomic state bundle unchanged.
 - [x] No runtime activation API, runtime switch, token, or credential generation exists.
 - [x] No filesystem, database, external-storage, or production-registry write exists.
 - [x] Synthetic-only evidence cannot reach the commit-plan result.

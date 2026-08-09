@@ -1965,12 +1965,15 @@ then into a pure activation-request evaluation. The record binds the candidate, 
 admission decision, accepted registry entry/state, lifecycle/replacement state, persistence policy,
 generation, predecessor, explicit time, and separated operator through canonical SHA-256 digests.
 
-The test-only persistence store builds the complete candidate record tuple, replay sets, and
-counters before one immutable state-bundle swap. Every validation or injected commit failure leaves
-all state unchanged, consumes no replay identity, and permits retry. Successful record/candidate
+The test-only persistence store builds the complete candidate record tuple, commit receipt, replay
+sets, counters, and resulting state digest before one immutable state-bundle swap. Every validation
+or injected commit failure issues no receipt, leaves all state unchanged, consumes no replay
+identity, and permits retry. Successful record/candidate
 replay is rejected.
 
-The activation evaluator has explicit time and exact snapshot inputs. Its terminal positive result
+The activation evaluator has explicit time and exact persisted-record, store-issued receipt,
+approved-policy, and current-snapshot inputs; no caller-supplied persistence boolean is trusted. Its
+terminal positive result
 is only `ready_for_activation_commit` with an immutable plan. It never activates a runtime and all
 write, mutation, persistence, filesystem, database, transport, HTTP, and activation counts remain
 zero. Synthetic-only evidence remains insufficient. See

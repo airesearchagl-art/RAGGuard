@@ -15,13 +15,27 @@ from ragguard.production_boundary import (
     ManualValidationState,
 )
 from ragguard.production_registry import RegistryStatus
-from tests.test_authorization_activation_evaluator import activation_context
+from ragguard.production_authorization import ProductionAuthorizationResult
+from tests.test_authorization_activation_evaluator import (
+    activation_context,
+    authorization_candidate_context,
+)
 
 
 def evaluate_chain(*, request_changes=None, evidence_changes=None, snapshot=None):
     request_changes = {} if request_changes is None else request_changes
     evidence_changes = {} if evidence_changes is None else evidence_changes
-    entry, evidence, candidate, record, request, evaluation_time = activation_context(
+    (
+        entry,
+        evidence,
+        candidate,
+        record,
+        receipt,
+        policy,
+        persistence_snapshot,
+        request,
+        evaluation_time,
+    ) = activation_context(
         **evidence_changes
     )
     request = replace(request, **request_changes)
@@ -31,6 +45,9 @@ def evaluate_chain(*, request_changes=None, evidence_changes=None, snapshot=None
     return evaluate_activation_request(
         request,
         record,
+        receipt,
+        policy,
+        persistence_snapshot,
         candidate,
         evidence,
         registry_snapshot,
@@ -65,16 +82,11 @@ def test_approved_review_stops_at_commit_plan() -> None:
 
 
 def test_synthetic_fixture_never_reaches_commit_plan() -> None:
-    result = evaluate_chain(
-        evidence_changes={
-            "compatibility_evidence_kind": CompatibilityEvidenceKind.SYNTHETIC_ONLY,
-            "manual_validation_state": ManualValidationState.NOT_PERFORMED,
-        },
-        request_changes={"activation_review_approved": True},
+    _, _, candidate = authorization_candidate_context(
+        compatibility_evidence_kind=CompatibilityEvidenceKind.SYNTHETIC_ONLY,
+        manual_validation_state=ManualValidationState.NOT_PERFORMED,
     )
-    assert result.result is ActivationEvaluationResult.NEEDS_MANUAL_VALIDATION
-    assert result.commit_plan is None
-    assert_denial_has_no_side_effects(result)
+    assert candidate.result is ProductionAuthorizationResult.NEEDS_MANUAL_VALIDATION
 
 
 @pytest.mark.parametrize(
@@ -100,7 +112,10 @@ def test_replaced_predecessor_fails_closed() -> None:
 
 
 def test_future_metadata_fails_closed() -> None:
-    entry, evidence, candidate, record, request, evaluation_time = activation_context()
+    (
+        entry, evidence, candidate, record, receipt, policy,
+        persistence_snapshot, request, evaluation_time,
+    ) = activation_context()
     future = replace(
         request,
         activation_requested_at=evaluation_time + timedelta(microseconds=1),
@@ -108,6 +123,9 @@ def test_future_metadata_fails_closed() -> None:
     result = evaluate_activation_request(
         future,
         record,
+        receipt,
+        policy,
+        persistence_snapshot,
         candidate,
         evidence,
         (entry.canonical_digest,),

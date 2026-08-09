@@ -20,7 +20,12 @@ from ragguard.production_boundary import (
     SecurityReviewState,
     canonical_registry_state_digest,
 )
-from ragguard.production_persistence import PersistedAuthorizationRecord
+from ragguard.production_persistence import (
+    PersistedAuthorizationRecord,
+    PersistenceCommitReceipt,
+    PersistencePolicy,
+    PersistenceStoreSnapshot,
+)
 from ragguard.production_registry import RegistryStatus
 
 
@@ -50,6 +55,7 @@ class ActivationReason(str, Enum):
     REPLACED_PREDECESSOR = "replaced_predecessor"
     EVIDENCE_EXPIRED = "evidence_expired"
     REPLAY_DETECTED = "replay_detected"
+    PERSISTENCE_RECEIPT_STALE = "persistence_receipt_stale"
     MANUAL_VALIDATION_REQUIRED = "manual_validation_required"
     PERSISTENCE_VERIFICATION_REQUIRED = "persistence_verification_required"
     ACTIVATION_REVIEW_REQUIRED = "activation_review_required"
@@ -82,7 +88,6 @@ class ActivationRequest:
     expected_registry_state_digest: str
     expected_lifecycle_status: RegistryStatus
     request_nonce_digest: str
-    persistence_verified: bool
     activation_review_approved: bool
     use_current_alias: bool = False
     use_latest_alias: bool = False
@@ -121,7 +126,6 @@ class ActivationRequest:
             or not all(
                 type(value) is bool
                 for value in (
-                    self.persistence_verified,
                     self.activation_review_approved,
                     self.use_current_alias,
                     self.use_latest_alias,
@@ -159,7 +163,6 @@ class ActivationRequest:
                 ),
                 "infer_source": self.infer_source,
                 "persisted_record_digest": self.persisted_record_digest,
-                "persistence_verified": self.persistence_verified,
                 "request_nonce_digest": self.request_nonce_digest,
                 "use_current_alias": self.use_current_alias,
                 "use_latest_alias": self.use_latest_alias,
@@ -174,6 +177,7 @@ class ActivationRequest:
 class ActivationCommitPlan:
     activation_request_digest: str
     persisted_record_digest: str
+    persistence_receipt_digest: str
     source_candidate_digest: str
     expected_registry_state_digest: str
     expected_generation: int
@@ -188,6 +192,7 @@ class ActivationCommitPlan:
                 for value in (
                     self.activation_request_digest,
                     self.persisted_record_digest,
+                    self.persistence_receipt_digest,
                     self.source_candidate_digest,
                     self.expected_registry_state_digest,
                 )
@@ -211,6 +216,7 @@ class ActivationCommitPlan:
                     self.expected_registry_state_digest
                 ),
                 "persisted_record_digest": self.persisted_record_digest,
+                "persistence_receipt_digest": self.persistence_receipt_digest,
                 "source_candidate_digest": self.source_candidate_digest,
             }
         )
@@ -225,6 +231,7 @@ class ActivationEvaluationSafeSummary:
     result: str
     reason_categories: tuple[str, ...]
     persisted_record_digest: str
+    persistence_receipt_digest: str
     persistence_generation: int
     lifecycle_status: str
     evaluated_at: str
@@ -238,6 +245,7 @@ class ActivationEvaluation:
     reason_categories: tuple[ActivationReason, ...]
     activation_request_digest: str
     persisted_record_digest: str
+    persistence_receipt_digest: str
     source_candidate_digest: str
     persistence_generation: int
     lifecycle_status: RegistryStatus
@@ -267,6 +275,7 @@ class ActivationEvaluation:
                 for value in (
                     self.activation_request_digest,
                     self.persisted_record_digest,
+                    self.persistence_receipt_digest,
                     self.source_candidate_digest,
                 )
             )
@@ -289,6 +298,7 @@ class ActivationEvaluation:
                 result=self.result.value,
                 reason_categories=tuple(reason.value for reason in self.reason_categories),
                 persisted_record_digest=self.persisted_record_digest,
+                persistence_receipt_digest=self.persistence_receipt_digest,
                 persistence_generation=self.persistence_generation,
                 lifecycle_status=self.lifecycle_status.value,
                 evaluated_at=_canonical_datetime(self.evaluated_at),
@@ -307,6 +317,7 @@ class ActivationEvaluation:
                 "evaluated_at": _canonical_datetime(self.evaluated_at),
                 "lifecycle_status": self.lifecycle_status.value,
                 "persisted_record_digest": self.persisted_record_digest,
+                "persistence_receipt_digest": self.persistence_receipt_digest,
                 "persistence_generation": self.persistence_generation,
                 "reason_categories": [reason.value for reason in self.reason_categories],
                 "result": self.result.value,
@@ -352,6 +363,9 @@ class InMemoryActivationReplayStore:
         self,
         request: ActivationRequest,
         record: PersistedAuthorizationRecord,
+        receipt: PersistenceCommitReceipt,
+        policy: PersistencePolicy,
+        persistence_snapshot: PersistenceStoreSnapshot,
         candidate: ProductionAuthorizationCandidate,
         evidence: ProductionBoundaryEvidence,
         registry_snapshot_digests: tuple[str, ...],
@@ -360,6 +374,9 @@ class InMemoryActivationReplayStore:
         result = evaluate_activation_request(
             request,
             record,
+            receipt,
+            policy,
+            persistence_snapshot,
             candidate,
             evidence,
             registry_snapshot_digests,
@@ -384,6 +401,9 @@ class InMemoryActivationReplayStore:
 def evaluate_activation_request(
     request: ActivationRequest,
     record: PersistedAuthorizationRecord,
+    receipt: PersistenceCommitReceipt,
+    policy: PersistencePolicy,
+    persistence_snapshot: PersistenceStoreSnapshot,
     candidate: ProductionAuthorizationCandidate,
     evidence: ProductionBoundaryEvidence,
     registry_snapshot_digests: tuple[str, ...],
@@ -396,6 +416,9 @@ def evaluate_activation_request(
     if (
         not isinstance(request, ActivationRequest)
         or not isinstance(record, PersistedAuthorizationRecord)
+        or not isinstance(receipt, PersistenceCommitReceipt)
+        or not isinstance(policy, PersistencePolicy)
+        or not isinstance(persistence_snapshot, PersistenceStoreSnapshot)
         or not isinstance(candidate, ProductionAuthorizationCandidate)
         or not isinstance(evidence, ProductionBoundaryEvidence)
         or not _is_aware(evaluation_time)
@@ -413,10 +436,24 @@ def evaluate_activation_request(
     if not _identity_matches(request, evidence):
         reasons.add(ActivationReason.IDENTITY_MISMATCH)
     if not _digests_match(
-        request, record, candidate, evidence, registry_snapshot_digests
+        request,
+        record,
+        receipt,
+        policy,
+        persistence_snapshot,
+        candidate,
+        evidence,
+        registry_snapshot_digests,
     ):
         reasons.add(ActivationReason.DIGEST_MISMATCH)
-    if not _integrity_matches(record, candidate, request):
+    if not _integrity_matches(
+        record,
+        receipt,
+        policy,
+        persistence_snapshot,
+        candidate,
+        request,
+    ):
         reasons.add(ActivationReason.INTEGRITY_MISMATCH)
     if any(
         (
@@ -431,6 +468,8 @@ def evaluate_activation_request(
         reasons.add(ActivationReason.ROLE_CONFLICT)
     if not (
         record.persisted_at
+        <= receipt.committed_at
+        == receipt.evaluated_at
         <= request.activation_requested_at
         <= evaluation_time
         < evidence.evidence_expires_at
@@ -455,13 +494,17 @@ def evaluate_activation_request(
     ):
         reasons.add(ActivationReason.REPLAY_DETECTED)
 
-    result = _result(request, candidate, evidence, reasons)
+    if not _receipt_is_current(receipt, record, persistence_snapshot):
+        reasons.add(ActivationReason.PERSISTENCE_RECEIPT_STALE)
+
+    result = _result(request, candidate, evidence, policy, reasons)
     ordered = tuple(reason for reason in _REASON_ORDER if reason in reasons)
     plan = None
     if result is ActivationEvaluationResult.READY_FOR_ACTIVATION_COMMIT:
         plan = ActivationCommitPlan(
             activation_request_digest=request.canonical_digest,
             persisted_record_digest=record.canonical_digest,
+            persistence_receipt_digest=receipt.canonical_digest,
             source_candidate_digest=candidate.canonical_digest,
             expected_registry_state_digest=request.expected_registry_state_digest,
             expected_generation=request.expected_persistence_generation,
@@ -474,6 +517,7 @@ def evaluate_activation_request(
         reason_categories=ordered,
         activation_request_digest=request.canonical_digest,
         persisted_record_digest=record.canonical_digest,
+        persistence_receipt_digest=receipt.canonical_digest,
         source_candidate_digest=candidate.canonical_digest,
         persistence_generation=record.persistence_generation,
         lifecycle_status=record.source_lifecycle_status,
@@ -486,6 +530,7 @@ def _result(
     request: ActivationRequest,
     candidate: ProductionAuthorizationCandidate,
     evidence: ProductionBoundaryEvidence,
+    policy: PersistencePolicy,
     reasons: set[ActivationReason],
 ) -> ActivationEvaluationResult:
     if reasons & (_STRUCTURAL | _LIFECYCLE):
@@ -500,7 +545,7 @@ def _result(
     if candidate.result is ProductionAuthorizationResult.NEEDS_PERSISTENCE_BOUNDARY:
         reasons.add(ActivationReason.PERSISTENCE_VERIFICATION_REQUIRED)
         return ActivationEvaluationResult.NEEDS_PERSISTENCE_VERIFICATION
-    if not request.persistence_verified:
+    if not policy.is_approved:
         reasons.add(ActivationReason.PERSISTENCE_VERIFICATION_REQUIRED)
         return ActivationEvaluationResult.NEEDS_PERSISTENCE_VERIFICATION
     if candidate.result not in {
@@ -538,6 +583,9 @@ def _identity_matches(
 def _digests_match(
     request: ActivationRequest,
     record: PersistedAuthorizationRecord,
+    receipt: PersistenceCommitReceipt,
+    policy: PersistencePolicy,
+    persistence_snapshot: PersistenceStoreSnapshot,
     candidate: ProductionAuthorizationCandidate,
     evidence: ProductionBoundaryEvidence,
     registry_snapshot_digests: tuple[str, ...],
@@ -549,6 +597,18 @@ def _digests_match(
     return all(
         (
             request.persisted_record_digest == record.canonical_digest,
+            receipt.persisted_record_id == record.persisted_record_id,
+            receipt.persisted_record_digest == record.canonical_digest,
+            receipt.persistence_policy_digest == policy.canonical_digest,
+            record.persistence_policy_digest == policy.canonical_digest,
+            receipt.source_candidate_digest == candidate.canonical_digest,
+            receipt.persistence_generation == record.persistence_generation,
+            receipt.previous_record_digest == record.previous_record_digest,
+            receipt.resulting_store_state_digest == persistence_snapshot.state_digest,
+            receipt.canonical_digest == persistence_snapshot.latest_receipt_digest,
+            record.canonical_digest == persistence_snapshot.latest_record_digest,
+            record.persistence_generation
+            == persistence_snapshot.persistence_generation,
             request.expected_persistence_generation == record.persistence_generation,
             request.expected_registry_state_digest == registry_state,
             request.expected_registry_state_digest == evidence.registry_state_digest,
@@ -567,6 +627,9 @@ def _digests_match(
 
 def _integrity_matches(
     record: PersistedAuthorizationRecord,
+    receipt: PersistenceCommitReceipt,
+    policy: PersistencePolicy,
+    persistence_snapshot: PersistenceStoreSnapshot,
     candidate: ProductionAuthorizationCandidate,
     request: ActivationRequest,
 ) -> bool:
@@ -574,8 +637,28 @@ def _integrity_matches(
         (
             _digest(record.integrity_json()) == record.integrity_digest,
             _digest(record.canonical_json()) == record.canonical_digest,
+            _digest(receipt.canonical_json()) == receipt.canonical_digest,
+            _digest(policy.canonical_json()) == policy.canonical_digest,
+            _digest(persistence_snapshot.canonical_json())
+            == persistence_snapshot.canonical_digest,
             _digest(candidate.canonical_json()) == candidate.canonical_digest,
             _digest(request.canonical_json()) == request.canonical_digest,
+        )
+    )
+
+
+def _receipt_is_current(
+    receipt: PersistenceCommitReceipt,
+    record: PersistedAuthorizationRecord,
+    snapshot: PersistenceStoreSnapshot,
+) -> bool:
+    return all(
+        (
+            receipt.resulting_store_state_digest == snapshot.state_digest,
+            receipt.persistence_generation == snapshot.persistence_generation,
+            receipt.persisted_record_digest == snapshot.latest_record_digest,
+            receipt.persisted_record_digest == record.canonical_digest,
+            receipt.canonical_digest == snapshot.latest_receipt_digest,
         )
     )
 

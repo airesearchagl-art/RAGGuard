@@ -3,7 +3,7 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from ragguard.authorization_activation import ActivationEvaluationResult
+from ragguard.authorization_activation import ActivationEvaluationResult, ActivationRequest
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -20,6 +20,10 @@ def test_ready_for_commit_is_not_runtime_active() -> None:
         "production_enabled",
         "authorized_runtime",
     }
+
+
+def test_activation_request_has_no_self_declared_persistence_gate() -> None:
+    assert "persistence_verified" not in ActivationRequest.__dataclass_fields__
 
 
 def test_no_runtime_activation_api() -> None:

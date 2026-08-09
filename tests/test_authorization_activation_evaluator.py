@@ -14,6 +14,7 @@ from ragguard.authorization_activation import (
 )
 from ragguard.production_authorization import (
     ProductionAuthorizationRequest,
+    ProductionAuthorizationResult,
     evaluate_production_authorization,
 )
 from ragguard.production_boundary import (
@@ -24,7 +25,11 @@ from ragguard.production_boundary import (
     SecurityReviewState,
     canonical_registry_state_digest,
 )
-from ragguard.production_persistence import create_persisted_authorization_record
+from ragguard.production_persistence import (
+    InMemoryPersistenceStore,
+    PersistenceCommitRequest,
+    create_persisted_authorization_record,
+)
 from ragguard.production_registry import RegistryStatus
 from ragguard.replacement_admission import ReplacementRegistryEntry
 from tests.test_production_boundary_contract import (
@@ -41,7 +46,7 @@ from tests.test_production_persistence_contract import approved_policy
 NONCE_A = "sha256:" + "1" * 64
 
 
-def activation_context(**evidence_changes: object):
+def authorization_candidate_context(**evidence_changes: object):
     entry = source_entry()
     values: dict[str, object] = {
         "compatibility_evidence_kind": CompatibilityEvidenceKind.CONTROLLED_MANUAL,
@@ -61,22 +66,42 @@ def activation_context(**evidence_changes: object):
             registry_snapshot_digests=(entry.canonical_digest,),
         )
     )
+    return entry, evidence, candidate
+
+
+def activation_context(*, include_store: bool = False, **evidence_changes: object):
+    entry, evidence, candidate = authorization_candidate_context(**evidence_changes)
     persisted_at = evidence.evaluation_time + timedelta(microseconds=1)
+    policy = approved_policy()
     record = create_persisted_authorization_record(
         persisted_record_id="persisted-authorization-v015",
         source_candidate=candidate,
         source_evidence=evidence,
-        policy=approved_policy(),
+        policy=policy,
         persisted_at=persisted_at,
         persisted_by="persistence-operator",
         persistence_generation=1,
         previous_record_digest=None,
     )
+    persistence_store = InMemoryPersistenceStore()
+    commit_result = persistence_store.commit(
+        PersistenceCommitRequest(
+            record=record,
+            source_candidate=candidate,
+            source_evidence=evidence,
+            policy=policy,
+            registry_snapshot_digests=(entry.canonical_digest,),
+            evaluation_time=persisted_at + timedelta(microseconds=1),
+        )
+    )
+    assert commit_result.applied
+    assert commit_result.receipt is not None
+    receipt = commit_result.receipt
     request = ActivationRequest(
         activation_request_id="activation-request-v015",
         persisted_record_digest=record.canonical_digest,
         expected_persistence_generation=record.persistence_generation,
-        activation_requested_at=persisted_at + timedelta(microseconds=1),
+        activation_requested_at=receipt.committed_at + timedelta(microseconds=1),
         activation_requester_id="activation-requester",
         activation_reviewer_id="activation-reviewer",
         authorization_approver_id=evidence.authorization_approver_id,
@@ -88,19 +113,44 @@ def activation_context(**evidence_changes: object):
         expected_registry_state_digest=evidence.registry_state_digest,
         expected_lifecycle_status=RegistryStatus.ACTIVE,
         request_nonce_digest=NONCE_A,
-        persistence_verified=True,
         activation_review_approved=False,
     )
     evaluation_time = request.activation_requested_at + timedelta(microseconds=1)
-    return entry, evidence, candidate, record, request, evaluation_time
+    context = (
+        entry,
+        evidence,
+        candidate,
+        record,
+        receipt,
+        policy,
+        persistence_store.snapshot,
+        request,
+        evaluation_time,
+    )
+    if include_store:
+        return (*context, persistence_store)
+    return context
 
 
 def evaluate(**request_changes: object):
-    entry, evidence, candidate, record, request, evaluation_time = activation_context()
+    (
+        entry,
+        evidence,
+        candidate,
+        record,
+        receipt,
+        policy,
+        persistence_snapshot,
+        request,
+        evaluation_time,
+    ) = activation_context()
     request = replace(request, **request_changes)
     return evaluate_activation_request(
         request,
         record,
+        receipt,
+        policy,
+        persistence_snapshot,
         candidate,
         evidence,
         (entry.canonical_digest,),
@@ -122,17 +172,17 @@ def assert_zero_effects(result) -> None:
 
 
 def test_request_is_immutable() -> None:
-    request = activation_context()[4]
+    request = activation_context()[7]
     with pytest.raises(FrozenInstanceError):
         request.activation_request_id = "changed"  # type: ignore[misc]
 
 
 def test_request_digest_is_deterministic() -> None:
-    assert activation_context()[4].canonical_digest == activation_context()[4].canonical_digest
+    assert activation_context()[7].canonical_digest == activation_context()[7].canonical_digest
 
 
 def test_one_microsecond_changes_request_digest() -> None:
-    request = activation_context()[4]
+    request = activation_context()[7]
     changed = replace(
         request,
         activation_requested_at=request.activation_requested_at
@@ -142,7 +192,7 @@ def test_one_microsecond_changes_request_digest() -> None:
 
 
 def test_equivalent_instant_has_same_digest() -> None:
-    request = activation_context()[4]
+    request = activation_context()[7]
     changed = replace(
         request,
         activation_requested_at=request.activation_requested_at.astimezone(
@@ -163,30 +213,17 @@ def test_all_contract_prerequisites_return_commit_plan_only() -> None:
     result = evaluate(activation_review_approved=True)
     assert result.result is ActivationEvaluationResult.READY_FOR_ACTIVATION_COMMIT
     assert result.commit_plan is not None
+    assert result.commit_plan.persistence_receipt_digest == result.persistence_receipt_digest
     assert result.runtime_activation_count == 0
     assert_zero_effects(result)
 
 
-def test_missing_persistence_verification() -> None:
-    result = evaluate(persistence_verified=False)
-    assert result.result is ActivationEvaluationResult.NEEDS_PERSISTENCE_VERIFICATION
-
-
 def test_synthetic_only_needs_manual_validation() -> None:
-    entry, evidence, candidate, record, request, evaluation_time = activation_context(
+    _, _, candidate = authorization_candidate_context(
         compatibility_evidence_kind=CompatibilityEvidenceKind.SYNTHETIC_ONLY,
         manual_validation_state=ManualValidationState.NOT_PERFORMED,
     )
-    result = evaluate_activation_request(
-        request,
-        record,
-        candidate,
-        evidence,
-        (entry.canonical_digest,),
-        evaluation_time,
-    )
-    assert result.result is ActivationEvaluationResult.NEEDS_MANUAL_VALIDATION
-    assert_zero_effects(result)
+    assert candidate.result is ProductionAuthorizationResult.NEEDS_MANUAL_VALIDATION
 
 
 @pytest.mark.parametrize(
@@ -214,12 +251,175 @@ def test_generation_mismatch() -> None:
     assert result.result is ActivationEvaluationResult.INELIGIBLE
 
 
+def test_unapproved_policy_is_rejected() -> None:
+    (
+        entry,
+        evidence,
+        candidate,
+        record,
+        receipt,
+        policy,
+        snapshot,
+        request,
+        evaluation_time,
+    ) = activation_context()
+    unapproved = replace(policy, backup_required=False)
+    result = evaluate_activation_request(
+        request,
+        record,
+        receipt,
+        unapproved,
+        snapshot,
+        candidate,
+        evidence,
+        (entry.canonical_digest,),
+        evaluation_time,
+    )
+    assert result.result is ActivationEvaluationResult.INELIGIBLE
+    assert ActivationReason.DIGEST_MISMATCH in result.reason_categories
+    assert_zero_effects(result)
+
+
+def test_store_uncommitted_record_is_rejected() -> None:
+    (
+        entry,
+        evidence,
+        candidate,
+        record,
+        receipt,
+        policy,
+        snapshot,
+        request,
+        evaluation_time,
+    ) = activation_context()
+    uncommitted = replace(record, persisted_record_id="uncommitted-record-v015")
+    result = evaluate_activation_request(
+        replace(request, persisted_record_digest=uncommitted.canonical_digest),
+        uncommitted,
+        receipt,
+        policy,
+        snapshot,
+        candidate,
+        evidence,
+        (entry.canonical_digest,),
+        evaluation_time,
+    )
+    assert result.result is ActivationEvaluationResult.INELIGIBLE
+    assert ActivationReason.DIGEST_MISMATCH in result.reason_categories
+    assert_zero_effects(result)
+
+
+@pytest.mark.parametrize(
+    ("receipt_field", "value"),
+    [
+        ("persisted_record_digest", "sha256:" + "6" * 64),
+        ("persistence_policy_digest", "sha256:" + "7" * 64),
+        ("source_candidate_digest", "sha256:" + "8" * 64),
+        ("persistence_generation", 2),
+        ("previous_record_digest", "sha256:" + "9" * 64),
+    ],
+)
+def test_forged_receipt_binding_is_rejected(receipt_field: str, value: object) -> None:
+    (
+        entry,
+        evidence,
+        candidate,
+        record,
+        receipt,
+        policy,
+        snapshot,
+        request,
+        evaluation_time,
+    ) = activation_context()
+    object.__setattr__(receipt, receipt_field, value)
+    result = evaluate_activation_request(
+        request,
+        record,
+        receipt,
+        policy,
+        snapshot,
+        candidate,
+        evidence,
+        (entry.canonical_digest,),
+        evaluation_time,
+    )
+    assert result.result is ActivationEvaluationResult.INELIGIBLE
+    assert ActivationReason.INTEGRITY_MISMATCH in result.reason_categories
+    assert_zero_effects(result)
+
+
+def test_stale_receipt_is_rejected() -> None:
+    (
+        entry,
+        evidence,
+        candidate,
+        record,
+        receipt,
+        policy,
+        snapshot,
+        request,
+        evaluation_time,
+        persistence_store,
+    ) = activation_context(include_store=True)
+    successor_candidate = evaluate_production_authorization(
+        ProductionAuthorizationRequest(
+            request_id="authorization-candidate-v015-successor",
+            evidence=evidence,
+            source_entry=entry,
+            source_admission_decision=source_decision(),
+            registry_snapshot_digests=(entry.canonical_digest,),
+        )
+    )
+    successor_record = create_persisted_authorization_record(
+        persisted_record_id="persisted-authorization-v015-successor",
+        source_candidate=successor_candidate,
+        source_evidence=evidence,
+        policy=policy,
+        persisted_at=receipt.committed_at + timedelta(microseconds=1),
+        persisted_by="persistence-operator",
+        persistence_generation=2,
+        previous_record_digest=record.canonical_digest,
+    )
+    successor_result = persistence_store.commit(
+        PersistenceCommitRequest(
+            record=successor_record,
+            source_candidate=successor_candidate,
+            source_evidence=evidence,
+            policy=policy,
+            registry_snapshot_digests=(entry.canonical_digest,),
+            evaluation_time=successor_record.persisted_at
+            + timedelta(microseconds=1),
+        )
+    )
+    assert successor_result.applied
+    result = evaluate_activation_request(
+        request,
+        record,
+        receipt,
+        policy,
+        persistence_store.snapshot,
+        candidate,
+        evidence,
+        (entry.canonical_digest,),
+        evaluation_time,
+    )
+    assert result.result is ActivationEvaluationResult.INELIGIBLE
+    assert ActivationReason.PERSISTENCE_RECEIPT_STALE in result.reason_categories
+    assert_zero_effects(result)
+
+
 def test_registry_snapshot_mismatch() -> None:
-    entry, evidence, candidate, record, request, evaluation_time = activation_context()
+    (
+        entry, evidence, candidate, record, receipt, policy,
+        persistence_snapshot, request, evaluation_time,
+    ) = activation_context()
     other = "sha256:" + "8" * 64
     result = evaluate_activation_request(
         replace(request, expected_registry_state_digest=other),
         record,
+        receipt,
+        policy,
+        persistence_snapshot,
         candidate,
         evidence,
         (entry.canonical_digest,),
@@ -279,21 +479,35 @@ def test_fresh_replacement_successor_binding_is_accepted() -> None:
         )
     )
     persisted_at = evidence.evaluation_time + timedelta(microseconds=1)
+    policy = approved_policy()
     record = create_persisted_authorization_record(
         persisted_record_id="replacement-record-v015",
         source_candidate=candidate,
         source_evidence=evidence,
-        policy=approved_policy(),
+        policy=policy,
         persisted_at=persisted_at,
         persisted_by="persistence-operator",
         persistence_generation=1,
         previous_record_digest=None,
     )
+    persistence_store = InMemoryPersistenceStore()
+    commit_result = persistence_store.commit(
+        PersistenceCommitRequest(
+            record=record,
+            source_candidate=candidate,
+            source_evidence=evidence,
+            policy=policy,
+            registry_snapshot_digests=(replacement_entry.canonical_digest,),
+            evaluation_time=persisted_at + timedelta(microseconds=1),
+        )
+    )
+    assert commit_result.receipt is not None
     request = ActivationRequest(
         activation_request_id="replacement-activation-v015",
         persisted_record_digest=record.canonical_digest,
         expected_persistence_generation=1,
-        activation_requested_at=persisted_at + timedelta(microseconds=1),
+        activation_requested_at=commit_result.receipt.committed_at
+        + timedelta(microseconds=1),
         activation_requester_id="activation-requester",
         activation_reviewer_id="activation-reviewer",
         authorization_approver_id=evidence.authorization_approver_id,
@@ -305,12 +519,14 @@ def test_fresh_replacement_successor_binding_is_accepted() -> None:
         expected_registry_state_digest=evidence.registry_state_digest,
         expected_lifecycle_status=RegistryStatus.ACTIVE,
         request_nonce_digest="sha256:" + "7" * 64,
-        persistence_verified=True,
         activation_review_approved=True,
     )
     result = evaluate_activation_request(
         request,
         record,
+        commit_result.receipt,
+        policy,
+        persistence_store.snapshot,
         candidate,
         evidence,
         (replacement_entry.canonical_digest,),
@@ -325,11 +541,17 @@ def test_fresh_replacement_successor_binding_is_accepted() -> None:
     ["unresolved_revalidation", "pending_lifecycle_transition"],
 )
 def test_stale_source_state_is_ineligible(field: str) -> None:
-    entry, evidence, candidate, record, request, evaluation_time = activation_context()
+    (
+        entry, evidence, candidate, record, receipt, policy,
+        persistence_snapshot, request, evaluation_time,
+    ) = activation_context()
     stale_evidence = replace(evidence, **{field: True})
     result = evaluate_activation_request(
         request,
         record,
+        receipt,
+        policy,
+        persistence_snapshot,
         candidate,
         stale_evidence,
         (entry.canonical_digest,),
@@ -350,10 +572,16 @@ def test_inactive_lifecycle_is_ineligible(status: RegistryStatus) -> None:
 
 
 def test_expired_evidence_is_ineligible() -> None:
-    entry, evidence, candidate, record, request, _ = activation_context()
+    (
+        entry, evidence, candidate, record, receipt, policy,
+        persistence_snapshot, request, _,
+    ) = activation_context()
     result = evaluate_activation_request(
         request,
         record,
+        receipt,
+        policy,
+        persistence_snapshot,
         candidate,
         evidence,
         (entry.canonical_digest,),
@@ -364,7 +592,10 @@ def test_expired_evidence_is_ineligible() -> None:
 
 
 def test_future_activation_request_is_rejected() -> None:
-    entry, evidence, candidate, record, request, evaluation_time = activation_context()
+    (
+        entry, evidence, candidate, record, receipt, policy,
+        persistence_snapshot, request, evaluation_time,
+    ) = activation_context()
     future = replace(
         request,
         activation_requested_at=evaluation_time + timedelta(microseconds=1),
@@ -372,6 +603,9 @@ def test_future_activation_request_is_rejected() -> None:
     result = evaluate_activation_request(
         future,
         record,
+        receipt,
+        policy,
+        persistence_snapshot,
         candidate,
         evidence,
         (entry.canonical_digest,),
@@ -409,10 +643,16 @@ def test_implicit_resolution_is_rejected(flag: str) -> None:
 
 
 def test_request_id_replay_is_rejected() -> None:
-    entry, evidence, candidate, record, request, evaluation_time = activation_context()
+    (
+        entry, evidence, candidate, record, receipt, policy,
+        persistence_snapshot, request, evaluation_time,
+    ) = activation_context()
     result = evaluate_activation_request(
         replace(request, activation_review_approved=True),
         record,
+        receipt,
+        policy,
+        persistence_snapshot,
         candidate,
         evidence,
         (entry.canonical_digest,),
@@ -423,10 +663,16 @@ def test_request_id_replay_is_rejected() -> None:
 
 
 def test_nonce_replay_is_rejected() -> None:
-    entry, evidence, candidate, record, request, evaluation_time = activation_context()
+    (
+        entry, evidence, candidate, record, receipt, policy,
+        persistence_snapshot, request, evaluation_time,
+    ) = activation_context()
     result = evaluate_activation_request(
         replace(request, activation_review_approved=True),
         record,
+        receipt,
+        policy,
+        persistence_snapshot,
         candidate,
         evidence,
         (entry.canonical_digest,),
@@ -437,10 +683,16 @@ def test_nonce_replay_is_rejected() -> None:
 
 
 def test_record_replay_is_rejected() -> None:
-    entry, evidence, candidate, record, request, evaluation_time = activation_context()
+    (
+        entry, evidence, candidate, record, receipt, policy,
+        persistence_snapshot, request, evaluation_time,
+    ) = activation_context()
     result = evaluate_activation_request(
         replace(request, activation_review_approved=True),
         record,
+        receipt,
+        policy,
+        persistence_snapshot,
         candidate,
         evidence,
         (entry.canonical_digest,),
@@ -451,11 +703,17 @@ def test_record_replay_is_rejected() -> None:
 
 
 def test_failed_review_does_not_consume_replay_state() -> None:
-    entry, evidence, candidate, record, request, evaluation_time = activation_context()
+    (
+        entry, evidence, candidate, record, receipt, policy,
+        persistence_snapshot, request, evaluation_time,
+    ) = activation_context()
     store = InMemoryActivationReplayStore()
     result = store.evaluate(
         request,
         record,
+        receipt,
+        policy,
+        persistence_snapshot,
         candidate,
         evidence,
         (entry.canonical_digest,),
@@ -467,11 +725,17 @@ def test_failed_review_does_not_consume_replay_state() -> None:
 
 
 def test_failed_then_fixed_request_can_be_retried() -> None:
-    entry, evidence, candidate, record, request, evaluation_time = activation_context()
+    (
+        entry, evidence, candidate, record, receipt, policy,
+        persistence_snapshot, request, evaluation_time,
+    ) = activation_context()
     store = InMemoryActivationReplayStore()
     assert store.evaluate(
         request,
         record,
+        receipt,
+        policy,
+        persistence_snapshot,
         candidate,
         evidence,
         (entry.canonical_digest,),
@@ -481,6 +745,9 @@ def test_failed_then_fixed_request_can_be_retried() -> None:
     assert store.evaluate(
         approved,
         record,
+        receipt,
+        policy,
+        persistence_snapshot,
         candidate,
         evidence,
         (entry.canonical_digest,),
@@ -489,12 +756,18 @@ def test_failed_then_fixed_request_can_be_retried() -> None:
 
 
 def test_successful_duplicate_retry_is_rejected() -> None:
-    entry, evidence, candidate, record, request, evaluation_time = activation_context()
+    (
+        entry, evidence, candidate, record, receipt, policy,
+        persistence_snapshot, request, evaluation_time,
+    ) = activation_context()
     store = InMemoryActivationReplayStore()
     approved = replace(request, activation_review_approved=True)
     first = store.evaluate(
         approved,
         record,
+        receipt,
+        policy,
+        persistence_snapshot,
         candidate,
         evidence,
         (entry.canonical_digest,),
@@ -503,6 +776,9 @@ def test_successful_duplicate_retry_is_rejected() -> None:
     second = store.evaluate(
         approved,
         record,
+        receipt,
+        policy,
+        persistence_snapshot,
         candidate,
         evidence,
         (entry.canonical_digest,),
@@ -514,11 +790,17 @@ def test_successful_duplicate_retry_is_rejected() -> None:
 
 
 def test_canonical_record_tampering_is_rejected() -> None:
-    entry, evidence, candidate, record, request, evaluation_time = activation_context()
+    (
+        entry, evidence, candidate, record, receipt, policy,
+        persistence_snapshot, request, evaluation_time,
+    ) = activation_context()
     object.__setattr__(record, "persisted_by", "tampered-operator")
     result = evaluate_activation_request(
         request,
         record,
+        receipt,
+        policy,
+        persistence_snapshot,
         candidate,
         evidence,
         (entry.canonical_digest,),
