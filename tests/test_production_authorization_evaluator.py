@@ -76,6 +76,10 @@ def manually_ready(**changes: object) -> dict[str, object]:
     values: dict[str, object] = {
         "manual_validation_state": ManualValidationState.APPROVED,
         "compatibility_evidence_kind": CompatibilityEvidenceKind.CONTROLLED_MANUAL,
+        "manual_validation_execution_digest": DIGEST_A,
+        "manual_validation_evidence_digest": DIGEST_B,
+        "manual_validation_review_digest": DIGEST_C,
+        "manual_validation_approval_digest": DIGEST_D,
     }
     values.update(changes)
     return values

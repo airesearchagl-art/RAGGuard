@@ -185,6 +185,10 @@ class ProductionBoundaryEvidence:
     chain_reuse_detected: bool = False
     unresolved_revalidation: bool = False
     pending_lifecycle_transition: bool = False
+    manual_validation_execution_digest: str | None = None
+    manual_validation_evidence_digest: str | None = None
+    manual_validation_review_digest: str | None = None
+    manual_validation_approval_digest: str | None = None
     safe_summary: ProductionBoundarySafeSummary = field(init=False)
     canonical_digest: str = field(init=False)
 
@@ -217,6 +221,10 @@ class ProductionBoundaryEvidence:
         optional_digests = (
             self.source_replacement_entry_digest,
             self.replacement_decision_digest,
+            self.manual_validation_execution_digest,
+            self.manual_validation_evidence_digest,
+            self.manual_validation_review_digest,
+            self.manual_validation_approval_digest,
         )
         if not all(_is_digest(value) for value in digests) or any(
             value is not None and not _is_digest(value) for value in optional_digests
@@ -260,6 +268,16 @@ class ProductionBoundaryEvidence:
             _raise(ProductionBoundaryErrorCategory.INVALID_CONTRACT)
         if (self.source_replacement_entry_digest is None) != (
             self.replacement_decision_digest is None
+        ):
+            _raise(ProductionBoundaryErrorCategory.INVALID_CONTRACT)
+        manual_chain = (
+            self.manual_validation_execution_digest,
+            self.manual_validation_evidence_digest,
+            self.manual_validation_review_digest,
+            self.manual_validation_approval_digest,
+        )
+        if any(value is None for value in manual_chain) and any(
+            value is not None for value in manual_chain
         ):
             _raise(ProductionBoundaryErrorCategory.INVALID_CONTRACT)
         if (
@@ -319,6 +337,12 @@ class ProductionBoundaryEvidence:
                 "latest_required_action_at": _canonical_datetime(self.latest_required_action_at),
                 "lifecycle_evaluated_at": _optional_datetime(self.lifecycle_evaluated_at),
                 "manual_validation_state": self.manual_validation_state.value,
+                "manual_validation_chain": {
+                    "approval_digest": self.manual_validation_approval_digest,
+                    "evidence_digest": self.manual_validation_evidence_digest,
+                    "execution_digest": self.manual_validation_execution_digest,
+                    "review_digest": self.manual_validation_review_digest,
+                },
                 "pending_lifecycle_transition": self.pending_lifecycle_transition,
                 "persistence_metadata": {
                     "append_only_audit_required": (
@@ -358,6 +382,18 @@ class ProductionBoundaryEvidence:
 
     def __repr__(self) -> str:
         return "ProductionBoundaryEvidence(<safe>)"
+
+    @property
+    def manual_validation_chain_complete(self) -> bool:
+        return all(
+            value is not None
+            for value in (
+                self.manual_validation_execution_digest,
+                self.manual_validation_evidence_digest,
+                self.manual_validation_review_digest,
+                self.manual_validation_approval_digest,
+            )
+        )
 
 
 def canonical_registry_state_digest(entry_digests: tuple[str, ...]) -> str:

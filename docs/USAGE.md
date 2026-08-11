@@ -1,5 +1,24 @@
 # Usage
 
+## v0.16 test-only manual-validation execution contracts
+
+The v0.16 Python contracts can construct an immutable request, synthetic/controlled fixture
+manifest, strictly offline environment contract, execution record, evidence, review, and approval.
+They are library contracts and a deterministic test harness; no new CLI command is added.
+
+The required order is:
+
+1. bind an exact `ManualValidationPlan` digest;
+2. execute every required opaque test-case ID against an allowlisted safe fixture;
+3. create evidence from the committed execution-record digest;
+4. obtain review from a reviewer distinct from requester, operator, and evidence creator;
+5. obtain a later decision from a distinct approver.
+
+A valid plan is not execution, execution is not approval, and a self-declared approved state is
+not evidence. Synthetic or controlled offline execution is not evidence of real-product
+compatibility. The contracts do not connect to a product, network, external API, filesystem,
+database, registry, transport, or runtime activation path.
+
 ## v0.12.0 registry-lifecycle usage boundary
 
 v0.12 adds no CLI command or production connection. The public CLI remains `check-mask` and

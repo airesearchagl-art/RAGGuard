@@ -140,6 +140,10 @@ def boundary_evidence(**changes: object) -> ProductionBoundaryEvidence:
         "latest_required_action_at": admitted,
         "persistence_metadata": approved_persistence(),
         "safe_context": ("no_credentials", "no_network", "synthetic_only"),
+        "manual_validation_execution_digest": DIGEST_A,
+        "manual_validation_evidence_digest": DIGEST_B,
+        "manual_validation_review_digest": DIGEST_C,
+        "manual_validation_approval_digest": DIGEST_D,
     }
     values.update(changes)
     return ProductionBoundaryEvidence(**values)  # type: ignore[arg-type]

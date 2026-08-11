@@ -1,5 +1,25 @@
 # Design Notes
 
+## RAGGuard v0.16 manual-validation execution boundary
+
+The authoritative design is
+[v0.16 Manual Validation Execution Design](MANUAL_VALIDATION_EXECUTION_DESIGN_V0.16.md).
+v0.16 separates plan validity from execution, execution from evidence creation, evidence creation
+from independent review, and review from approval. Canonical digests bind every edge; opaque IDs
+alone are never trusted. UTC normalization retains fixed six-digit microsecond precision and every
+evaluation time is explicitly supplied.
+
+The execution harness is test-only and deterministic. It accepts only an exact safe fixture case
+set and a contract that prohibits network, filesystem writes, subprocess, external API, real data,
+and credentials. It builds a complete candidate record before a single in-memory state swap.
+Failure leaves record and replay state unchanged, so a corrected request can be retried; a
+successfully committed request or chain cannot be replayed.
+
+v0.14 boundary evidence now canonically covers the v0.16 execution record, execution evidence,
+review, and approval digests. `manual_validation_state=approved` without that complete chain does
+not pass the manual-validation gate. Even a complete approved chain remains controlled evidence,
+not production-equivalent evidence, runtime authorization, or activation.
+
 ## RAG Benchmark Harness v0.12 registry lifecycle governance
 
 v0.12 governs an already admitted test-only entry after v0.11 admission. The authoritative design
