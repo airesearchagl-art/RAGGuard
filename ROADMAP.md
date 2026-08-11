@@ -1,5 +1,19 @@
 # RAGGuard Roadmap
 
+## Delivery candidate: v0.16 manual-validation execution boundary
+
+v0.16 is delivered as one design/contract/test-only/security/documentation unit.
+
+- Immutable execution request, safe fixture manifest, and offline environment contract.
+- Deterministic exact-case-set execution with atomic record commit and replay protection.
+- Immutable execution evidence, independent review, and distinct approval chain.
+- Digest-covered v0.14 manual-validation integration without changing v0.15 activation behavior.
+- Security E2E and release preparation while retaining all v0.10-v0.15 compatibility gates.
+
+Production-equivalent evidence, a real-product adapter or connection, production profiles,
+production-registry writes, real persistence, credentials, and runtime activation remain separate
+design and approval tasks. Node runtime warning maintenance remains a separate CI PR.
+
 ## Delivery: RAG Benchmark Harness v0.12 registry lifecycle governance
 
 v0.12 is delivered as one design/contract/implementation/security/docs unit rather than separate

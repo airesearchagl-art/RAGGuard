@@ -2,6 +2,27 @@
 
 [![Tests](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml)
 
+## v0.16 manual-validation execution boundary
+
+v0.16 adds immutable execution-request, safe-fixture manifest, offline-environment, execution
+record, evidence, independent review, and approval contracts. A deterministic test-only harness
+requires the exact Phase A plan, fixture case set, and environment digests, and commits a passed
+execution record only after complete validation. Missing, failed, or skipped required cases never
+produce a passed record. Failed attempts and commit faults consume no replay identity.
+
+The chain is `plan -> request -> execution -> evidence -> review -> approval`. Each edge uses the
+canonical digest, explicit UTC microsecond timestamps, and distinct requester, operator, evidence
+creator, reviewer, and approver identities. v0.14 accepts an approved manual-validation state only
+when the four v0.16 execution/evidence/review/approval digests are present in its canonical
+boundary evidence. An approved chain is not production-equivalent evidence and does not activate
+runtime use.
+
+The harness is synthetic/controlled, deterministic, offline, and communication-free. It performs
+no real-product connection, production-registry write, filesystem/DB persistence, external API,
+credential handling, transport/HTTP change, or runtime activation. See the
+[v0.16 Manual Validation Execution Design](docs/MANUAL_VALIDATION_EXECUTION_DESIGN_V0.16.md) and
+[v0.16.0 Release Checklist](docs/RELEASE_CHECKLIST_V0.16.0.md).
+
 ## v0.14 production authorization boundary
 
 v0.14 adds immutable production-boundary evidence and a pure, fail-closed authorization-candidate

@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.16.0 - Unreleased
+
+### Added
+
+- Immutable manual-validation execution request, safe-fixture manifest, offline environment,
+  execution record, execution evidence, independent review, and approval contracts.
+- Deterministic test-only execution harness with exact required-case enforcement, explicit time,
+  atomic candidate-state commit, failed-attempt retry, and successful-chain replay protection.
+- Digest-covered v0.16 execution/evidence/review/approval binding at the v0.14 production boundary.
+- Security E2E and release-contract coverage for fail-closed denial and zero external side effects.
+
+### Security boundary
+
+- Synthetic or controlled offline execution is not production-equivalent or real-product evidence.
+- An `approved` claim without the exact v0.16 digest chain does not satisfy manual validation.
+- No runtime activation, filesystem/DB persistence, production-registry write, transport/HTTP,
+  external API, credential, real document, or real-product connection was added or performed.
+- CLI exit codes `0 / 1 / 2 / 3` and the report top-level schema remain unchanged.
+
 ## Unreleased
 
 ### v0.15.0 persistence / authorization activation boundary

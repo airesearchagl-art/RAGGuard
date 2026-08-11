@@ -8,6 +8,8 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import ClassVar
 
+from ragguard.manual_validation_execution import ManualValidationChain
+from ragguard.manual_validation_plan import ManualValidationPlan
 from ragguard.production_admission import ProductionAdmissionDecision
 from ragguard.production_boundary import (
     CompatibilityEvidenceKind,
@@ -78,6 +80,8 @@ class ProductionAuthorizationRequest:
     allow_fallback: bool = False
     allow_nearest_version: bool = False
     allow_schema_inference: bool = False
+    manual_validation_plan: ManualValidationPlan | None = field(default=None, repr=False)
+    manual_validation_chain: ManualValidationChain | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         if (
@@ -102,6 +106,12 @@ class ProductionAuthorizationRequest:
                     self.allow_schema_inference,
                 )
             )
+            or (self.manual_validation_plan is None)
+            != (self.manual_validation_chain is None)
+            or self.manual_validation_plan is not None
+            and not isinstance(self.manual_validation_plan, ManualValidationPlan)
+            or self.manual_validation_chain is not None
+            and not isinstance(self.manual_validation_chain, ManualValidationChain)
         ):
             raise ProductionAuthorizationError()
         canonical_registry_state_digest(self.registry_snapshot_digests)
@@ -242,6 +252,8 @@ def evaluate_production_authorization(
         reasons.add(ProductionAuthorizationReason.LIFECYCLE_TRANSITION_PENDING)
     if evidence.chain_reuse_detected:
         reasons.add(ProductionAuthorizationReason.CHAIN_REUSE)
+    if request.manual_validation_chain is not None and not _manual_chain_matches(request):
+        reasons.add(ProductionAuthorizationReason.DIGEST_MISMATCH)
 
     result = _result(evidence, reasons)
     ordered = tuple(reason for reason in _REASON_ORDER if reason in reasons)
@@ -268,6 +280,7 @@ def _result(
     if (
         evidence.manual_validation_state is not ManualValidationState.APPROVED
         or evidence.compatibility_evidence_kind is CompatibilityEvidenceKind.SYNTHETIC_ONLY
+        or not evidence.manual_validation_chain_complete
     ):
         reasons.add(ProductionAuthorizationReason.MANUAL_VALIDATION_REQUIRED)
         return ProductionAuthorizationResult.NEEDS_MANUAL_VALIDATION
@@ -306,6 +319,46 @@ def _identity_matches(
             evidence.approver_id == decision.approver_id,
             evidence.registry_administrator_id
             == entry.registry_administrator_id,
+        )
+    )
+
+
+def _manual_chain_matches(request: ProductionAuthorizationRequest) -> bool:
+    chain = request.manual_validation_chain
+    plan = request.manual_validation_plan
+    evidence = request.evidence
+    if chain is None or plan is None or chain.review is None or chain.approval is None:
+        return False
+    try:
+        chain.validate(plan=plan, evaluation_time=evidence.evaluation_time)
+    except ValueError:
+        return False
+    chain_actors = {
+        chain.request.requested_by,
+        chain.request.execution_operator_id,
+        chain.evidence.created_by,
+        chain.review.reviewer_id,
+        chain.approval.approver_id,
+    }
+    protected_roles = {
+        evidence.registry_administrator_id,
+        evidence.boundary_reviewer_id,
+        evidence.authorization_approver_id,
+    }
+    return all(
+        (
+            chain.approved,
+            chain.execution_record.canonical_digest
+            == evidence.manual_validation_execution_digest,
+            chain.evidence.canonical_digest
+            == evidence.manual_validation_evidence_digest,
+            chain.review.canonical_digest == evidence.manual_validation_review_digest,
+            chain.approval.canonical_digest
+            == evidence.manual_validation_approval_digest,
+            chain.request.execution_operator_id == evidence.validation_operator_id,
+            chain.review.reviewer_id == evidence.evidence_reviewer_id,
+            chain.approval.approver_id == evidence.approver_id,
+            not protected_roles & chain_actors,
         )
     )
 
