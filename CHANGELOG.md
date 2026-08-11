@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.17.0 - Unreleased
+
+### Added
+
+- Immutable production-equivalence assessment request, code-defined criteria, metadata-only
+  evidence descriptor, environment/configuration/behavior contracts, review, and approval.
+- Pure deterministic evaluator with exact v0.16 source binding, six-role separation, explicit UTC
+  microsecond time, fail-closed gap priority, and zero external side effects.
+- Test-only atomic attestation/replay ledger with failed-attempt retry and successful-chain replay
+  rejection across request, assessment, descriptor, review, approval, and manual source approval.
+- Digest-covered v0.14 boundary and v0.15 candidate propagation plus Security E2E and release
+  contract coverage.
+
+### Security boundary
+
+- Synthetic/manual approval or a production-equivalent enum claim is never sufficient.
+- Readiness metadata is a contract-fixture claim, not real-world product compatibility evidence.
+- No real-product validation/connection, runtime activation, filesystem/DB persistence,
+  production-registry write, transport/HTTP, external API, credential, token, or real document.
+- CLI exit codes and the report top-level schema remain unchanged.
+
 ## v0.16.0 - Unreleased
 
 ### Added

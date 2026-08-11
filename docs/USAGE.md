@@ -736,3 +736,15 @@ An `ActivationRequest` may then be evaluated with the exact record, candidate, b
 registry snapshot, and explicit evaluation time. A successful result is
 `ready_for_activation_commit`, not runtime authorization or activation. No command, runtime switch,
 credential, token, transport, HTTP path, production-registry write, or real persistence is added.
+
+## v0.17 production-equivalent evidence contract usage
+
+The Python contract constructs a `ProductionEquivalenceAssessmentRequest`, code-defined
+`EquivalenceCriteria`, metadata-only descriptor, and typed environment, configuration, and product
+behavior contracts. `evaluate_production_equivalence()` requires the exact approved v0.16 source
+chain and an explicit evaluation time. It returns an assessment category only and performs no I/O.
+
+After an eligible assessment, a distinct `EquivalenceReview` and `EquivalenceApproval` may be
+validated and committed to the test-only replay ledger. Even an approved equivalence chain is not
+runtime authorization or activation. Do not supply real endpoints, paths, payloads, documents,
+credentials, tokens, company/project/person names, or real product data.

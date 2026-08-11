@@ -1998,3 +1998,19 @@ is only `ready_for_activation_commit` with an immutable plan. It never activates
 write, mutation, persistence, filesystem, database, transport, HTTP, and activation counts remain
 zero. Synthetic-only evidence remains insufficient. See
 [v0.15 Persistence / Activation Design](PERSISTENCE_ACTIVATION_DESIGN_V0.15.md).
+
+## v0.17 production-equivalent evidence boundary
+
+v0.17 separates production-equivalence assessment, independent review, and approval from v0.16
+manual-validation approval. Exact source digests, identities, versions, criteria, descriptor,
+environment, configuration, protocol, case coverage, behavior, provenance, and explicit time are
+canonical inputs. A label, enum, or downstream approval cannot replace the chain.
+
+The evaluator is pure. The attestation store is test-only and swaps an immutable replay-state
+candidate only after successful validation. All denial and injected-fault paths retain zero
+write/mutation/persistence/filesystem/database/network/HTTP/activation counts. The five equivalence
+digests are carried by v0.14 boundary evidence and its authorization candidate, so v0.15 covers the
+chain through the source-candidate digest without adding persistence or activation behavior.
+
+This is recognition-contract design, not performed production validation. See
+[v0.17 Production-Equivalent Evidence Design](PRODUCTION_EQUIVALENT_EVIDENCE_DESIGN_V0.17.md).

@@ -98,3 +98,10 @@ CLI exit codes `0 / 1 / 2 / 3`, report top-level schemas, the v0.9 Compatibility
 approval enforcement, v0.11 admission governance, v0.12 lifecycle governance, and v0.13
 replacement governance remain unchanged.
 Workflow and Node runtime warning maintenance are out of scope.
+
+## v0.17 equivalence integration
+
+When production-equivalent evidence is claimed, v0.14 canonically carries the v0.17 criteria,
+descriptor, assessment, review, and approval digests plus the explicit equivalence state. An
+`approved` enum without all five digests and the exact source attestation chain fails closed.
+Review eligibility or equivalence approval still does not authorize or activate a runtime.

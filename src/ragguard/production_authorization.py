@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import ClassVar
 
+from ragguard.equivalence_attestation import EquivalenceAttestationChain
 from ragguard.manual_validation_execution import ManualValidationChain
 from ragguard.manual_validation_plan import ManualValidationPlan
 from ragguard.production_admission import ProductionAdmissionDecision
@@ -20,6 +21,7 @@ from ragguard.production_boundary import (
     SecurityReviewState,
     canonical_registry_state_digest,
 )
+from ragguard.production_equivalence import ProductionEquivalentState
 from ragguard.production_registry import RegistryStatus
 from ragguard.registry_admission import RegistryAdmissionEntry
 from ragguard.replacement_admission import ReplacementRegistryEntry
@@ -33,6 +35,7 @@ _DIGEST = re.compile(r"sha256:[0-9a-f]{64}\Z")
 class ProductionAuthorizationResult(str, Enum):
     INELIGIBLE = "ineligible"
     NEEDS_MANUAL_VALIDATION = "needs_manual_validation"
+    NEEDS_PRODUCTION_EQUIVALENCE = "needs_production_equivalence"
     NEEDS_SECURITY_REVIEW = "needs_security_review"
     NEEDS_PERSISTENCE_BOUNDARY = "needs_persistence_boundary"
     NEEDS_RUNTIME_AUTHORIZATION_BOUNDARY = "needs_runtime_authorization_boundary"
@@ -52,6 +55,7 @@ class ProductionAuthorizationReason(str, Enum):
     LIFECYCLE_TRANSITION_PENDING = "lifecycle_transition_pending"
     CHAIN_REUSE = "chain_reuse"
     MANUAL_VALIDATION_REQUIRED = "manual_validation_required"
+    PRODUCTION_EQUIVALENCE_REQUIRED = "production_equivalence_required"
     SECURITY_REVIEW_REQUIRED = "security_review_required"
     PERSISTENCE_BOUNDARY_REQUIRED = "persistence_boundary_required"
     RUNTIME_AUTHORIZATION_BOUNDARY_REQUIRED = "runtime_authorization_boundary_required"
@@ -82,6 +86,9 @@ class ProductionAuthorizationRequest:
     allow_schema_inference: bool = False
     manual_validation_plan: ManualValidationPlan | None = field(default=None, repr=False)
     manual_validation_chain: ManualValidationChain | None = field(default=None, repr=False)
+    equivalence_chain: EquivalenceAttestationChain | None = field(
+        default=None, repr=False
+    )
 
     def __post_init__(self) -> None:
         if (
@@ -112,6 +119,8 @@ class ProductionAuthorizationRequest:
             and not isinstance(self.manual_validation_plan, ManualValidationPlan)
             or self.manual_validation_chain is not None
             and not isinstance(self.manual_validation_chain, ManualValidationChain)
+            or self.equivalence_chain is not None
+            and not isinstance(self.equivalence_chain, EquivalenceAttestationChain)
         ):
             raise ProductionAuthorizationError()
         canonical_registry_state_digest(self.registry_snapshot_digests)
@@ -136,6 +145,11 @@ class ProductionAuthorizationCandidate:
     boundary_evidence_digest: str
     source_entry_digest: str
     evaluated_at: datetime
+    equivalence_assessment_digest: str | None = None
+    equivalence_review_digest: str | None = None
+    equivalence_approval_digest: str | None = None
+    equivalence_criteria_digest: str | None = None
+    equivalence_evidence_descriptor_digest: str | None = None
     write_count: int = field(init=False, default=0)
     mutation_count: int = field(init=False, default=0)
     transport_count: int = field(init=False, default=0)
@@ -172,6 +186,20 @@ class ProductionAuthorizationCandidate:
             or self.evaluated_at.utcoffset() is None
         ):
             raise ProductionAuthorizationError()
+        equivalence_digests = (
+            self.equivalence_assessment_digest,
+            self.equivalence_review_digest,
+            self.equivalence_approval_digest,
+            self.equivalence_criteria_digest,
+            self.equivalence_evidence_descriptor_digest,
+        )
+        if any(value is None for value in equivalence_digests) and any(
+            value is not None for value in equivalence_digests
+        ) or any(
+            value is not None and _DIGEST.fullmatch(value) is None
+            for value in equivalence_digests
+        ):
+            raise ProductionAuthorizationError()
         digest = _digest(self.canonical_json())
         object.__setattr__(self, "canonical_digest", digest)
         object.__setattr__(
@@ -193,6 +221,15 @@ class ProductionAuthorizationCandidate:
             {
                 "boundary_evidence_digest": self.boundary_evidence_digest,
                 "evaluated_at": _canonical_datetime(self.evaluated_at),
+                "production_equivalence_chain": {
+                    "approval_digest": self.equivalence_approval_digest,
+                    "assessment_digest": self.equivalence_assessment_digest,
+                    "criteria_digest": self.equivalence_criteria_digest,
+                    "evidence_descriptor_digest": (
+                        self.equivalence_evidence_descriptor_digest
+                    ),
+                    "review_digest": self.equivalence_review_digest,
+                },
                 "reason_categories": [value.value for value in self.reason_categories],
                 "request_id": self.request_id,
                 "result": self.result.value,
@@ -254,6 +291,8 @@ def evaluate_production_authorization(
         reasons.add(ProductionAuthorizationReason.CHAIN_REUSE)
     if request.manual_validation_chain is not None and not _manual_chain_matches(request):
         reasons.add(ProductionAuthorizationReason.DIGEST_MISMATCH)
+    if request.equivalence_chain is not None and not _equivalence_chain_matches(request):
+        reasons.add(ProductionAuthorizationReason.DIGEST_MISMATCH)
 
     result = _result(evidence, reasons)
     ordered = tuple(reason for reason in _REASON_ORDER if reason in reasons)
@@ -264,6 +303,13 @@ def evaluate_production_authorization(
         boundary_evidence_digest=evidence.canonical_digest,
         source_entry_digest=entry.canonical_digest,
         evaluated_at=evidence.evaluation_time,
+        equivalence_assessment_digest=evidence.equivalence_assessment_digest,
+        equivalence_review_digest=evidence.equivalence_review_digest,
+        equivalence_approval_digest=evidence.equivalence_approval_digest,
+        equivalence_criteria_digest=evidence.equivalence_criteria_digest,
+        equivalence_evidence_descriptor_digest=(
+            evidence.equivalence_evidence_descriptor_digest
+        ),
     )
 
 
@@ -284,6 +330,12 @@ def _result(
     ):
         reasons.add(ProductionAuthorizationReason.MANUAL_VALIDATION_REQUIRED)
         return ProductionAuthorizationResult.NEEDS_MANUAL_VALIDATION
+    if evidence.compatibility_evidence_kind is CompatibilityEvidenceKind.PRODUCTION_EQUIVALENT and (
+        evidence.production_equivalent_state is not ProductionEquivalentState.APPROVED
+        or not evidence.production_equivalence_chain_complete
+    ):
+        reasons.add(ProductionAuthorizationReason.PRODUCTION_EQUIVALENCE_REQUIRED)
+        return ProductionAuthorizationResult.NEEDS_PRODUCTION_EQUIVALENCE
     if evidence.security_review_state is not SecurityReviewState.APPROVED:
         reasons.add(ProductionAuthorizationReason.SECURITY_REVIEW_REQUIRED)
         return ProductionAuthorizationResult.NEEDS_SECURITY_REVIEW
@@ -359,6 +411,44 @@ def _manual_chain_matches(request: ProductionAuthorizationRequest) -> bool:
             chain.review.reviewer_id == evidence.evidence_reviewer_id,
             chain.approval.approver_id == evidence.approver_id,
             not protected_roles & chain_actors,
+        )
+    )
+
+
+def _equivalence_chain_matches(request: ProductionAuthorizationRequest) -> bool:
+    chain = request.equivalence_chain
+    evidence = request.evidence
+    if chain is None:
+        return False
+    try:
+        chain.validate(
+            evaluation_time=evidence.evaluation_time,
+            manual_validation_approver_id=evidence.approver_id,
+            protected_actor_ids=(
+                evidence.registry_administrator_id,
+                evidence.boundary_reviewer_id,
+                evidence.authorization_approver_id,
+            ),
+        )
+    except ValueError:
+        return False
+    return all(
+        (
+            chain.approved,
+            evidence.production_equivalent_state
+            is ProductionEquivalentState.APPROVED,
+            evidence.compatibility_evidence_kind
+            is CompatibilityEvidenceKind.PRODUCTION_EQUIVALENT,
+            chain.request.manual_validation_approval_digest
+            == evidence.manual_validation_approval_digest,
+            chain.assessment.canonical_digest
+            == evidence.equivalence_assessment_digest,
+            chain.review.canonical_digest == evidence.equivalence_review_digest,
+            chain.approval.canonical_digest
+            == evidence.equivalence_approval_digest,
+            chain.criteria.canonical_digest == evidence.equivalence_criteria_digest,
+            chain.descriptor.canonical_digest
+            == evidence.equivalence_evidence_descriptor_digest,
         )
     )
 

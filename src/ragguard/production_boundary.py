@@ -9,6 +9,7 @@ from enum import Enum
 from typing import ClassVar
 
 from ragguard.compatibility import SemanticVersion
+from ragguard.production_equivalence import ProductionEquivalentState
 from ragguard.production_registry import RegistryStatus
 
 
@@ -138,6 +139,7 @@ class ProductionBoundarySafeSummary:
     persistence_state: str
     runtime_authorization_state: str
     security_review_state: str
+    production_equivalent_state: str
     canonical_digest: str
 
 
@@ -189,6 +191,14 @@ class ProductionBoundaryEvidence:
     manual_validation_evidence_digest: str | None = None
     manual_validation_review_digest: str | None = None
     manual_validation_approval_digest: str | None = None
+    production_equivalent_state: ProductionEquivalentState = (
+        ProductionEquivalentState.NOT_ASSESSED
+    )
+    equivalence_assessment_digest: str | None = None
+    equivalence_review_digest: str | None = None
+    equivalence_approval_digest: str | None = None
+    equivalence_criteria_digest: str | None = None
+    equivalence_evidence_descriptor_digest: str | None = None
     safe_summary: ProductionBoundarySafeSummary = field(init=False)
     canonical_digest: str = field(init=False)
 
@@ -225,6 +235,11 @@ class ProductionBoundaryEvidence:
             self.manual_validation_evidence_digest,
             self.manual_validation_review_digest,
             self.manual_validation_approval_digest,
+            self.equivalence_assessment_digest,
+            self.equivalence_review_digest,
+            self.equivalence_approval_digest,
+            self.equivalence_criteria_digest,
+            self.equivalence_evidence_descriptor_digest,
         )
         if not all(_is_digest(value) for value in digests) or any(
             value is not None and not _is_digest(value) for value in optional_digests
@@ -256,6 +271,7 @@ class ProductionBoundaryEvidence:
             or not isinstance(self.persistence_state, PersistenceState)
             or not isinstance(self.runtime_authorization_state, RuntimeAuthorizationState)
             or not isinstance(self.security_review_state, SecurityReviewState)
+            or not isinstance(self.production_equivalent_state, ProductionEquivalentState)
             or not all(
                 type(value) is bool
                 for value in (
@@ -278,6 +294,22 @@ class ProductionBoundaryEvidence:
         )
         if any(value is None for value in manual_chain) and any(
             value is not None for value in manual_chain
+        ):
+            _raise(ProductionBoundaryErrorCategory.INVALID_CONTRACT)
+        equivalence_chain = (
+            self.equivalence_assessment_digest,
+            self.equivalence_review_digest,
+            self.equivalence_approval_digest,
+            self.equivalence_criteria_digest,
+            self.equivalence_evidence_descriptor_digest,
+        )
+        if any(value is None for value in equivalence_chain) and any(
+            value is not None for value in equivalence_chain
+        ):
+            _raise(ProductionBoundaryErrorCategory.INVALID_CONTRACT)
+        if (
+            self.production_equivalent_state is ProductionEquivalentState.APPROVED
+            and any(value is None for value in equivalence_chain)
         ):
             _raise(ProductionBoundaryErrorCategory.INVALID_CONTRACT)
         if (
@@ -308,6 +340,7 @@ class ProductionBoundaryEvidence:
                 persistence_state=self.persistence_state.value,
                 runtime_authorization_state=self.runtime_authorization_state.value,
                 security_review_state=self.security_review_state.value,
+                production_equivalent_state=self.production_equivalent_state.value,
                 canonical_digest=digest,
             ),
         )
@@ -337,6 +370,16 @@ class ProductionBoundaryEvidence:
                 "latest_required_action_at": _canonical_datetime(self.latest_required_action_at),
                 "lifecycle_evaluated_at": _optional_datetime(self.lifecycle_evaluated_at),
                 "manual_validation_state": self.manual_validation_state.value,
+                "production_equivalence_chain": {
+                    "approval_digest": self.equivalence_approval_digest,
+                    "assessment_digest": self.equivalence_assessment_digest,
+                    "criteria_digest": self.equivalence_criteria_digest,
+                    "evidence_descriptor_digest": (
+                        self.equivalence_evidence_descriptor_digest
+                    ),
+                    "review_digest": self.equivalence_review_digest,
+                    "state": self.production_equivalent_state.value,
+                },
                 "manual_validation_chain": {
                     "approval_digest": self.manual_validation_approval_digest,
                     "evidence_digest": self.manual_validation_evidence_digest,
@@ -392,6 +435,19 @@ class ProductionBoundaryEvidence:
                 self.manual_validation_evidence_digest,
                 self.manual_validation_review_digest,
                 self.manual_validation_approval_digest,
+            )
+        )
+
+    @property
+    def production_equivalence_chain_complete(self) -> bool:
+        return all(
+            value is not None
+            for value in (
+                self.equivalence_assessment_digest,
+                self.equivalence_review_digest,
+                self.equivalence_approval_digest,
+                self.equivalence_criteria_digest,
+                self.equivalence_evidence_descriptor_digest,
             )
         )
 
