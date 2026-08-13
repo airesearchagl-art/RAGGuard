@@ -52,6 +52,7 @@ class RuntimeAuthorizationCommitRecord:
     authorization_request_digest: str
     runtime_review_digest: str
     runtime_approval_digest: str
+    runtime_authorization_approver_id: str
     source_candidate_digest: str
     equivalence_approval_digest: str
     persistence_receipt_digest: str
@@ -70,6 +71,7 @@ class RuntimeAuthorizationCommitRecord:
                    self.equivalence_approval_digest, self.persistence_receipt_digest,
                    self.activation_commit_plan_digest, self.registry_state_digest)
         if (self._marker is not _RECORD_MARKER or not _is_identifier(self.runtime_authorization_record_id)
+                or not _is_identifier(self.runtime_authorization_approver_id)
                 or not _is_identifier(self.committed_by) or not all(_is_digest(v) for v in digests)
                 or self.previous_authorization_record_digest is not None and not _is_digest(self.previous_authorization_record_digest)
                 or type(self.authorization_generation) is not int or self.authorization_generation < 1
@@ -89,6 +91,7 @@ class RuntimeAuthorizationCommitRecord:
             "previous_authorization_record_digest": self.previous_authorization_record_digest,
             "registry_state_digest": self.registry_state_digest,
             "runtime_approval_digest": self.runtime_approval_digest,
+            "runtime_authorization_approver_id": self.runtime_authorization_approver_id,
             "runtime_authorization_record_id": self.runtime_authorization_record_id,
             "runtime_review_digest": self.runtime_review_digest,
             "source_candidate_digest": self.source_candidate_digest,
@@ -197,6 +200,7 @@ class TestRuntimeAuthorizationLedger:
                 authorization_request_digest=request.canonical_digest,
                 runtime_review_digest=review.canonical_digest,
                 runtime_approval_digest=approval.canonical_digest,
+                runtime_authorization_approver_id=approval.approver_id,
                 source_candidate_digest=decision.source_candidate_digest,
                 equivalence_approval_digest=decision.equivalence_approval_digest,
                 persistence_receipt_digest=decision.persistence_receipt_digest,

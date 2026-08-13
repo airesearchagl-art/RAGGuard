@@ -2,6 +2,17 @@
 
 [![Tests](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml)
 
+## v0.19 real persistence boundary
+
+v0.19 adds immutable persistence authorization, intent, transaction-plan, commit-receipt, and
+recovery contracts around an exact v0.18 authorization commit. A test-only atomic durable-store
+simulator demonstrates compare-and-swap, monotonic generation, predecessor binding, crash-safe
+retry, replay rejection, and corruption detection. It performs no filesystem, database, external
+storage, registry, network, HTTP, credential, token, or runtime-activation operation.
+
+See the [v0.19 Design](docs/REAL_PERSISTENCE_BOUNDARY_DESIGN_V0.19.md) and
+[v0.19.0 Release Checklist](docs/RELEASE_CHECKLIST_V0.19.0.md).
+
 ## v0.18 runtime authorization activation boundary
 
 v0.18 adds immutable runtime-authorization request, independent review, distinct approval, pure

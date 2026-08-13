@@ -1,5 +1,8 @@
 # RAGGuard v0.15 Persistence / Authorization Activation Boundary
 
+> v0.19 integration: v0.15 persistence policy and receipt remain exact upstream evidence. The
+> v0.19 boundary does not reinterpret them or add an actual storage adapter.
+
 > v0.18 integration: the committed record, receipt, store snapshot, approved policy, activation
 > request, and activation commit plan are exact-bound inputs. A plan cannot self-declare runtime
 > authorization, and `ready_for_activation_commit` remains non-active.

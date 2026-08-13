@@ -1,5 +1,8 @@
 # Runtime Authorization Activation Boundary v0.18
 
+> v0.19 handoff: an immutable `RuntimeAuthorizationCommitRecord` is the exact source for a future
+> durable-persistence contract. It is not proof that a durable write occurred or a runtime is active.
+
 ## Scope
 
 v0.18 defines the final authorization contract that may produce a test-only immutable
