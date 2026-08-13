@@ -1,5 +1,19 @@
 # Design Notes
 
+## RAGGuard v0.18 runtime authorization activation boundary
+
+The authoritative design is
+[v0.18 Runtime Authorization Activation Design](RUNTIME_AUTHORIZATION_ACTIVATION_DESIGN_V0.18.md).
+The request exact-binds canonical v0.14–v0.17, persistence, activation-plan, registry-state,
+lifecycle, identity, role, version, and explicit-time evidence. The pure evaluator stops at a
+commit-ready contract result; it never activates a runtime.
+
+The test-only ledger validates a complete candidate bundle before one state swap. Successful
+commits alone consume replay identities and advance the monotonic predecessor-bound generation.
+Denial and injected faults leave all state and external-effect counts unchanged. The resulting
+authorization record is an immutable audit contract, not a capability, credential, token, runtime
+switch, active registry mutation, or real persistence operation.
+
 ## RAGGuard v0.16 manual-validation execution boundary
 
 The authoritative design is

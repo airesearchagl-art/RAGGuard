@@ -1,5 +1,8 @@
 # RAGGuard v0.16 Manual Validation Execution Boundary
 
+> v0.18 integration: the complete v0.16 digest chain remains a required upstream source. Manual
+> validation approval alone is neither production equivalence nor runtime authorization.
+
 ## Scope
 
 v0.16 defines how an exact immutable validation plan may produce reviewable execution evidence in

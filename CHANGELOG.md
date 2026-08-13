@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.18.0 - Unreleased
+
+### Added
+
+- Immutable runtime-authorization request, review, approval, decision, and test-only commit record.
+- Pure deterministic evaluator with exact v0.14–v0.17 source, v0.15 persistence/activation-plan,
+  registry-state, lifecycle, role, replay, and UTC-microsecond temporal gates.
+- Atomic append-only in-memory authorization ledger with monotonic generation, predecessor binding,
+  failed-attempt retry, successful replay rejection, and Security E2E coverage.
+
+### Security boundary
+
+- `ready_for_runtime_authorization_commit` and `authorization_committed` are not runtime active.
+- No activation API/switch, production-registry write, real persistence, transport/HTTP,
+  credential/token generation, production profile, real product/data, external API/cloud/private LAN.
+- CLI exit codes and report top-level schema remain unchanged.
+
 ## v0.17.0 - Unreleased
 
 ### Added
