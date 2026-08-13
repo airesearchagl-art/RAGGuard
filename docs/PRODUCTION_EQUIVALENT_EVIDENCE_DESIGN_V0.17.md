@@ -1,5 +1,8 @@
 # RAGGuard v0.17 Production-Equivalent Validation Evidence Boundary
 
+> v0.18 integration: assessment, review, approval, criteria, and descriptor digests are exact-bound.
+> Equivalence approval is a prerequisite claim, not runtime authorization or activation.
+
 ## Purpose and trust boundary
 
 v0.17 defines how an already approved v0.16 manual-validation chain may be assessed as a

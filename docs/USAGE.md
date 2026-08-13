@@ -1,5 +1,17 @@
 # Usage
 
+## v0.18 test-only runtime authorization contracts
+
+The v0.18 library contracts accept exact v0.14–v0.17 candidate/equivalence evidence, a successful
+v0.15 persistence receipt/snapshot, and the matching activation commit plan. A pure evaluator then
+requires independent runtime review and a later distinct approval. It may return
+`ready_for_runtime_authorization_commit`; a separate in-memory test ledger may append an immutable
+`RuntimeAuthorizationCommitRecord`.
+
+These operations do not activate a runtime. Do not treat `authorization_committed` as `active`,
+do not supply endpoint/path/credential/token/data values, and do not use this contract as a
+production registry, persistence, transport, HTTP, or runtime switch. No new CLI command is added.
+
 ## v0.16 test-only manual-validation execution contracts
 
 The v0.16 Python contracts can construct an immutable request, synthetic/controlled fixture

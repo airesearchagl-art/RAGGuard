@@ -1,5 +1,9 @@
 # RAGGuard v0.15 Persistence / Authorization Activation Boundary
 
+> v0.18 integration: the committed record, receipt, store snapshot, approved policy, activation
+> request, and activation commit plan are exact-bound inputs. A plan cannot self-declare runtime
+> authorization, and `ready_for_activation_commit` remains non-active.
+
 ## Scope
 
 v0.15 defines the contract between a v0.14 `ProductionAuthorizationCandidate`, a durable

@@ -2,6 +2,20 @@
 
 [![Tests](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml)
 
+## v0.18 runtime authorization activation boundary
+
+v0.18 adds immutable runtime-authorization request, independent review, distinct approval, pure
+evaluation, and a test-only atomic authorization-commit ledger. It exact-binds the v0.17
+equivalence chain, v0.15 persistence receipt/snapshot and activation plan, current registry state,
+lifecycle, identity, role, version, and explicit UTC-microsecond time.
+
+The boundary stops at `ready_for_runtime_authorization_commit` or an immutable
+`authorization_committed` audit record. Neither state is `active`, enabled, or production-running.
+There is no activation API, runtime switch, token/credential generation, production-registry
+write, real persistence, transport, HTTP, real-product connection, or real-world validation. See
+the [v0.18 Design](docs/RUNTIME_AUTHORIZATION_ACTIVATION_DESIGN_V0.18.md) and
+[v0.18.0 Release Checklist](docs/RELEASE_CHECKLIST_V0.18.0.md).
+
 ## v0.17 production-equivalent evidence boundary
 
 v0.17 adds immutable production-equivalence assessment, criteria, metadata-only evidence,

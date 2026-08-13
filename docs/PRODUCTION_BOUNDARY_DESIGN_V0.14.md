@@ -1,5 +1,8 @@
 # Production Boundary and Authorization Contract v0.14
 
+> v0.18 integration: a valid v0.14 authorization candidate remains only a digest-covered source
+> for runtime-authorization review. Candidate eligibility is not runtime authorization or active.
+
 ## Scope
 
 v0.14 defines a pure, product-neutral boundary between successful test-only governance chains and

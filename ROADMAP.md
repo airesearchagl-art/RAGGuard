@@ -1,5 +1,21 @@
 # RAGGuard Roadmap
 
+## Delivery candidate: v0.18 runtime authorization activation boundary
+
+v0.18 is one design/contract/pure-evaluator/test-ledger/security/documentation unit.
+
+- Exact v0.14–v0.17 source, equivalence, persistence, activation-plan, registry, and lifecycle binding.
+- Independent runtime request, review, approval, and immutable authorization-commit record.
+- Deterministic fail-closed priority, role separation, explicit time, and replay protection.
+- Atomic successful-only ledger consumption with retry after denial or injected commit fault.
+
+It does not implement runtime activation, a runtime switch, tokens, credentials, real persistence,
+production-registry writes, transport, HTTP, real-product validation, or production profiles.
+Those remain separate designs and approvals. Node runtime warning maintenance remains a separate PR.
+
+Authoritative design:
+[v0.18 Runtime Authorization Activation Design](docs/RUNTIME_AUTHORIZATION_ACTIVATION_DESIGN_V0.18.md).
+
 ## Delivery candidate: v0.17 production-equivalent evidence boundary
 
 v0.17 is one design/contract/pure-evaluator/security/documentation unit.

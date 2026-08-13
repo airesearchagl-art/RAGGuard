@@ -65,6 +65,28 @@ from ragguard.authorization_activation import (
     InMemoryActivationReplayStore,
     evaluate_activation_request,
 )
+from ragguard.runtime_authorization import (
+    CANONICAL_RUNTIME_AUTHORIZATION_DIGEST_ALGORITHM,
+    RuntimeApprovalResult,
+    RuntimeAuthorizationApproval,
+    RuntimeAuthorizationDecision,
+    RuntimeAuthorizationError,
+    RuntimeAuthorizationReason,
+    RuntimeAuthorizationRequest,
+    RuntimeAuthorizationResult,
+    RuntimeAuthorizationReview,
+    RuntimeAuthorizationSafeSummary,
+    RuntimeReviewResult,
+    evaluate_runtime_authorization,
+)
+from ragguard.activation_commit import (
+    ActivationAuthorizationState,
+    AuthorizationCommitFault,
+    AuthorizationCommitReason,
+    AuthorizationCommitResult,
+    RuntimeAuthorizationCommitRecord,
+    TestRuntimeAuthorizationLedger,
+)
 
 from ragguard.production_authorization import (
     CANONICAL_PRODUCTION_AUTHORIZATION_DIGEST_ALGORITHM,
@@ -190,6 +212,24 @@ from ragguard.replacement_admission import (
 __version__ = "0.1.0"
 
 __all__ = [
+    "CANONICAL_RUNTIME_AUTHORIZATION_DIGEST_ALGORITHM",
+    "ActivationAuthorizationState",
+    "AuthorizationCommitFault",
+    "AuthorizationCommitReason",
+    "AuthorizationCommitResult",
+    "RuntimeApprovalResult",
+    "RuntimeAuthorizationApproval",
+    "RuntimeAuthorizationCommitRecord",
+    "RuntimeAuthorizationDecision",
+    "RuntimeAuthorizationError",
+    "RuntimeAuthorizationReason",
+    "RuntimeAuthorizationRequest",
+    "RuntimeAuthorizationResult",
+    "RuntimeAuthorizationReview",
+    "RuntimeAuthorizationSafeSummary",
+    "RuntimeReviewResult",
+    "TestRuntimeAuthorizationLedger",
+    "evaluate_runtime_authorization",
     "CANONICAL_AUTHORIZATION_ACTIVATION_DIGEST_ALGORITHM",
     "CANONICAL_MANUAL_VALIDATION_EXECUTION_DIGEST_ALGORITHM",
     "CANONICAL_PRODUCTION_AUTHORIZATION_DIGEST_ALGORITHM",
