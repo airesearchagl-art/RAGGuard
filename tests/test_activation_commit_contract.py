@@ -40,6 +40,7 @@ def test_successful_commit_is_authorization_committed_not_active():
     assert result.applied
     assert result.authorization_state is ActivationAuthorizationState.AUTHORIZATION_COMMITTED
     assert result.record is not None and result.record.authorization_generation == 1
+    assert result.record.runtime_authorization_approver_id == "runtime-approver-v018"
     assert result.runtime_activation_count == 0
     assert_no_external_effects(result)
 

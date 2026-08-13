@@ -1,5 +1,14 @@
 # Usage
 
+## v0.19 test-only real-persistence boundary contracts
+
+The v0.19 Python contracts consume one exact v0.18 `RuntimeAuthorizationCommitRecord`, an approved
+persistence policy, explicit independent authorization, one digest-only intent, and one immutable
+transaction plan. The pure evaluator may return `ready_for_durable_commit`; only the test-only
+in-memory simulator can produce `PersistenceCommitReceiptV2`. Neither state writes a filesystem,
+database, external store, registry, or runtime. Recovery only classifies immutable receipt/snapshot
+consistency and never resumes an ambiguous commit.
+
 ## v0.18 test-only runtime authorization contracts
 
 The v0.18 library contracts accept exact v0.14–v0.17 candidate/equivalence evidence, a successful

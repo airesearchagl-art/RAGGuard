@@ -1,5 +1,13 @@
 # Design Notes
 
+## RAGGuard v0.19 real persistence boundary
+
+v0.19 defines the safe contract immediately after a v0.18 authorization commit. Authorization,
+intent, transaction plan, test-only atomic commit, receipt, and recovery remain distinct immutable
+stages. Generation/predecessor/store-state compare-and-swap, successful-only replay consumption,
+crash-safe retry, corruption detection, role separation, and explicit UTC microseconds are fixed by
+contract. Actual storage, registry mutation, and runtime activation require separate approval.
+
 ## RAGGuard v0.18 runtime authorization activation boundary
 
 The authoritative design is

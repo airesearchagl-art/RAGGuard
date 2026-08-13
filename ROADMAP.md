@@ -1,5 +1,15 @@
 # RAGGuard Roadmap
 
+## Delivery candidate: v0.19 real persistence boundary
+
+- Exact v0.18 runtime-authorization commit and approved persistence-policy binding.
+- Separate authorization, intent, transaction, receipt, and recovery stages.
+- Test-only atomic compare-and-swap simulator with monotonic generation and predecessor binding.
+- Crash/partial-state/replay/corruption detection with successful-only consumption and retry.
+- No actual storage adapter, registry write, runtime activation, transport, credential, or token.
+
+Authoritative design: [v0.19 Real Persistence Boundary](docs/REAL_PERSISTENCE_BOUNDARY_DESIGN_V0.19.md).
+
 ## Delivery candidate: v0.18 runtime authorization activation boundary
 
 v0.18 is one design/contract/pure-evaluator/test-ledger/security/documentation unit.

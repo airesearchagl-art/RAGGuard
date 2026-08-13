@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.19.0 - Unreleased
+
+### Added
+
+- Immutable persistence authorization, independent review/approval, intent, and transaction-plan
+  contracts exact-bound to the v0.18 runtime authorization commit.
+- Pure fail-closed durable-persistence evaluator and test-only atomic compare-and-swap simulator.
+- Successful-only `PersistenceCommitReceiptV2`, monotonic generation, predecessor binding, replay
+  protection, retry after injected failure, and corruption-aware recovery classification.
+- Security E2E side-effect accounting with filesystem/DB/external storage/registry/network/HTTP/
+  activation/credential/token counts fixed at zero.
+
+### Boundaries
+
+- No actual filesystem, database, cloud, or external-storage persistence.
+- No runtime activation, runtime switch, production registry write, credential, or token handling.
+
 ## v0.18.0 - Unreleased
 
 ### Added
