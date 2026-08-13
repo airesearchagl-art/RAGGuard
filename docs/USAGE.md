@@ -1,5 +1,11 @@
 # Usage
 
+## v0.20 controlled validation contracts
+
+The v0.20 library models authorization, planning, controlled fixture execution, evidence review,
+and an atomic test-only validation record. A passed controlled execution is not production-equivalent
+approval, production authorization, or runtime activation.
+
 ## v0.19 test-only real-persistence boundary contracts
 
 The v0.19 Python contracts consume one exact v0.18 `RuntimeAuthorizationCommitRecord`, an approved

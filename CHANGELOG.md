@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.20.0 - Unreleased
+
+### Added
+
+- Immutable controlled validation authorization, environment, plan, scenario, execution receipt,
+  evidence review/approval, and atomic test-ledger contracts.
+- Exact v0.16-v0.19 approval, runtime-authorization, and persistence-receipt binding.
+- Successful-only replay consumption with failure and commit-fault retry.
+
+### Security boundary
+
+- No real data/product connection, network, persistence, registry write, or runtime activation.
+
 ## v0.19.0 - Unreleased
 
 ### Added

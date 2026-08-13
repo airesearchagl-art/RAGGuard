@@ -1,5 +1,12 @@
 # Design Notes
 
+## RAGGuard v0.20 controlled validation boundary
+
+v0.20 accepts v0.18 authorization and v0.19 persistence objects, then verifies canonical digests
+and upstream approval bindings. It never trusts a standalone Boolean or self-declared digest.
+Controlled execution and the validation ledger are deterministic, test-only components with
+successful-only replay consumption and zero external side effects.
+
 ## RAGGuard v0.19 real persistence boundary
 
 v0.19 defines the safe contract immediately after a v0.18 authorization commit. Authorization,

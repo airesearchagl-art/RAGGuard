@@ -1,5 +1,14 @@
 # RAGGuard Roadmap
 
+## Delivery candidate: v0.20 controlled real-world validation boundary
+
+- Controlled fixture authorization, execution, evidence, review, approval, and atomic ledger.
+- Exact v0.16-v0.19 source-chain binding and successful-only replay consumption.
+- Real production validation, runtime activation, real persistence, and registry writes remain
+  separate future design-and-approval tasks.
+
+Authoritative design: [v0.20 Real-World Validation Execution Boundary](docs/REAL_WORLD_VALIDATION_EXECUTION_DESIGN_V0.20.md).
+
 ## Delivery candidate: v0.19 real persistence boundary
 
 - Exact v0.18 runtime-authorization commit and approved persistence-policy binding.
