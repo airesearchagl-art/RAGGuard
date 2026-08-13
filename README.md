@@ -2,6 +2,21 @@
 
 [![Tests](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml)
 
+## v0.17 production-equivalent evidence boundary
+
+v0.17 adds immutable production-equivalence assessment, criteria, metadata-only evidence,
+environment/configuration/behavior, independent review, and approval contracts. The pure evaluator
+exact-binds the complete v0.16 plan/execution/evidence/review/approval chain and deterministically
+reports the first missing equivalence boundary. Synthetic or controlled manual evidence cannot be
+promoted by an enum or approval claim.
+
+The complete chain can reach only `eligible_for_equivalence_review`, followed by a distinct review
+and approval attestation. Equivalence approval is not production approval, runtime authorization,
+activation, registry admission, or persistence. The implementation performs no real-product
+validation or connection and handles no real endpoint, document, credential, or token. See the
+[v0.17 Production-Equivalent Evidence Design](docs/PRODUCTION_EQUIVALENT_EVIDENCE_DESIGN_V0.17.md)
+and [v0.17.0 Release Checklist](docs/RELEASE_CHECKLIST_V0.17.0.md).
+
 ## v0.16 manual-validation execution boundary
 
 v0.16 adds immutable execution-request, safe-fixture manifest, offline-environment, execution

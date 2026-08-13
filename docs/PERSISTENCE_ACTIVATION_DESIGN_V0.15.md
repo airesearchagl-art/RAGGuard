@@ -122,3 +122,10 @@ No manual validation was performed. No production profile, real production-regis
 filesystem/DB persistence, real-product compatibility evidence, real-product connection,
 credential, real document, external/private-LAN access, or runtime authorization is added.
 Node runtime warning maintenance is a separate PR.
+
+## v0.17 equivalence integration
+
+The v0.14 authorization candidate now includes the five v0.17 equivalence-chain digests when that
+chain is present. The existing v0.15 source-candidate digest therefore covers equivalence evidence
+without a new persistence field or write path. `ready_for_activation_commit` remains non-active,
+and v0.17 adds no runtime activation or real persistence.

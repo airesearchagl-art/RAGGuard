@@ -1,5 +1,23 @@
 # RAGGuard Roadmap
 
+## Delivery candidate: v0.17 production-equivalent evidence boundary
+
+v0.17 is one design/contract/pure-evaluator/security/documentation unit.
+
+- Exact v0.16 plan, execution, evidence, review, approval, identity, and time binding.
+- Code-defined criteria and metadata-only environment/configuration/protocol/behavior evidence.
+- Deterministic fail-closed assessment with independent review and distinct approval stages.
+- Atomic successful-only replay consumption and zero side effects on denial or commit fault.
+- Digest-covered v0.14 authorization boundary and v0.15 candidate propagation.
+
+This release defines recognition contracts only. Real production validation, a product adapter,
+production profiles, endpoints, credentials, production-registry writes, real persistence, and
+runtime activation remain separate design and approval tasks. Node runtime warning maintenance
+remains a separate CI PR.
+
+Authoritative design:
+[v0.17 Production-Equivalent Evidence Design](docs/PRODUCTION_EQUIVALENT_EVIDENCE_DESIGN_V0.17.md).
+
 ## Delivery candidate: v0.16 manual-validation execution boundary
 
 v0.16 is delivered as one design/contract/test-only/security/documentation unit.

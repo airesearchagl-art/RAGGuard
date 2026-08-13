@@ -70,3 +70,9 @@ v0.15 remains unchanged: `ready_for_activation_commit != active`. v0.16 adds no 
 runtime switch, real persistence, production-registry write, transport, HTTP, credential/token,
 production profile, real document, real-product connection, external API, cloud, or private-LAN
 access. Node runtime warning maintenance is a separate PR.
+
+## v0.17 handoff
+
+An approved v0.16 chain remains controlled manual-validation evidence, not production-equivalent
+evidence. v0.17 consumes the exact plan, fixture, environment, execution, evidence, review, and
+approval digests as immutable source inputs to a separate assessment/review/approval boundary.
