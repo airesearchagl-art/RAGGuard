@@ -13,6 +13,11 @@ from ragguard.real_world_validation import (
     ValidationDecisionState, ValidationReason, evaluate_real_world_validation,
 )
 from tests.test_real_persistence_contract import commit as commit_persistence, context as persistence_context
+from tests.test_equivalence_attestation import attestation_chain
+from tests.test_manual_validation_execution_contract import (
+    chain as manual_chain,
+    plan as manual_plan,
+)
 
 
 def digest(char: str) -> str:
@@ -21,6 +26,10 @@ def digest(char: str) -> str:
 
 def context():
     runtime, *_ = persistence_context()
+    source_manual_plan = manual_plan()
+    source_manual_chain = manual_chain()
+    source_equivalence_chain = attestation_chain()
+    assert source_manual_chain.approval is not None
     store = TestAtomicDurableStore()
     persistence = commit_persistence(store).receipt
     assert persistence is not None
@@ -32,14 +41,16 @@ def context():
     scenario = SafeScenarioManifest("scenario-v020", 3, "synthetic_contract",
                                     digest("5"), digest("6"), digest("7"))
     request = RealWorldValidationAuthorizationRequest(
-        "authorization-v020", digest("8"), runtime.equivalence_approval_digest,
+        "authorization-v020", source_manual_chain.approval.canonical_digest,
+        source_equivalence_chain.approval.canonical_digest,
         runtime.canonical_digest, persistence.canonical_digest, digest("9"),
         environment.canonical_digest, digest("a"), "protocol-v020", "profile-v020",
         "version-v020", "product-v020", "product-version-v020", now + timedelta(seconds=2),
         "validation-requester", "validation-reviewer", "validation-approver")
     plan = RealWorldValidationPlan(
         "plan-v020", request.canonical_digest, environment.canonical_digest,
-        request.validation_plan_digest, digest("b"), request.product_manifest_digest,
+        source_manual_plan.canonical_digest, source_equivalence_chain.criteria.canonical_digest,
+        request.product_manifest_digest,
         environment.configuration_digest, environment.protocol_digest,
         scenario.canonical_digest, digest("c"), digest("d"), now + timedelta(seconds=1))
     review = RealWorldValidationAuthorizationReview(
@@ -53,11 +64,14 @@ def context():
     return runtime, persistence, environment, scenario, request, plan, review, approval, evaluation_time
 
 
+def upstream_objects():
+    return manual_plan(), manual_chain(), attestation_chain()
+
+
 def evaluate(**changes):
     runtime, receipt, environment, scenario, request, plan, review, approval, now = context()
-    source_manual_approval_digest = request.manual_validation_approval_digest
-    source_equivalence_approval_digest = request.equivalence_approval_digest
     source_product_manifest_digest = request.product_manifest_digest
+    source_manual_plan, source_manual_chain, source_equivalence_chain = upstream_objects()
     request = replace(request, **changes.pop("request_changes", {}))
     if request.canonical_digest != plan.authorization_request_digest:
         plan = replace(plan, authorization_request_digest=request.canonical_digest)
@@ -67,9 +81,10 @@ def evaluate(**changes):
     return evaluate_real_world_validation(
         request, changes.pop("environment", environment), changes.pop("plan", plan), scenario,
         changes.pop("runtime", runtime), changes.pop("persistence", receipt),
+        changes.pop("manual_plan", source_manual_plan),
+        changes.pop("manual_chain", source_manual_chain),
+        changes.pop("equivalence_chain", source_equivalence_chain),
         changes.pop("review", review), changes.pop("approval", approval),
-        manual_validation_approval_digest=changes.pop("manual", source_manual_approval_digest),
-        equivalence_approval_digest=changes.pop("equivalence", source_equivalence_approval_digest),
         product_manifest_digest=changes.pop("product", source_product_manifest_digest),
         lifecycle_active=changes.pop("lifecycle_active", True),
         pending_revalidation=changes.pop("pending_revalidation", False),
@@ -115,7 +130,9 @@ def test_missing_review_or_approval_needs_authorization():
 
 
 @pytest.mark.parametrize("kwargs", [
-    {"manual": digest("f")}, {"equivalence": digest("f")}, {"product": digest("f")},
+    {"request_changes": {"manual_validation_approval_digest": digest("f")}},
+    {"request_changes": {"equivalence_approval_digest": digest("f")}},
+    {"product": digest("f")},
     {"lifecycle_active": False}, {"pending_revalidation": True},
     {"pending_transition": True}, {"revoked_source": True}, {"replaced_predecessor": True},
 ])
@@ -129,6 +146,98 @@ def test_source_object_not_self_declared_digest_is_required():
     runtime, *_ = context()
     forged = replace(runtime, equivalence_approval_digest=digest("f"))
     assert ValidationReason.DIGEST_MISMATCH in evaluate(runtime=forged).reasons
+
+
+def test_same_forged_manual_digest_in_request_and_caller_chain_is_rejected():
+    source_plan, source_chain, _ = upstream_objects()
+    assert source_chain.approval is not None
+    forged_approval = replace(source_chain.approval, approval_id="forged-manual-approval")
+    forged_chain = replace(source_chain, approval=forged_approval)
+    result = evaluate(
+        request_changes={
+            "manual_validation_approval_digest": forged_approval.canonical_digest,
+        },
+        manual_plan=source_plan,
+        manual_chain=forged_chain,
+    )
+    assert result.state is ValidationDecisionState.INELIGIBLE
+    assert result.reasons == (ValidationReason.DIGEST_MISMATCH,)
+
+
+def test_same_forged_equivalence_digest_in_request_and_chain_is_rejected():
+    _, _, source_chain = upstream_objects()
+    forged_approval = replace(
+        source_chain.approval,
+        approval_id="forged-equivalence-approval",
+    )
+    forged_chain = replace(source_chain, approval=forged_approval)
+    result = evaluate(
+        request_changes={
+            "equivalence_approval_digest": forged_approval.canonical_digest,
+        },
+        equivalence_chain=forged_chain,
+    )
+    assert result.state is ValidationDecisionState.INELIGIBLE
+    assert ValidationReason.DIGEST_MISMATCH in result.reasons
+
+
+def test_genuine_manual_plan_and_equivalence_criteria_are_exact_bound():
+    *_, plan, _, _, _ = context()
+    manual_mismatch = evaluate(
+        plan=replace(plan, manual_validation_plan_digest=digest("f"))
+    )
+    criteria_mismatch = evaluate(
+        plan=replace(plan, equivalence_criteria_digest=digest("f"))
+    )
+    assert manual_mismatch.state is ValidationDecisionState.INELIGIBLE
+    assert criteria_mismatch.state is ValidationDecisionState.INELIGIBLE
+
+
+def test_approved_enum_without_valid_manual_source_chain_is_rejected():
+    source_plan, source_chain, _ = upstream_objects()
+    broken_request = replace(
+        source_chain.request,
+        validation_plan_digest=digest("f"),
+    )
+    approved_but_broken = replace(source_chain, request=broken_request)
+    assert approved_but_broken.approved
+    result = evaluate(manual_plan=source_plan, manual_chain=approved_but_broken)
+    assert result.state is ValidationDecisionState.INELIGIBLE
+
+
+def test_forged_equivalence_review_and_approval_chain_is_rejected():
+    _, _, source_chain = upstream_objects()
+    forged_review = replace(source_chain.review, findings_digest=digest("f"))
+    forged_approval = replace(
+        source_chain.approval,
+        review_digest=forged_review.canonical_digest,
+    )
+    forged_chain = replace(
+        source_chain,
+        review=forged_review,
+        approval=forged_approval,
+    )
+    result = evaluate(equivalence_chain=forged_chain)
+    assert result.state is ValidationDecisionState.INELIGIBLE
+
+
+def test_upstream_rejection_is_pure_and_all_side_effect_counts_are_zero():
+    result = evaluate(
+        request_changes={"manual_validation_approval_digest": digest("f")}
+    )
+    assert result.state is ValidationDecisionState.INELIGIBLE
+    assert (
+        result.filesystem_count,
+        result.database_count,
+        result.external_storage_count,
+        result.registry_write_count,
+        result.network_count,
+        result.transport_count,
+        result.http_count,
+        result.runtime_activation_count,
+        result.credential_count,
+        result.token_count,
+    ) == (0,) * 10
 
 
 def test_review_precedes_distinct_approval():

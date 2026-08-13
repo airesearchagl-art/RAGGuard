@@ -8,6 +8,14 @@ from datetime import datetime, timedelta, timezone
 from enum import Enum
 
 from ragguard.activation_commit import RuntimeAuthorizationCommitRecord
+from ragguard.equivalence_attestation import EquivalenceAttestationChain
+from ragguard.manual_validation_execution import (
+    ManualApprovalResult,
+    ManualValidationChain,
+    ManualValidationExecutionError,
+)
+from ragguard.manual_validation_plan import ManualValidationPlan
+from ragguard.production_equivalence import ProductionEquivalenceError
 from ragguard.real_persistence import PersistenceCommitReceiptV2
 
 
@@ -323,11 +331,12 @@ def evaluate_real_world_validation(
     scenario: SafeScenarioManifest,
     runtime_record: RuntimeAuthorizationCommitRecord,
     persistence_receipt: PersistenceCommitReceiptV2,
+    manual_validation_plan: ManualValidationPlan,
+    manual_validation_chain: ManualValidationChain,
+    equivalence_chain: EquivalenceAttestationChain,
     review: RealWorldValidationAuthorizationReview | None,
     approval: RealWorldValidationAuthorizationApproval | None,
     *,
-    manual_validation_approval_digest: str,
-    equivalence_approval_digest: str,
     product_manifest_digest: str,
     lifecycle_active: bool,
     pending_revalidation: bool,
@@ -341,9 +350,26 @@ def evaluate_real_world_validation(
     if not _is_aware(evaluation_time) or not _is_aware(valid_until):
         raise RealWorldValidationError("evaluation_time_invalid")
     reasons: list[ValidationReason] = []
+    upstream_valid = _validate_upstream_objects(
+        manual_validation_plan,
+        manual_validation_chain,
+        equivalence_chain,
+        runtime_record,
+        persistence_receipt,
+        request,
+        evaluation_time,
+    )
+    manual_approval = manual_validation_chain.approval
     exact = (
-        request.manual_validation_approval_digest == manual_validation_approval_digest,
-        request.equivalence_approval_digest == equivalence_approval_digest == runtime_record.equivalence_approval_digest,
+        upstream_valid,
+        manual_approval is not None,
+        manual_approval is not None
+        and request.manual_validation_approval_digest == manual_approval.canonical_digest,
+        plan.manual_validation_plan_digest == manual_validation_plan.canonical_digest,
+        request.equivalence_approval_digest
+        == equivalence_chain.approval.canonical_digest
+        == runtime_record.equivalence_approval_digest,
+        plan.equivalence_criteria_digest == equivalence_chain.criteria.canonical_digest,
         request.runtime_authorization_record_digest == runtime_record.canonical_digest,
         request.persistence_receipt_digest == persistence_receipt.canonical_digest,
         persistence_receipt.authorization_record_digest == runtime_record.canonical_digest,
@@ -385,6 +411,78 @@ def evaluate_real_world_validation(
         state = ValidationDecisionState.READY_FOR_CONTROLLED_EXECUTION
     return RealWorldValidationDecision(state, tuple(dict.fromkeys(reasons)), request.canonical_digest,
                                        plan.canonical_digest, environment.canonical_digest, evaluation_time)
+
+
+def _validate_upstream_objects(
+    manual_plan: ManualValidationPlan,
+    manual_chain: ManualValidationChain,
+    equivalence_chain: EquivalenceAttestationChain,
+    runtime_record: RuntimeAuthorizationCommitRecord,
+    persistence_receipt: PersistenceCommitReceiptV2,
+    request: RealWorldValidationAuthorizationRequest,
+    evaluation_time: datetime,
+) -> bool:
+    manual_objects = (
+        manual_plan,
+        manual_chain.request,
+        manual_chain.fixture_manifest,
+        manual_chain.environment,
+        manual_chain.execution_record,
+        manual_chain.evidence,
+        manual_chain.review,
+        manual_chain.approval,
+    )
+    equivalence_objects = (
+        equivalence_chain.request,
+        equivalence_chain.criteria,
+        equivalence_chain.descriptor,
+        equivalence_chain.assessment,
+        equivalence_chain.review,
+        equivalence_chain.approval,
+    )
+    if not all(_canonical_digest_is_valid(value) for value in (*manual_objects, *equivalence_objects)):
+        return False
+    if not _canonical_digest_is_valid(runtime_record) or not _canonical_digest_is_valid(
+        persistence_receipt
+    ):
+        return False
+    if (
+        manual_chain.approval is None
+        or manual_chain.approval.approval_result is not ManualApprovalResult.APPROVED
+        or not manual_chain.approved
+        or equivalence_chain.request.validation_plan_digest != manual_plan.canonical_digest
+        or equivalence_chain.request.manual_validation_approval_digest
+        != manual_chain.approval.canonical_digest
+    ):
+        return False
+    protected_actors = (
+        runtime_record.runtime_authorization_approver_id,
+        runtime_record.committed_by,
+        persistence_receipt.committed_by,
+        request.requested_by,
+        request.reviewer_id,
+        request.approver_id,
+    )
+    try:
+        manual_chain.validate(plan=manual_plan, evaluation_time=evaluation_time)
+        equivalence_chain.validate(
+            evaluation_time=evaluation_time,
+            manual_validation_approver_id=manual_chain.approval.approver_id,
+            protected_actor_ids=protected_actors,
+        )
+    except (ManualValidationExecutionError, ProductionEquivalenceError):
+        return False
+    return equivalence_chain.approved
+
+
+def _canonical_digest_is_valid(value: object) -> bool:
+    if value is None:
+        return False
+    canonical_json = getattr(value, "canonical_json", None)
+    canonical_digest = getattr(value, "canonical_digest", None)
+    return callable(canonical_json) and _is_digest(canonical_digest) and _digest(
+        canonical_json()
+    ) == canonical_digest
 
 
 @dataclass(frozen=True, repr=False)

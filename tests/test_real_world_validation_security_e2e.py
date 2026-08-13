@@ -13,6 +13,7 @@ from ragguard.real_world_validation import (
 )
 from tests.test_real_world_evidence_contract import commit, evidence_context
 from tests.test_real_world_validation_contract import context, digest, evaluate
+from tests.test_real_world_validation_contract import upstream_objects
 
 
 @pytest.mark.parametrize("field", [
@@ -22,6 +23,49 @@ from tests.test_real_world_validation_contract import context, digest, evaluate
 ])
 def test_source_chain_tampering_is_fail_closed(field):
     assert evaluate(request_changes={field: digest("f")}).state is ValidationDecisionState.INELIGIBLE
+
+
+def test_v016_manual_chain_tampering_is_independently_fail_closed():
+    source_plan, source_chain, _ = upstream_objects()
+    tampered_evidence = replace(
+        source_chain.evidence,
+        validation_plan_digest=digest("f"),
+    )
+    result = evaluate(
+        manual_plan=source_plan,
+        manual_chain=replace(source_chain, evidence=tampered_evidence),
+    )
+    assert result.state is ValidationDecisionState.INELIGIBLE
+    assert result.network_count == result.runtime_activation_count == 0
+
+
+def test_v017_equivalence_chain_tampering_is_independently_fail_closed():
+    _, _, source_chain = upstream_objects()
+    tampered_descriptor = replace(
+        source_chain.descriptor,
+        provenance_digest=digest("f"),
+    )
+    result = evaluate(
+        equivalence_chain=replace(source_chain, descriptor=tampered_descriptor)
+    )
+    assert result.state is ValidationDecisionState.INELIGIBLE
+    assert result.registry_write_count == result.http_count == 0
+
+
+def test_v018_runtime_record_tampering_is_independently_fail_closed():
+    runtime, *_ = context()
+    result = evaluate(runtime=replace(runtime, committed_by="tampered-runtime-operator"))
+    assert result.state is ValidationDecisionState.INELIGIBLE
+    assert result.filesystem_count == result.transport_count == 0
+
+
+def test_v019_persistence_receipt_tampering_is_independently_fail_closed():
+    _, receipt, *_ = context()
+    result = evaluate(
+        persistence=replace(receipt, committed_by="tampered-persistence-operator")
+    )
+    assert result.state is ValidationDecisionState.INELIGIBLE
+    assert result.database_count == result.runtime_activation_count == 0
 
 
 def test_execution_request_exact_binding_and_zero_side_effect_denial():

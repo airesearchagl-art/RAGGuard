@@ -6,7 +6,8 @@
 
 - Immutable controlled validation authorization, environment, plan, scenario, execution receipt,
   evidence review/approval, and atomic test-ledger contracts.
-- Exact v0.16-v0.19 approval, runtime-authorization, and persistence-receipt binding.
+- Exact v0.16-v0.19 object-backed approval-chain, plan/criteria, runtime-authorization, and
+  persistence-receipt binding.
 - Successful-only replay consumption with failure and commit-fault retry.
 
 ### Security boundary
