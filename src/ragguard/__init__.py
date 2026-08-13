@@ -119,6 +119,24 @@ from ragguard.persistence_recovery import (
     PersistenceRecoveryState,
     evaluate_persistence_recovery,
 )
+from ragguard.real_world_validation import (
+    CANONICAL_REAL_WORLD_VALIDATION_DIGEST_ALGORITHM,
+    AuthorizationReviewResult, ControlledEnvironmentManifest,
+    ControlledExecutionOutcome, ControlledExecutionResult, CredentialClass,
+    DataClass, EnvironmentClass, ExecutionResult, RealWorldExecutionReceipt,
+    RealWorldExecutionRequest, RealWorldValidationAuthorizationApproval,
+    RealWorldValidationAuthorizationRequest, RealWorldValidationAuthorizationReview,
+    RealWorldValidationDecision, RealWorldValidationError, RealWorldValidationPlan,
+    SafeScenarioManifest, StorageMode, TestControlledRealWorldExecutionAdapter,
+    ValidationDecisionState, ValidationReason, evaluate_real_world_validation,
+)
+from ragguard.real_world_evidence import (
+    EvidenceApprovalResult, EvidenceClass, EvidenceReviewResult,
+    ExecutionEvidenceDescriptor, RealWorldEvidenceApproval, RealWorldEvidenceError,
+    RealWorldEvidenceReview, RealWorldValidationRecord, TestRealWorldValidationLedger,
+    ValidationCommitFault, ValidationCommitReason, ValidationLedgerResult,
+    ValidationRecordState,
+)
 
 from ragguard.production_authorization import (
     CANONICAL_PRODUCTION_AUTHORIZATION_DIGEST_ALGORITHM,
@@ -446,4 +464,18 @@ __all__ = [
     "ValidationEnvironmentContract",
     "ValidationFixtureKind",
     "ValidationFixtureManifest",
+    "CANONICAL_REAL_WORLD_VALIDATION_DIGEST_ALGORITHM",
+    "AuthorizationReviewResult", "ControlledEnvironmentManifest",
+    "ControlledExecutionOutcome", "ControlledExecutionResult", "CredentialClass",
+    "DataClass", "EnvironmentClass", "ExecutionResult", "RealWorldExecutionReceipt",
+    "RealWorldExecutionRequest", "RealWorldValidationAuthorizationApproval",
+    "RealWorldValidationAuthorizationRequest", "RealWorldValidationAuthorizationReview",
+    "RealWorldValidationDecision", "RealWorldValidationError", "RealWorldValidationPlan",
+    "SafeScenarioManifest", "StorageMode", "TestControlledRealWorldExecutionAdapter",
+    "ValidationDecisionState", "ValidationReason", "evaluate_real_world_validation",
+    "EvidenceApprovalResult", "EvidenceClass", "EvidenceReviewResult",
+    "ExecutionEvidenceDescriptor", "RealWorldEvidenceApproval", "RealWorldEvidenceError",
+    "RealWorldEvidenceReview", "RealWorldValidationRecord", "TestRealWorldValidationLedger",
+    "ValidationCommitFault", "ValidationCommitReason", "ValidationLedgerResult",
+    "ValidationRecordState",
 ]

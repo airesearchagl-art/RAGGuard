@@ -1,5 +1,14 @@
 # Design Notes
 
+## RAGGuard v0.20 controlled validation boundary
+
+v0.20 accepts the complete v0.16 manual-validation and v0.17 equivalence object chains together
+with v0.18 authorization and v0.19 persistence objects, recomputes their canonical digests, invokes
+the existing chain validators, and exact-binds the manual plan and equivalence criteria. It never
+trusts a standalone Boolean, enum, ID, or self-declared digest.
+Controlled execution and the validation ledger are deterministic, test-only components with
+successful-only replay consumption and zero external side effects.
+
 ## RAGGuard v0.19 real persistence boundary
 
 v0.19 defines the safe contract immediately after a v0.18 authorization commit. Authorization,

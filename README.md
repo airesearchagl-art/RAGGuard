@@ -1,5 +1,10 @@
 # RAGGuard
 
+v0.20 adds a controlled-fixture Real-World Validation Execution Boundary with exact v0.16-v0.19
+object-backed source-chain binding. It performs no real-product connection, real persistence,
+registry write, or runtime activation. See
+[the v0.20 design](docs/REAL_WORLD_VALIDATION_EXECUTION_DESIGN_V0.20.md).
+
 [![Tests](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/airesearchagl-art/RAGGuard/actions/workflows/test.yml)
 
 ## v0.19 real persistence boundary
