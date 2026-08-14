@@ -137,6 +137,29 @@ from ragguard.real_world_evidence import (
     ValidationCommitFault, ValidationCommitReason, ValidationLedgerResult,
     ValidationRecordState,
 )
+from ragguard.storage_adapter import (
+    CANONICAL_STORAGE_ADAPTER_DIGEST_ALGORITHM,
+    AdapterClass, AdapterDataClass, AtomicityModel, CredentialMode,
+    DurabilityModel, FilesystemMode, IdempotencyModel, IsolationModel,
+    NetworkMode, RecoveryModel, StorageAdapterCapability, StorageAdapterError,
+    StorageAdapterManifest, StorageAdapterPolicy, StorageAdapterSafeSummary,
+    TransactionModel,
+)
+from ragguard.storage_adapter_attestation import (
+    MAX_ADAPTER_EVIDENCE_AGE,
+    AdapterApprovalResult, AdapterCapabilityName, AdapterCapabilityTestResult,
+    AdapterConformanceReason, AdapterConformanceResult,
+    AdapterConformanceState, AdapterEvidenceClass, AdapterLifecycleStatus,
+    AdapterRecordState, AdapterRegistryFault, AdapterRegistryReason,
+    AdapterRegistryResult, AdapterReviewResult, AdapterRoleContext,
+    ApprovedStorageAdapterRecord, StorageAdapterApproval,
+    StorageAdapterAttestationEvidence, StorageAdapterReview,
+    StorageAdapterCapabilityConformanceResult,
+    StorageAdapterConformanceSuiteResult,
+    TestApprovedStorageAdapterRegistry, WriteCompatibilityDecision,
+    WriteCompatibilityReason, WriteCompatibilityState,
+    evaluate_adapter_conformance, evaluate_write_compatibility,
+)
 
 from ragguard.production_authorization import (
     CANONICAL_PRODUCTION_AUTHORIZATION_DIGEST_ALGORITHM,
@@ -262,6 +285,25 @@ from ragguard.replacement_admission import (
 __version__ = "0.1.0"
 
 __all__ = [
+    "CANONICAL_STORAGE_ADAPTER_DIGEST_ALGORITHM",
+    "MAX_ADAPTER_EVIDENCE_AGE",
+    "AdapterApprovalResult", "AdapterCapabilityName", "AdapterCapabilityTestResult",
+    "AdapterClass", "AdapterConformanceReason",
+    "AdapterConformanceResult", "AdapterConformanceState", "AdapterDataClass",
+    "AdapterEvidenceClass", "AdapterLifecycleStatus", "AdapterRecordState",
+    "AdapterRegistryFault", "AdapterRegistryReason", "AdapterRegistryResult",
+    "AdapterReviewResult", "AdapterRoleContext", "ApprovedStorageAdapterRecord",
+    "AtomicityModel", "CredentialMode", "DurabilityModel", "FilesystemMode",
+    "IdempotencyModel", "IsolationModel", "NetworkMode", "RecoveryModel",
+    "StorageAdapterApproval", "StorageAdapterAttestationEvidence",
+    "StorageAdapterCapabilityConformanceResult",
+    "StorageAdapterCapability", "StorageAdapterError", "StorageAdapterManifest",
+    "StorageAdapterConformanceSuiteResult", "StorageAdapterPolicy",
+    "StorageAdapterReview", "StorageAdapterSafeSummary",
+    "TestApprovedStorageAdapterRegistry", "TransactionModel",
+    "WriteCompatibilityDecision", "WriteCompatibilityReason",
+    "WriteCompatibilityState", "evaluate_adapter_conformance",
+    "evaluate_write_compatibility",
     "CANONICAL_REAL_PERSISTENCE_DIGEST_ALGORITHM",
     "DurableCommitFault",
     "DurableCommitResult",

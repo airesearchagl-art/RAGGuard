@@ -1,5 +1,17 @@
 # Usage
 
+## v0.21 approved storage adapter contracts
+
+Construct a metadata-only `StorageAdapterManifest`, ten immutable capability conformance result
+objects, their exact-bound suite/evidence/policy objects, evaluate conformance, obtain independent
+review and distinct approval, and commit only to
+the test-only in-memory approved-adapter registry. The final compatibility decision may be
+`ready_for_write_authorization_review`; it is not write authorization, execution, durable commit,
+or runtime activation. Do not provide paths, endpoints, DSNs, buckets, credentials, tokens, or
+real data. No new CLI command is added.
+Do not treat a Boolean capability claim or caller-provided digest as evidence; each enabled claim
+must have one exact manifest-bound `passed` result object.
+
 ## v0.20 controlled validation contracts
 
 The v0.20 library models authorization, planning, controlled fixture execution, evidence review,
