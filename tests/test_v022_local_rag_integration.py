@@ -37,7 +37,7 @@ def plan(m):
     return LocalRAGDataFlowPlan("plan-001", m.canonical_digest, stages)
 
 
-def passed_chain():
+def passed_chain(operator_id="operator"):
     m, f = manifest(), fixture()
     p = plan(m)
     text, tr = transform_fixture(f, D)
@@ -54,7 +54,7 @@ def passed_chain():
                                                 "reason_code": "approved_masked_only"})
     receipt = issue_passed_receipt(manifest=m, plan=p, fixture=f, stage_results=gates,
         masking=tr, embedding=embedding, retrieval=retrieval, prompt=prompt, logging=logging,
-        counters=ExternalIOCounters(), executed_at=NOW)
+        counters=ExternalIOCounters(), operator_id=operator_id, executed_at=NOW)
     return m, f, p, tr, chunk, store, receipt
 
 
@@ -90,7 +90,7 @@ def test_blocked_replaced_revoked_and_credential_chunks_are_rejected():
 def test_passed_receipt_cannot_be_forged_by_public_constructor():
     _, f, p, tr, _, _, receipt = passed_chain()
     with pytest.raises(LocalRAGIntegrationError):
-        LocalRAGIntegrationReceipt(receipt.integration_manifest_digest, p.canonical_digest,
+        LocalRAGIntegrationReceipt("operator", receipt.integration_manifest_digest, p.canonical_digest,
             f.canonical_digest, receipt.stage_result_digests, tr.canonical_digest,
             receipt.embedding_boundary_digest, receipt.retrieval_boundary_digest,
             receipt.prompt_boundary_digest, receipt.logging_boundary_digest, NOW,
@@ -132,7 +132,7 @@ def test_failed_boundary_or_nonzero_external_io_prevents_passed_receipt():
     accepted = BoundaryResult("safe-boundary", True, D, D, ("approved_masked_only",))
     receipt = issue_passed_receipt(manifest=m, plan=p, fixture=f, stage_results=gates,
         masking=tr, embedding=rejected, retrieval=accepted, prompt=accepted, logging=accepted,
-        counters=ExternalIOCounters(http_count=1), executed_at=NOW)
+        counters=ExternalIOCounters(http_count=1), operator_id="operator", executed_at=NOW)
     assert receipt.result is IntegrationResult.FAILED
     assert receipt.production_safe is False if hasattr(receipt, "production_safe") else True
 
@@ -160,5 +160,60 @@ def test_stale_fixture_future_stage_and_forged_transformation_fail_receipt():
     object.__setattr__(tr, "source_digest", D)
     receipt = issue_passed_receipt(manifest=m, plan=p, fixture=f, stage_results=gates,
         masking=tr, embedding=embedding, retrieval=retrieval, prompt=prompt, logging=logging,
-        counters=ExternalIOCounters(), executed_at=NOW + timedelta(hours=1))
+        counters=ExternalIOCounters(), operator_id="operator",
+        executed_at=NOW + timedelta(hours=1))
     assert receipt.result is IntegrationResult.FAILED
+
+
+def eligibility_for(receipt, *, role_operator="operator"):
+    roles = IntegrationRoleContext(role_operator, "reviewer", "approver")
+    review = IntegrationReview(receipt.canonical_digest, "reviewer", ReviewResult.APPROVED,
+                               NOW + timedelta(minutes=1))
+    approval = IntegrationApproval(receipt.canonical_digest, review.canonical_digest, "approver",
+        ReviewResult.APPROVED, NOW + timedelta(minutes=2))
+    return evaluate_trial_eligibility(receipt, review, approval, roles,
+                                      evaluation_time=NOW + timedelta(minutes=3))
+
+
+@pytest.mark.parametrize(("receipt_operator", "role_operator", "expected_reason"), (
+    ("receipt-operator", "different-operator", "role_mismatch"),
+    ("reviewer", "operator", "role_conflict"),
+    ("approver", "operator", "role_conflict"),
+))
+def test_receipt_operator_mismatch_and_role_conflicts_fail_closed(
+        receipt_operator, role_operator, expected_reason):
+    *_, receipt = passed_chain(receipt_operator)
+    decision = eligibility_for(receipt, role_operator=role_operator)
+    assert decision.state is TrialEligibilityState.INELIGIBLE
+    assert expected_reason in decision.reason_codes
+    assert decision.real_data_approved is decision.real_data_use_authorized is False
+    assert decision.real_data_access_count == 0
+    assert all(value == 0 for name, value in vars(decision).items() if name.endswith("_count"))
+
+
+def test_valid_receipt_with_forged_role_context_fails_closed():
+    *_, receipt = passed_chain()
+    decision = eligibility_for(receipt, role_operator="forged-operator")
+    assert decision.state is TrialEligibilityState.INELIGIBLE
+    assert decision.reason_codes == ("role_mismatch",)
+    assert decision.real_data_access_count == 0
+
+
+def test_forged_receipt_operator_invalidates_canonical_chain():
+    *_, receipt = passed_chain()
+    object.__setattr__(receipt, "operator_id", "forged-operator")
+    decision = eligibility_for(receipt, role_operator="forged-operator")
+    assert decision.state is TrialEligibilityState.INELIGIBLE
+    assert "forged_chain" in decision.reason_codes
+    assert not decision.real_data_approved and not decision.real_data_use_authorized
+
+
+def test_receipt_requires_valid_explicit_operator_identifier():
+    m, f = manifest(), fixture()
+    p = plan(m)
+    _, tr = transform_fixture(f, D)
+    boundary = BoundaryResult("rejected-boundary", False, D, D, ("rejected",))
+    with pytest.raises(LocalRAGIntegrationError, match="integration_operator_invalid"):
+        issue_passed_receipt(manifest=m, plan=p, fixture=f, stage_results=(), masking=tr,
+            embedding=boundary, retrieval=boundary, prompt=boundary, logging=boundary,
+            counters=ExternalIOCounters(), operator_id="not valid", executed_at=NOW)

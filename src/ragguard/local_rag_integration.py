@@ -373,6 +373,7 @@ class ExternalIOCounters:
 
 @dataclass(frozen=True, repr=False)
 class LocalRAGIntegrationReceipt(_Canonical):
+    operator_id: str
     integration_manifest_digest: str
     data_flow_plan_digest: str
     fixture_manifest_digest: str
@@ -391,7 +392,8 @@ class LocalRAGIntegrationReceipt(_Canonical):
             self.fixture_manifest_digest, *self.stage_result_digests, self.masking_result_digest,
             self.embedding_boundary_digest, self.retrieval_boundary_digest,
             self.prompt_boundary_digest, self.logging_boundary_digest)
-        if (not all(is_digest(v) for v in digest_values) or not self.stage_result_digests
+        if (not is_identifier(self.operator_id)
+                or not all(is_digest(v) for v in digest_values) or not self.stage_result_digests
                 or not is_aware(self.executed_at) or not isinstance(self.result, IntegrationResult)
                 or self.result is IntegrationResult.PASSED and self._marker is not _RECEIPT_MARKER):
             raise LocalRAGIntegrationError("integration_receipt_invalid")
@@ -405,6 +407,7 @@ class LocalRAGIntegrationReceipt(_Canonical):
             "integration_manifest_digest": self.integration_manifest_digest,
             "logging_boundary_digest": self.logging_boundary_digest,
             "masking_result_digest": self.masking_result_digest,
+            "operator_id": self.operator_id,
             "prompt_boundary_digest": self.prompt_boundary_digest,
             "result": self.result.value, "retrieval_boundary_digest": self.retrieval_boundary_digest,
             "stage_result_digests": list(self.stage_result_digests)}
@@ -485,6 +488,15 @@ class RealDataTrialEligibility(_Canonical):
     evaluated_at: datetime
     real_data_approved: bool = field(init=False, default=False)
     real_data_use_authorized: bool = field(init=False, default=False)
+    external_network_count: int = field(init=False, default=0)
+    http_count: int = field(init=False, default=0)
+    cloud_count: int = field(init=False, default=0)
+    external_api_count: int = field(init=False, default=0)
+    credential_use_count: int = field(init=False, default=0)
+    token_use_count: int = field(init=False, default=0)
+    persistent_vector_write_count: int = field(init=False, default=0)
+    production_registry_write_count: int = field(init=False, default=0)
+    real_data_access_count: int = field(init=False, default=0)
 
     def __post_init__(self) -> None:
         if (not isinstance(self.state, TrialEligibilityState)
@@ -497,6 +509,14 @@ class RealDataTrialEligibility(_Canonical):
 
     def _payload(self) -> dict[str, object]:
         return {"approval_digest": self.approval_digest,
+            "external_side_effect_counts": {
+                "cloud": self.cloud_count, "credential_use": self.credential_use_count,
+                "external_api": self.external_api_count,
+                "external_network": self.external_network_count, "http": self.http_count,
+                "persistent_vector_write": self.persistent_vector_write_count,
+                "production_registry_write": self.production_registry_write_count,
+                "real_data_access": self.real_data_access_count, "token_use": self.token_use_count,
+            },
             "evaluated_at": canonical_datetime(self.evaluated_at), "reason_codes": list(self.reason_codes),
             "receipt_digest": self.receipt_digest, "review_digest": self.review_digest,
             "state": self.state.value}
@@ -630,8 +650,12 @@ def evaluate_trial_eligibility(receipt: LocalRAGIntegrationReceipt,
             or approval.receipt_digest != receipt.canonical_digest
             or approval.review_digest != review.canonical_digest):
         reasons.append("invalid_chain")
-    if (review.reviewer_id != roles.reviewer_id or approval.approver_id != roles.approver_id):
+    if (receipt.operator_id != roles.operator_id
+            or review.reviewer_id != roles.reviewer_id
+            or approval.approver_id != roles.approver_id):
         reasons.append("role_mismatch")
+    if len({receipt.operator_id, review.reviewer_id, approval.approver_id}) != 3:
+        reasons.append("role_conflict")
     if review.result is not ReviewResult.APPROVED or approval.result is not ReviewResult.APPROVED:
         reasons.append("not_approved_for_review")
     if not (receipt.executed_at < review.reviewed_at < approval.approved_at <= evaluation_time):
@@ -646,7 +670,10 @@ def issue_passed_receipt(*, manifest: LocalRAGIntegrationManifest, plan: LocalRA
         fixture: SyntheticConfidentialFixture, stage_results: tuple[StageGateDecision, ...],
         masking: ConfidentialityTransformationRecord, embedding: BoundaryResult,
         retrieval: BoundaryResult, prompt: BoundaryResult, logging: BoundaryResult,
-        counters: ExternalIOCounters, executed_at: datetime) -> LocalRAGIntegrationReceipt:
+        counters: ExternalIOCounters, operator_id: str,
+        executed_at: datetime) -> LocalRAGIntegrationReceipt:
+    if not is_identifier(operator_id):
+        raise LocalRAGIntegrationError("integration_operator_invalid")
     exact = (canonical_object_valid(manifest), canonical_object_valid(plan), canonical_object_valid(fixture),
         all(canonical_object_valid(v) for v in stage_results), canonical_object_valid(masking),
         all(canonical_object_valid(v) for v in (embedding, retrieval, prompt, logging)),
@@ -666,7 +693,7 @@ def issue_passed_receipt(*, manifest: LocalRAGIntegrationManifest, plan: LocalRA
         logging.boundary_id == "logging-cache-boundary",
         all(v.accepted for v in (embedding, retrieval, prompt, logging)), counters.all_zero)
     result = IntegrationResult.PASSED if all(exact) else IntegrationResult.FAILED
-    return LocalRAGIntegrationReceipt(manifest.canonical_digest, plan.canonical_digest,
+    return LocalRAGIntegrationReceipt(operator_id, manifest.canonical_digest, plan.canonical_digest,
         fixture.canonical_digest, tuple(v.canonical_digest for v in stage_results),
         masking.canonical_digest, embedding.canonical_digest, retrieval.canonical_digest,
         prompt.canonical_digest, logging.canonical_digest, executed_at, result,
