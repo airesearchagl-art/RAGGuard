@@ -1,5 +1,18 @@
 # Usage
 
+## v0.23 approved Local RAG execution session contracts
+
+Construct a metadata-only environment manifest and all seven concrete verification result objects,
+then exact-bind them into the attestation suite and evidence. After independent environment review
+and approval, construct a session request bound to the actual v0.22 manifest, data-flow plan,
+synthetic fixture, and explicit operator. Only `TestOnlySessionRegistry` can issue the short-lived
+session, and only `ControlledLocalRAGExecutionAdapter` can issue a passed eleven-stage receipt.
+
+Obtain independent session review and distinct approval before evaluating real-data trial approval
+review eligibility. That state never sets real-data approval or use authorization. Do not provide
+paths, endpoints, addresses, credentials, tokens, raw content, customer identities, real data, or
+persistent storage. No CLI command is added.
+
 ## v0.21 approved storage adapter contracts
 
 Construct a metadata-only `StorageAdapterManifest`, ten immutable capability conformance result

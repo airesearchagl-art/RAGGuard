@@ -1,5 +1,15 @@
 # RAGGuard Roadmap
 
+## Delivery candidate: v0.23 approved Local RAG execution session attestation
+
+- Seven object-backed environment hard gates with independent verifier, reviewer, and approver.
+- Exact v0.22 chain-bound, short-lived operator session with replay and lifecycle protection.
+- Eleven-stage metadata-only controlled execution and independent security review.
+- Explicit real-data trial approval review eligibility without real-data authorization.
+- Zero external network, credential, real-data, persistent-write, registry, and runtime effects.
+
+Authoritative design: [v0.23 Local RAG Execution Session Attestation](docs/LOCAL_RAG_EXECUTION_SESSION_ATTESTATION_DESIGN_V0.23.md).
+
 ## Delivery candidate: v0.21 approved actual storage adapter boundary
 
 - Metadata-only adapter manifest, object-backed capability conformance suite, evidence, review,

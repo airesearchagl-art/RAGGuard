@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.23.0 - Unreleased
+
+### Added
+
+- Immutable environment manifest, seven concrete verification results, exact-bound attestation
+  suite/evidence, independent review, and distinct approval.
+- Metadata-only session request and test-only atomic registry with exact v0.22 object binding,
+  monotonic generation, predecessor binding, replay protection, and terminal lifecycle states.
+- Controlled eleven-stage execution evidence, operator-bound receipt, zero-valued external-effect
+  accounting, independent security review/approval, and explicit trial-review readiness.
+
+### Security boundary
+
+- Environment attestation is not production environment approval.
+- Session approval and controlled execution are not real-data approval or authorization.
+- No real data, external network/HTTP/cloud, credential/token, persistent vector database,
+  production registry write, runtime activation, or runtime switch.
+
 ## v0.21.0 - Unreleased
 
 ### Added
