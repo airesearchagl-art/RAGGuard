@@ -1,5 +1,21 @@
 """RAGGuard package."""
 
+from ragguard.local_rag_integration import (
+    ApprovedChunk, BoundaryResult, ChunkLifecycle,
+    ConfidentialityTransformationRecord, DataFlowStageContract,
+    ExternalIOClass, ExternalIOCounters, IntegrationApproval,
+    IntegrationDataClass, IntegrationResult, IntegrationReview,
+    IntegrationRoleContext, LocalRAGDataFlowPlan, LocalRAGIntegrationError,
+    LocalRAGIntegrationManifest, LocalRAGIntegrationReceipt, LoggingClass,
+    PersistenceClass, RAGStage, RealDataTrialEligibility, ReviewResult,
+    SensitiveClass, StageGateDecision, StageGateState,
+    SyntheticConfidentialFixture, TestOnlyVectorStore,
+    TrialEligibilityState, evaluate_embedding_boundary,
+    evaluate_logging_cache_boundary, evaluate_prompt_boundary,
+    evaluate_retrieval_boundary, evaluate_stage_gate,
+    evaluate_trial_eligibility, issue_passed_receipt, transform_fixture,
+)
+
 from ragguard.equivalence_attestation import (
     EquivalenceApproval,
     EquivalenceApprovalResult,
@@ -285,6 +301,19 @@ from ragguard.replacement_admission import (
 __version__ = "0.1.0"
 
 __all__ = [
+    "ApprovedChunk", "BoundaryResult", "ChunkLifecycle",
+    "ConfidentialityTransformationRecord", "DataFlowStageContract",
+    "ExternalIOClass", "ExternalIOCounters", "IntegrationApproval",
+    "IntegrationDataClass", "IntegrationResult", "IntegrationReview",
+    "IntegrationRoleContext", "LocalRAGDataFlowPlan", "LocalRAGIntegrationError",
+    "LocalRAGIntegrationManifest", "LocalRAGIntegrationReceipt", "LoggingClass",
+    "PersistenceClass", "RAGStage", "RealDataTrialEligibility", "ReviewResult",
+    "SensitiveClass", "StageGateDecision", "StageGateState",
+    "SyntheticConfidentialFixture", "TestOnlyVectorStore",
+    "TrialEligibilityState", "evaluate_embedding_boundary",
+    "evaluate_logging_cache_boundary", "evaluate_prompt_boundary",
+    "evaluate_retrieval_boundary", "evaluate_stage_gate",
+    "evaluate_trial_eligibility", "issue_passed_receipt", "transform_fixture",
     "CANONICAL_STORAGE_ADAPTER_DIGEST_ALGORITHM",
     "MAX_ADAPTER_EVIDENCE_AGE",
     "AdapterApprovalResult", "AdapterCapabilityName", "AdapterCapabilityTestResult",
