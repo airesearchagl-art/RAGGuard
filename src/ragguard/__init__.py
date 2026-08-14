@@ -42,6 +42,25 @@ from ragguard.local_rag_execution import (
     TestOnlySessionRegistry, evaluate_real_data_trial_readiness,
     validate_v022_integration_chain,
 )
+from ragguard.real_data_trial import (
+    RealDataClass, RealDataClassificationPolicy, RealDataTrialError,
+    RealDataTrialScope, TrialCacheClass, TrialCachePolicy,
+    TrialExportClass, TrialExportPolicy, TrialLoggingClass,
+    TrialLoggingPolicy, TrialPersistenceClass, TrialPersistencePolicy,
+    TrialRetentionClass, TrialRetentionPolicy, TrialStagePolicy,
+    validate_trial_scope_policies,
+)
+from ragguard.real_data_trial_approval import (
+    MAX_TRIAL_READINESS_AGE, ApprovedRealDataTrialRecord, ApprovedTrialState,
+    RealDataAccessAuthorizationReadinessDecision,
+    RealDataAccessAuthorizationReadinessState, RealDataTrialApprovalError,
+    TestOnlyRealDataTrialRegistry, TrialApproval, TrialApprovalRequest,
+    TrialApprovalResult, TrialDataGovernanceReview, TrialLifecycle,
+    TrialRegistryFault, TrialRegistryReason, TrialRegistryResult,
+    TrialReviewResult, TrialRoleContext, TrialSecurityReview,
+    TrialSideEffectAccounting, evaluate_real_data_access_authorization_readiness,
+    validate_v023_trial_source_chain,
+)
 
 from ragguard.equivalence_attestation import (
     EquivalenceApproval,
@@ -364,6 +383,21 @@ __all__ = [
     "SessionRoleContext", "StageExecutionEvidence", "StageExecutionResult",
     "TestOnlySessionRegistry", "evaluate_real_data_trial_readiness",
     "validate_v022_integration_chain",
+    "RealDataClass", "RealDataClassificationPolicy", "RealDataTrialError",
+    "RealDataTrialScope", "TrialCacheClass", "TrialCachePolicy",
+    "TrialExportClass", "TrialExportPolicy", "TrialLoggingClass",
+    "TrialLoggingPolicy", "TrialPersistenceClass", "TrialPersistencePolicy",
+    "TrialRetentionClass", "TrialRetentionPolicy", "TrialStagePolicy",
+    "validate_trial_scope_policies",
+    "MAX_TRIAL_READINESS_AGE", "ApprovedRealDataTrialRecord", "ApprovedTrialState",
+    "RealDataAccessAuthorizationReadinessDecision",
+    "RealDataAccessAuthorizationReadinessState", "RealDataTrialApprovalError",
+    "TestOnlyRealDataTrialRegistry", "TrialApproval", "TrialApprovalRequest",
+    "TrialApprovalResult", "TrialDataGovernanceReview", "TrialLifecycle",
+    "TrialRegistryFault", "TrialRegistryReason", "TrialRegistryResult",
+    "TrialReviewResult", "TrialRoleContext", "TrialSecurityReview",
+    "TrialSideEffectAccounting", "evaluate_real_data_access_authorization_readiness",
+    "validate_v023_trial_source_chain",
     "CANONICAL_STORAGE_ADAPTER_DIGEST_ALGORITHM",
     "MAX_ADAPTER_EVIDENCE_AGE",
     "AdapterApprovalResult", "AdapterCapabilityName", "AdapterCapabilityTestResult",

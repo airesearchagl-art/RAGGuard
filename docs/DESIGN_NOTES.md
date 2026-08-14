@@ -1,5 +1,19 @@
 # Design Notes
 
+## RAGGuard v0.24 explicit real-data trial approval boundary
+
+v0.24 exact-binds the actual v0.23 environment, approved session, controlled execution receipt,
+post-execution review/approval, and readiness objects into one metadata-only trial scope. Safe
+classification, eleven-stage ceiling, zero-retention, digest-only logging, no-cache, no-export,
+and no-persistence policies are concrete canonical objects rather than copied claims.
+
+Independent security and data-governance reviews precede a distinct trial approval. A test-only
+atomic registry enforces generation, predecessor, successful-only replay consumption, retry, and
+terminal lifecycle states. The pure evaluator stops at access-authorization review eligibility.
+Approved trial metadata is not real-data access authorization, actual read authority, write
+authority, a production registry entry, or runtime activation. The authoritative design is
+[v0.24 Explicit Real-Data Trial Approval Boundary](REAL_DATA_TRIAL_APPROVAL_BOUNDARY_DESIGN_V0.24.md).
+
 ## RAGGuard v0.23 approved Local RAG execution session attestation
 
 v0.23 separates environment verification, environment review/approval, session request,
