@@ -1,5 +1,22 @@
 # Design Notes
 
+## RAGGuard v0.23 approved Local RAG execution session attestation
+
+v0.23 separates environment verification, environment review/approval, session request,
+independent pre-execution session review/approval, registry commit, controlled eleven-stage
+execution, and separate post-execution security review/approval. Canonical digests bind
+the actual v0.22 objects at every edge; copied claims or digest strings do not replace those
+objects. Test-only registry commits are monotonic, predecessor-bound, replay-safe, and atomic.
+Approved sessions include the pre-review and pre-approval digests. Successful commits alone
+consume request/review/approval/session replay identities. Expired, revoked, or superseded
+sessions cannot execute.
+
+Execution evidence is metadata-only and all external, credential, real-data, persistent-write,
+registry, and runtime counters are fixed at zero. Environment attestation is not production
+approval; an approved session is not real-data approval; passed controlled execution is not
+real-data approval; trial approval review eligibility is not real-data use authorization. The
+authoritative design is [v0.23 Local RAG Execution Session Attestation](LOCAL_RAG_EXECUTION_SESSION_ATTESTATION_DESIGN_V0.23.md).
+
 ## RAGGuard v0.21 approved storage adapter boundary
 
 v0.21 separates an adapter candidate, object-backed capability conformance, metadata-only
