@@ -2,7 +2,8 @@
 
 ## Delivery candidate: v0.21 approved actual storage adapter boundary
 
-- Metadata-only adapter manifest, capability, evidence, review, approval, and policy contracts.
+- Metadata-only adapter manifest, object-backed capability conformance suite, evidence, review,
+  approval, and policy contracts.
 - Eight-role separation, explicit time, successful-only replay consumption, and one-way lifecycle.
 - Test-only atomic approved-adapter registry and pure v0.19 object-backed compatibility review.
 - Actual storage execution, write authorization, production-registry mutation, and runtime

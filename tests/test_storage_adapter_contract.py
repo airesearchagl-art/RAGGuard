@@ -13,8 +13,11 @@ from ragguard.storage_adapter import (
     StorageAdapterManifest, StorageAdapterPolicy, TransactionModel,
 )
 from ragguard.storage_adapter_attestation import (
+    AdapterCapabilityName, AdapterCapabilityTestResult,
     AdapterConformanceReason, AdapterConformanceState, AdapterEvidenceClass,
-    StorageAdapterAttestationEvidence, evaluate_adapter_conformance,
+    StorageAdapterAttestationEvidence,
+    StorageAdapterCapabilityConformanceResult,
+    StorageAdapterConformanceSuiteResult, evaluate_adapter_conformance,
 )
 from tests.test_real_persistence_contract import context as persistence_context
 
@@ -75,20 +78,63 @@ def policy(cap: StorageAdapterCapability | None = None, **changes) -> StorageAda
     return StorageAdapterPolicy(**values)
 
 
+def result_objects(
+    man: StorageAdapterManifest,
+    *,
+    result_overrides: dict[AdapterCapabilityName, AdapterCapabilityTestResult] | None = None,
+) -> tuple[StorageAdapterCapabilityConformanceResult, ...]:
+    overrides = result_overrides or {}
+    values = []
+    hex_chars = "0123456789abcdefabcd"
+    for index, tested_capability in enumerate(AdapterCapabilityName):
+        values.append(StorageAdapterCapabilityConformanceResult(
+            f"result-{tested_capability.name.lower()}",
+            man.canonical_digest,
+            tested_capability,
+            digest(hex_chars[index]),
+            overrides.get(tested_capability, AdapterCapabilityTestResult.PASSED),
+            digest(hex_chars[index + 10]),
+            man.created_at + timedelta(microseconds=index + 1),
+            "adapter-evidence-producer",
+        ))
+    return tuple(values)
+
+
+def suite(
+    man: StorageAdapterManifest,
+    cap: StorageAdapterCapability,
+    results: tuple[StorageAdapterCapabilityConformanceResult, ...],
+    **changes,
+) -> StorageAdapterConformanceSuiteResult:
+    values = dict(
+        suite_id="adapter-suite-v021",
+        adapter_manifest_digest=man.canonical_digest,
+        capability_digest=cap.canonical_digest,
+        capability_result_digests=tuple(value.canonical_digest for value in results),
+        executed_at=man.created_at + timedelta(microseconds=20),
+        executed_by="adapter-evidence-producer",
+    )
+    values.update(changes)
+    return StorageAdapterConformanceSuiteResult(**values)
+
+
 def evidence(man: StorageAdapterManifest | None = None,
              cap: StorageAdapterCapability | None = None,
+             conformance_suite: StorageAdapterConformanceSuiteResult | None = None,
+             results: tuple[StorageAdapterCapabilityConformanceResult, ...] | None = None,
              **changes) -> StorageAdapterAttestationEvidence:
     cap = cap or capability()
     man = man or manifest(cap)
+    results = results if results is not None else result_objects(man)
+    conformance_suite = conformance_suite or suite(man, cap, results)
     values = dict(
         evidence_id="adapter-evidence-v021",
         adapter_manifest_digest=man.canonical_digest,
         capability_digest=cap.canonical_digest,
-        conformance_suite_digest=digest("1"), atomicity_test_digest=digest("2"),
-        recovery_test_digest=digest("3"), corruption_test_digest=digest("4"),
-        idempotency_test_digest=digest("5"), failure_injection_digest=digest("6"),
+        conformance_suite_digest=conformance_suite.canonical_digest,
+        capability_result_digests=tuple(value.canonical_digest for value in results),
         evidence_class=AdapterEvidenceClass.CONTROLLED_CONFORMANCE,
-        generated_at=man.created_at + timedelta(seconds=1),
+        generated_at=conformance_suite.executed_at + timedelta(microseconds=1),
         generated_by="adapter-evidence-producer",
     )
     values.update(changes)
@@ -99,9 +145,12 @@ def conformance(**changes):
     cap = changes.pop("capability", capability())
     man = changes.pop("manifest", manifest(cap))
     pol = changes.pop("policy", policy(cap))
-    ev = changes.pop("evidence", evidence(man, cap))
+    results = changes.pop("capability_results", result_objects(man))
+    conformance_suite = changes.pop("suite", suite(man, cap, results))
+    ev = changes.pop("evidence", evidence(man, cap, conformance_suite, results))
     at = changes.pop("evaluation_time", ev.generated_at + timedelta(seconds=1))
-    return evaluate_adapter_conformance(man, cap, ev, pol, evaluation_time=at)
+    return evaluate_adapter_conformance(
+        man, cap, conformance_suite, results, ev, pol, evaluation_time=at)
 
 
 def test_manifest_capability_policy_are_immutable_and_deterministic():
@@ -138,6 +187,120 @@ def test_all_ten_capability_claims_are_digest_covered():
     assert len(cap.values) == 10 and cap.all_required
     for name in [n for n in vars(cap) if n.startswith("supports_")]:
         assert replace(cap, **{name: False}).canonical_digest != cap.canonical_digest
+
+
+def test_conformance_result_objects_and_suite_are_immutable_and_digest_covered():
+    cap = capability(); man = manifest(cap); results = result_objects(man)
+    conformance_suite = suite(man, cap, results)
+    assert len(results) == len(AdapterCapabilityName) == 10
+    assert replace(results[0]).canonical_digest == results[0].canonical_digest
+    assert replace(conformance_suite).canonical_digest == conformance_suite.canonical_digest
+    with pytest.raises(FrozenInstanceError):
+        results[0].result = AdapterCapabilityTestResult.FAILED  # type: ignore[misc]
+
+
+def test_all_true_booleans_with_forged_evidence_digests_are_rejected():
+    cap = capability(); man = manifest(cap); results = result_objects(man)
+    conformance_suite = suite(man, cap, results)
+    forged = evidence(
+        man, cap, conformance_suite, results,
+        capability_result_digests=(digest("e"),) * 10,
+    )
+    decision = conformance(
+        capability=cap, manifest=man, suite=conformance_suite,
+        capability_results=results, evidence=forged,
+    )
+    assert decision.state is AdapterConformanceState.FAILED
+    assert AdapterConformanceReason.DIGEST_MISMATCH in decision.reasons
+
+
+def test_missing_conformance_result_is_not_eligible():
+    cap = capability(); man = manifest(cap); results = result_objects(man)[:-1]
+    conformance_suite = suite(man, cap, results)
+    decision = conformance(
+        capability=cap, manifest=man, suite=conformance_suite,
+        capability_results=results,
+        evidence=evidence(man, cap, conformance_suite, results),
+    )
+    assert decision.state is AdapterConformanceState.NEEDS_MORE_EVIDENCE
+    assert AdapterConformanceReason.CONFORMANCE_MISSING in decision.reasons
+
+
+@pytest.mark.parametrize("tested_capability,test_result,expected_reason", [
+    (AdapterCapabilityName.ATOMIC_COMMIT, AdapterCapabilityTestResult.FAILED,
+     AdapterConformanceReason.CONFORMANCE_FAILED),
+    (AdapterCapabilityName.RECOVERY_PROBE, AdapterCapabilityTestResult.INCOMPLETE,
+     AdapterConformanceReason.CONFORMANCE_INCOMPLETE),
+])
+def test_failed_or_incomplete_result_is_not_eligible(
+    tested_capability, test_result, expected_reason,
+):
+    cap = capability(); man = manifest(cap)
+    results = result_objects(man, result_overrides={tested_capability: test_result})
+    conformance_suite = suite(man, cap, results)
+    decision = conformance(
+        capability=cap, manifest=man, suite=conformance_suite,
+        capability_results=results,
+        evidence=evidence(man, cap, conformance_suite, results),
+    )
+    assert decision.state is not AdapterConformanceState.ELIGIBLE_FOR_ADAPTER_REVIEW
+    assert expected_reason in decision.reasons
+
+
+def test_forged_result_canonical_digest_is_rejected():
+    cap = capability(); man = manifest(cap); values = list(result_objects(man))
+    object.__setattr__(values[0], "canonical_digest", digest("e"))
+    results = tuple(values); conformance_suite = suite(man, cap, results)
+    decision = conformance(
+        capability=cap, manifest=man, suite=conformance_suite,
+        capability_results=results,
+        evidence=evidence(man, cap, conformance_suite, results),
+    )
+    assert decision.state is AdapterConformanceState.FAILED
+    assert AdapterConformanceReason.DIGEST_MISMATCH in decision.reasons
+
+
+def test_result_manifest_mismatch_is_rejected():
+    cap = capability(); man = manifest(cap); values = list(result_objects(man))
+    values[0] = replace(values[0], adapter_manifest_digest=digest("e"))
+    results = tuple(values); conformance_suite = suite(man, cap, results)
+    decision = conformance(
+        capability=cap, manifest=man, suite=conformance_suite,
+        capability_results=results,
+        evidence=evidence(man, cap, conformance_suite, results),
+    )
+    assert AdapterConformanceReason.CONFORMANCE_FORGED in decision.reasons
+
+
+def test_passed_result_does_not_promote_false_capability_claim():
+    cap = capability(supports_atomic_commit=False); man = manifest(cap)
+    results = result_objects(man); conformance_suite = suite(man, cap, results)
+    decision = conformance(
+        capability=cap, manifest=man, suite=conformance_suite,
+        capability_results=results,
+        evidence=evidence(man, cap, conformance_suite, results),
+        policy=policy(cap),
+    )
+    assert decision.state is AdapterConformanceState.NEEDS_MORE_EVIDENCE
+    assert AdapterConformanceReason.CAPABILITY_MISSING in decision.reasons
+
+
+def test_matching_caller_supplied_fake_digests_are_not_trust_anchors():
+    cap = capability(); man = manifest(cap); results = result_objects(man)
+    fake_digests = (digest("e"),) * 10
+    conformance_suite = suite(
+        man, cap, results, capability_result_digests=fake_digests,
+    )
+    forged_evidence = evidence(
+        man, cap, conformance_suite, results,
+        capability_result_digests=fake_digests,
+    )
+    decision = conformance(
+        capability=cap, manifest=man, suite=conformance_suite,
+        capability_results=results, evidence=forged_evidence,
+    )
+    assert decision.state is AdapterConformanceState.FAILED
+    assert AdapterConformanceReason.DIGEST_MISMATCH in decision.reasons
 
 
 def test_valid_controlled_contract_is_eligible_for_review_only():
@@ -199,16 +362,23 @@ def test_policy_must_be_approved_and_exact_bound():
 
 
 def test_future_stale_expired_and_naive_times_are_rejected():
-    cap = capability(); man = manifest(cap); pol = policy(cap); ev = evidence(man, cap)
+    cap = capability(); man = manifest(cap); pol = policy(cap)
+    results = result_objects(man); conformance_suite = suite(man, cap, results)
+    ev = evidence(man, cap, conformance_suite, results)
     assert AdapterConformanceReason.TEMPORAL_INVALID in evaluate_adapter_conformance(
-        man, cap, ev, pol, evaluation_time=ev.generated_at - timedelta(microseconds=1)).reasons
+        man, cap, conformance_suite, results, ev, pol,
+        evaluation_time=ev.generated_at - timedelta(microseconds=1)).reasons
     assert AdapterConformanceReason.STALE_EVIDENCE in evaluate_adapter_conformance(
-        man, cap, ev, replace(pol, expires_at=ev.generated_at + timedelta(days=100)),
+        man, cap, conformance_suite, results, ev,
+        replace(pol, expires_at=ev.generated_at + timedelta(days=100)),
         evaluation_time=ev.generated_at + timedelta(days=91)).reasons
     assert AdapterConformanceReason.TEMPORAL_INVALID in evaluate_adapter_conformance(
-        man, cap, ev, pol, evaluation_time=pol.expires_at).reasons
+        man, cap, conformance_suite, results, ev, pol,
+        evaluation_time=pol.expires_at).reasons
     with pytest.raises(StorageAdapterError):
-        evaluate_adapter_conformance(man, cap, ev, pol, evaluation_time=ev.generated_at.replace(tzinfo=None))
+        evaluate_adapter_conformance(
+            man, cap, conformance_suite, results, ev, pol,
+            evaluation_time=ev.generated_at.replace(tzinfo=None))
 
 
 def test_utc_normalization_preserves_microseconds():

@@ -17,23 +17,34 @@ The boundary is intentionally staged:
 
 1. `StorageAdapterManifest` describes an opaque adapter candidate and contains no path, host, IP,
    port, DSN, bucket, account, URL, credential, token, or connection value.
-2. `StorageAdapterCapability` covers ten explicit capability claims with a canonical digest.
-3. `StorageAdapterAttestationEvidence` contains only metadata digests and explicit UTC time.
-4. The pure evaluator returns only `failed`, `needs_more_evidence`, or
+2. `StorageAdapterCapability` covers ten explicit capability claims with a canonical digest, but
+   its Boolean claims are not trusted independently.
+3. Ten immutable `StorageAdapterCapabilityConformanceResult` objects record the capability,
+   protocol digest, outcome, observed-behavior digest, executor, and time. One
+   `StorageAdapterConformanceSuiteResult` exact-binds all ten actual result objects.
+4. `StorageAdapterAttestationEvidence` contains only metadata digests and explicit UTC time and is
+   exact-bound to the verified suite and every individual result canonical digest.
+5. The pure evaluator returns only `failed`, `needs_more_evidence`, or
    `eligible_for_adapter_review`.
-5. An independent `StorageAdapterReview` precedes a decision by a distinct
+6. An independent `StorageAdapterReview` precedes a decision by a distinct
    `StorageAdapterApproval` approver.
-6. A successful test-only atomic registry commit creates an immutable
+7. A successful test-only atomic registry commit creates an immutable
    `ApprovedStorageAdapterRecord` in `approved_for_write_authorization_review` state.
-7. The pure v0.19 compatibility evaluator can return only `incompatible`,
+8. The pure v0.19 compatibility evaluator can return only `incompatible`,
    `needs_adapter_approval`, or `ready_for_write_authorization_review`.
 
 An approval object alone cannot perform or authorize a write.
 
 ## Exact binding and policy
 
-Manifest, capabilities, evidence, conformance result, review, approval, policy, role context, and
-approved record are canonical-digest bound. The v0.19 compatibility evaluator receives and
+Manifest, capability claims, actual individual conformance results, suite, evidence, evaluator
+result, review, approval, policy, role context, and approved record are canonical-digest bound.
+Every `True` claim requires exactly one matching `passed` result object whose canonical digest and
+manifest binding are recalculated. Missing, failed, incomplete, forged, duplicate, or mismatched
+results cannot reach adapter review; a passed result never promotes a `False` capability claim.
+Caller-supplied matching digest strings are not a trust anchor.
+
+The v0.19 compatibility evaluator receives and
 revalidates the actual `PersistenceAuthorizationRequest`, `PersistenceIntent`,
 `PersistenceTransactionPlan`, `PersistenceCommitReceiptV2`, and
 `RuntimeAuthorizationCommitRecord`; caller-supplied digests are never the trust anchor.

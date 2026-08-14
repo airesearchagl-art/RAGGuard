@@ -17,16 +17,21 @@ from ragguard.storage_adapter_attestation import (
 from tests.test_real_persistence_contract import (
     commit as persistence_commit, context as persistence_context,
 )
-from tests.test_storage_adapter_contract import capability, digest, evidence, manifest, policy
+from tests.test_storage_adapter_contract import (
+    capability, digest, evidence, manifest, policy, result_objects, suite,
+)
 
 
 def chain():
     cap = capability()
     man = manifest(cap)
     pol = policy(cap)
-    ev = evidence(man, cap)
+    results = result_objects(man)
+    conformance_suite = suite(man, cap, results)
+    ev = evidence(man, cap, conformance_suite, results)
     conformance = evaluate_adapter_conformance(
-        man, cap, ev, pol, evaluation_time=ev.generated_at + timedelta(seconds=1))
+        man, cap, conformance_suite, results, ev, pol,
+        evaluation_time=ev.generated_at + timedelta(seconds=1))
     review = StorageAdapterReview(
         "adapter-review-v021", man.canonical_digest, ev.canonical_digest,
         conformance.canonical_digest, conformance.evaluated_at + timedelta(microseconds=1),
@@ -47,7 +52,10 @@ def chain():
 def register(store=None, *, fault=AdapterRegistryFault.NONE, **changes):
     store = store or TestApprovedStorageAdapterRegistry()
     cap, man, pol, ev, result, review, approval, roles = chain()
+    results = result_objects(man)
+    conformance_suite = suite(man, cap, results)
     values = dict(record_id="approved-adapter-v021", manifest=man, capability=cap,
+                  suite=conformance_suite, capability_results=results,
                   evidence=ev, conformance=result, review=review, approval=approval,
                   policy=pol, roles=roles, adapter_generation=1,
                   predecessor_record_digest=None,

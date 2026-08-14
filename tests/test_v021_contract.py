@@ -52,3 +52,16 @@ def test_docs_use_review_state_not_execution_authority():
     assert "ready_for_write_authorization_review" in texts
     assert "approved_for_write_authorization_review" in texts
     assert "actual adapter operation is not implemented" in texts
+
+
+def test_docs_require_object_backed_capability_conformance():
+    text = " ".join(DESIGN.read_text(encoding="utf-8").split()).lower()
+    assert "boolean claims are not trusted independently" in text
+    assert "exact-binds all ten actual result objects" in text
+    assert "caller-supplied matching digest strings are not a trust anchor" in text
+
+
+def test_cli_and_report_compatibility_statements_are_retained():
+    checklist = CHECKLIST.read_text(encoding="utf-8").lower()
+    assert "cli" in checklist
+    assert "compatibility" in checklist

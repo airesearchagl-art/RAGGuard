@@ -1,7 +1,8 @@
 # RAGGuard
 
-v0.21 adds an Approved Actual Storage Adapter governance boundary. Immutable metadata contracts,
-independent review/approval, a test-only atomic registry, and a pure v0.19 compatibility evaluator
+v0.21 adds an Approved Actual Storage Adapter governance boundary. Object-backed capability
+conformance, immutable metadata contracts, independent review/approval, a test-only atomic
+registry, and a pure v0.19 compatibility evaluator
 stop at `approved_for_write_authorization_review` or `ready_for_write_authorization_review`.
 They perform no actual filesystem/DB/object-store operation, production-registry write, or runtime
 activation. See [the v0.21 design](docs/APPROVED_STORAGE_ADAPTER_BOUNDARY_DESIGN_V0.21.md).

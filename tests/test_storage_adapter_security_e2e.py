@@ -7,12 +7,16 @@ import pytest
 
 from ragguard.storage_adapter import CredentialMode, FilesystemMode, NetworkMode
 from ragguard.storage_adapter_attestation import (
-    AdapterApprovalResult, AdapterLifecycleStatus, AdapterRegistryReason,
-    AdapterReviewResult, TestApprovedStorageAdapterRegistry,
-    WriteCompatibilityState,
+    AdapterApprovalResult, AdapterCapabilityName, AdapterCapabilityTestResult,
+    AdapterLifecycleStatus, AdapterRegistryReason, AdapterReviewResult,
+    StorageAdapterApproval, StorageAdapterReview,
+    TestApprovedStorageAdapterRegistry, WriteCompatibilityState,
+    evaluate_adapter_conformance,
 )
 from tests.test_storage_adapter_attestation import chain, register, v19_objects, write_decision
-from tests.test_storage_adapter_contract import capability, digest, evidence, manifest, policy
+from tests.test_storage_adapter_contract import (
+    capability, digest, evidence, manifest, policy, result_objects, suite,
+)
 
 
 def zero_side_effects(value) -> None:
@@ -105,3 +109,57 @@ def test_safe_repr_does_not_expose_location_or_credentials():
     cap, man, pol, ev, _, review, approval, _ = chain()
     text = " ".join(map(repr, (cap, man, pol, ev, review, approval))).lower()
     assert not any(value in text for value in ("http://", "https://", "password", "bearer ", "c:\\"))
+
+
+@pytest.mark.parametrize("attack", [
+    "forged_capability", "forged_suite", "forged_individual",
+    "missing", "failed", "incomplete",
+])
+def test_object_backed_capability_attacks_fail_closed_without_consumption(attack):
+    cap = capability()
+    if attack == "forged_capability":
+        object.__setattr__(cap, "canonical_digest", digest("e"))
+    man = manifest(cap)
+    overrides = {}
+    if attack == "failed":
+        overrides[AdapterCapabilityName.ATOMIC_COMMIT] = AdapterCapabilityTestResult.FAILED
+    if attack == "incomplete":
+        overrides[AdapterCapabilityName.RECOVERY_PROBE] = AdapterCapabilityTestResult.INCOMPLETE
+    results = result_objects(man, result_overrides=overrides)
+    if attack == "missing":
+        results = results[:-1]
+    if attack == "forged_individual":
+        object.__setattr__(results[0], "canonical_digest", digest("d"))
+    conformance_suite = suite(man, cap, results)
+    if attack == "forged_suite":
+        object.__setattr__(conformance_suite, "canonical_digest", digest("c"))
+    ev = evidence(man, cap, conformance_suite, results)
+    pol = policy(cap)
+    decision = evaluate_adapter_conformance(
+        man, cap, conformance_suite, results, ev, pol,
+        evaluation_time=ev.generated_at + timedelta(seconds=1),
+    )
+    review = StorageAdapterReview(
+        f"review-{attack}", man.canonical_digest, ev.canonical_digest,
+        decision.canonical_digest, decision.evaluated_at + timedelta(microseconds=1),
+        "adapter-reviewer", AdapterReviewResult.APPROVED, digest("a"),
+    )
+    approval = StorageAdapterApproval(
+        f"approval-{attack}", man.canonical_digest, ev.canonical_digest,
+        review.canonical_digest, review.reviewed_at + timedelta(microseconds=1),
+        "adapter-approver", AdapterApprovalResult.APPROVED, pol.canonical_digest,
+    )
+    *_, roles = chain()
+    store = TestApprovedStorageAdapterRegistry()
+    before = (store.records, store.used_digests, store.write_count,
+              store.mutation_count, store.event_count)
+    denied = register(
+        store, manifest=man, capability=cap, suite=conformance_suite,
+        capability_results=results, evidence=ev, conformance=decision,
+        review=review, approval=approval, policy=pol, roles=roles,
+        recorded_at=approval.approved_at + timedelta(microseconds=1),
+    )[1]
+    assert not denied.applied
+    assert before == (store.records, store.used_digests, store.write_count,
+                      store.mutation_count, store.event_count)
+    zero_side_effects(denied)

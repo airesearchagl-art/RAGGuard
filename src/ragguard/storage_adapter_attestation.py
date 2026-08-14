@@ -39,15 +39,19 @@ from ragguard.storage_adapter import (
 
 MAX_ADAPTER_EVIDENCE_AGE = timedelta(days=90)
 _RECORD_MARKER = object()
+_CONFORMANCE_MARKER = object()
 
 __all__ = [
     "MAX_ADAPTER_EVIDENCE_AGE", "AdapterApprovalResult",
+    "AdapterCapabilityName", "AdapterCapabilityTestResult",
     "AdapterConformanceReason", "AdapterConformanceResult", "AdapterConformanceState",
     "AdapterEvidenceClass", "AdapterLifecycleStatus", "AdapterRecordState",
     "AdapterRegistryFault", "AdapterRegistryReason", "AdapterRegistryResult",
     "AdapterReviewResult", "AdapterRoleContext", "ApprovedStorageAdapterRecord",
     "StorageAdapterApproval", "StorageAdapterAttestationEvidence",
-    "StorageAdapterReview", "TestApprovedStorageAdapterRegistry",
+    "StorageAdapterCapabilityConformanceResult",
+    "StorageAdapterConformanceSuiteResult", "StorageAdapterReview",
+    "TestApprovedStorageAdapterRegistry",
     "WriteCompatibilityDecision", "WriteCompatibilityReason",
     "WriteCompatibilityState", "evaluate_adapter_conformance",
     "evaluate_write_compatibility",
@@ -73,6 +77,29 @@ class AdapterConformanceReason(str, Enum):
     UNSAFE_MODE = "unsafe_mode"
     TEMPORAL_INVALID = "temporal_invalid"
     STALE_EVIDENCE = "stale_evidence"
+    CONFORMANCE_MISSING = "conformance_missing"
+    CONFORMANCE_FAILED = "conformance_failed"
+    CONFORMANCE_INCOMPLETE = "conformance_incomplete"
+    CONFORMANCE_FORGED = "conformance_forged"
+
+
+class AdapterCapabilityName(str, Enum):
+    ATOMIC_COMMIT = "supports_atomic_commit"
+    COMPARE_AND_SWAP = "supports_compare_and_swap"
+    GENERATION_CHECK = "supports_generation_check"
+    PREDECESSOR_CHECK = "supports_predecessor_check"
+    CONTENT_DIGEST_VERIFY = "supports_content_digest_verify"
+    READ_AFTER_WRITE_VERIFY = "supports_read_after_write_verify"
+    RECOVERY_PROBE = "supports_recovery_probe"
+    IDEMPOTENCY_KEY = "supports_idempotency_key"
+    CORRUPTION_DETECTION = "supports_corruption_detection"
+    TRANSACTION_ABORT = "supports_transaction_abort"
+
+
+class AdapterCapabilityTestResult(str, Enum):
+    PASSED = "passed"
+    FAILED = "failed"
+    INCOMPLETE = "incomplete"
 
 
 class AdapterReviewResult(str, Enum):
@@ -133,16 +160,92 @@ class WriteCompatibilityReason(str, Enum):
 
 
 @dataclass(frozen=True, repr=False)
+class StorageAdapterCapabilityConformanceResult:
+    result_id: str
+    adapter_manifest_digest: str
+    tested_capability: AdapterCapabilityName
+    test_protocol_digest: str
+    result: AdapterCapabilityTestResult
+    observed_behavior_digest: str
+    executed_at: datetime
+    executed_by: str
+    canonical_digest: str = field(init=False)
+
+    def __post_init__(self) -> None:
+        if (
+            not all(is_identifier(v) for v in (self.result_id, self.executed_by))
+            or not all(is_digest(v) for v in (
+                self.adapter_manifest_digest,
+                self.test_protocol_digest,
+                self.observed_behavior_digest,
+            ))
+            or not isinstance(self.tested_capability, AdapterCapabilityName)
+            or not isinstance(self.result, AdapterCapabilityTestResult)
+            or not is_aware(self.executed_at)
+        ):
+            raise StorageAdapterError("storage_adapter_conformance_result_invalid")
+        object.__setattr__(self, "canonical_digest", digest(self.canonical_json()))
+
+    def canonical_json(self) -> str:
+        return canonical_json({
+            "adapter_manifest_digest": self.adapter_manifest_digest,
+            "executed_at": canonical_datetime(self.executed_at),
+            "executed_by": self.executed_by,
+            "observed_behavior_digest": self.observed_behavior_digest,
+            "result": self.result.value,
+            "result_id": self.result_id,
+            "test_protocol_digest": self.test_protocol_digest,
+            "tested_capability": self.tested_capability.value,
+        })
+
+    def __repr__(self) -> str:
+        return "StorageAdapterCapabilityConformanceResult(<safe>)"
+
+
+@dataclass(frozen=True, repr=False)
+class StorageAdapterConformanceSuiteResult:
+    suite_id: str
+    adapter_manifest_digest: str
+    capability_digest: str
+    capability_result_digests: tuple[str, ...]
+    executed_at: datetime
+    executed_by: str
+    canonical_digest: str = field(init=False)
+
+    def __post_init__(self) -> None:
+        if (
+            not all(is_identifier(v) for v in (self.suite_id, self.executed_by))
+            or not all(is_digest(v) for v in (
+                self.adapter_manifest_digest, self.capability_digest,
+            ))
+            or not isinstance(self.capability_result_digests, tuple)
+            or not all(is_digest(v) for v in self.capability_result_digests)
+            or not is_aware(self.executed_at)
+        ):
+            raise StorageAdapterError("storage_adapter_conformance_suite_invalid")
+        object.__setattr__(self, "canonical_digest", digest(self.canonical_json()))
+
+    def canonical_json(self) -> str:
+        return canonical_json({
+            "adapter_manifest_digest": self.adapter_manifest_digest,
+            "capability_digest": self.capability_digest,
+            "capability_result_digests": list(self.capability_result_digests),
+            "executed_at": canonical_datetime(self.executed_at),
+            "executed_by": self.executed_by,
+            "suite_id": self.suite_id,
+        })
+
+    def __repr__(self) -> str:
+        return "StorageAdapterConformanceSuiteResult(<safe>)"
+
+
+@dataclass(frozen=True, repr=False)
 class StorageAdapterAttestationEvidence:
     evidence_id: str
     adapter_manifest_digest: str
     capability_digest: str
     conformance_suite_digest: str
-    atomicity_test_digest: str
-    recovery_test_digest: str
-    corruption_test_digest: str
-    idempotency_test_digest: str
-    failure_injection_digest: str
+    capability_result_digests: tuple[str, ...]
     evidence_class: AdapterEvidenceClass
     generated_at: datetime
     generated_by: str
@@ -150,10 +253,16 @@ class StorageAdapterAttestationEvidence:
     safe_summary: StorageAdapterSafeSummary = field(init=False)
 
     def __post_init__(self) -> None:
-        digests = tuple(v for k, v in vars(self).items() if k.endswith("_digest"))
+        digests = (
+            self.adapter_manifest_digest,
+            self.capability_digest,
+            self.conformance_suite_digest,
+        )
         if (
             not all(is_identifier(v) for v in (self.evidence_id, self.generated_by))
             or not all(is_digest(v) for v in digests)
+            or not isinstance(self.capability_result_digests, tuple)
+            or not all(is_digest(v) for v in self.capability_result_digests)
             or not isinstance(self.evidence_class, AdapterEvidenceClass)
             or not is_aware(self.generated_at)
         ):
@@ -164,13 +273,16 @@ class StorageAdapterAttestationEvidence:
             canonical_datetime(self.generated_at)))
 
     def canonical_json(self) -> str:
-        return canonical_json(
-            {
-                k: canonical_datetime(v) if isinstance(v, datetime) else v.value if isinstance(v, Enum) else v
-                for k, v in vars(self).items()
-                if k not in {"canonical_digest", "safe_summary"}
-            }
-        )
+        return canonical_json({
+            "adapter_manifest_digest": self.adapter_manifest_digest,
+            "capability_digest": self.capability_digest,
+            "capability_result_digests": list(self.capability_result_digests),
+            "conformance_suite_digest": self.conformance_suite_digest,
+            "evidence_class": self.evidence_class.value,
+            "evidence_id": self.evidence_id,
+            "generated_at": canonical_datetime(self.generated_at),
+            "generated_by": self.generated_by,
+        })
 
     def __repr__(self) -> str:
         return "StorageAdapterAttestationEvidence(<safe>)"
@@ -182,9 +294,12 @@ class AdapterConformanceResult:
     reasons: tuple[AdapterConformanceReason, ...]
     manifest_digest: str
     capability_digest: str
+    conformance_suite_digest: str
+    capability_result_digests: tuple[str, ...]
     evidence_digest: str
     policy_digest: str
     evaluated_at: datetime
+    _marker: object = field(default=None, repr=False, compare=False)
     canonical_digest: str = field(init=False)
     filesystem_write_count: int = field(init=False, default=0)
     database_write_count: int = field(init=False, default=0)
@@ -199,12 +314,16 @@ class AdapterConformanceResult:
     real_data_access_count: int = field(init=False, default=0)
 
     def __post_init__(self) -> None:
+        if self._marker is not _CONFORMANCE_MARKER:
+            raise StorageAdapterError("adapter_conformance_result_invalid")
         object.__setattr__(self, "canonical_digest", digest(self.canonical_json()))
 
     def canonical_json(self) -> str:
         return canonical_json(
             {
                 "capability_digest": self.capability_digest,
+                "capability_result_digests": list(self.capability_result_digests),
+                "conformance_suite_digest": self.conformance_suite_digest,
                 "evaluated_at": canonical_datetime(self.evaluated_at),
                 "evidence_digest": self.evidence_digest,
                 "manifest_digest": self.manifest_digest,
@@ -218,6 +337,8 @@ class AdapterConformanceResult:
 def evaluate_adapter_conformance(
     manifest: StorageAdapterManifest,
     capability: StorageAdapterCapability,
+    suite: StorageAdapterConformanceSuiteResult,
+    capability_results: tuple[StorageAdapterCapabilityConformanceResult, ...],
     evidence: StorageAdapterAttestationEvidence,
     policy: StorageAdapterPolicy,
     *,
@@ -226,16 +347,48 @@ def evaluate_adapter_conformance(
     if not is_aware(evaluation_time):
         raise StorageAdapterError("storage_adapter_evaluation_time_invalid")
     reasons: list[AdapterConformanceReason] = []
+    expected_capabilities = tuple(AdapterCapabilityName)
+    actual_result_digests = tuple(value.canonical_digest for value in capability_results)
+    actual_capabilities = tuple(value.tested_capability for value in capability_results)
     if (
-        not all(canonical_object_valid(v) for v in (manifest, capability, evidence, policy))
+        not isinstance(capability_results, tuple)
+        or not all(canonical_object_valid(v) for v in (
+            manifest, capability, suite, evidence, policy, *capability_results,
+        ))
         or manifest.capability_digest != capability.canonical_digest
+        or suite.adapter_manifest_digest != manifest.canonical_digest
+        or suite.capability_digest != capability.canonical_digest
+        or suite.capability_result_digests != actual_result_digests
         or evidence.adapter_manifest_digest != manifest.canonical_digest
         or evidence.capability_digest != capability.canonical_digest
+        or evidence.conformance_suite_digest != suite.canonical_digest
+        or evidence.capability_result_digests != actual_result_digests
         or policy.required_capability_digest != capability.canonical_digest
     ):
         reasons.append(AdapterConformanceReason.DIGEST_MISMATCH)
-    if not capability.all_required:
-        reasons.append(AdapterConformanceReason.CAPABILITY_MISSING)
+    if actual_capabilities != expected_capabilities:
+        reasons.append(AdapterConformanceReason.CONFORMANCE_MISSING)
+    for expected in expected_capabilities:
+        matching = tuple(
+            value for value in capability_results
+            if value.tested_capability is expected
+        )
+        claim = getattr(capability, expected.value)
+        if not claim:
+            reasons.append(AdapterConformanceReason.CAPABILITY_MISSING)
+        if len(matching) != 1:
+            reasons.append(AdapterConformanceReason.CONFORMANCE_MISSING)
+            continue
+        result = matching[0]
+        if (
+            result.adapter_manifest_digest != manifest.canonical_digest
+            or result.executed_by != suite.executed_by
+        ):
+            reasons.append(AdapterConformanceReason.CONFORMANCE_FORGED)
+        if result.result is AdapterCapabilityTestResult.FAILED:
+            reasons.append(AdapterConformanceReason.CONFORMANCE_FAILED)
+        elif result.result is AdapterCapabilityTestResult.INCOMPLETE:
+            reasons.append(AdapterConformanceReason.CONFORMANCE_INCOMPLETE)
     if (
         not policy.is_approved
         or manifest.adapter_class not in policy.allowed_adapter_classes
@@ -261,13 +414,22 @@ def evaluate_adapter_conformance(
     ):
         reasons.append(AdapterConformanceReason.UNSAFE_MODE)
     if not (
-        policy.effective_at <= manifest.created_at <= evidence.generated_at <= evaluation_time < policy.expires_at
+        policy.effective_at <= manifest.created_at
+        and all(manifest.created_at <= value.executed_at <= suite.executed_at
+                for value in capability_results)
+        and suite.executed_at <= evidence.generated_at <= evaluation_time
+        and evaluation_time < policy.expires_at
+        and suite.executed_by == evidence.generated_by
     ):
         reasons.append(AdapterConformanceReason.TEMPORAL_INVALID)
     if evaluation_time - evidence.generated_at > MAX_ADAPTER_EVIDENCE_AGE:
         reasons.append(AdapterConformanceReason.STALE_EVIDENCE)
     if reasons:
-        hard = set(reasons) - {AdapterConformanceReason.CAPABILITY_MISSING}
+        hard = set(reasons) - {
+            AdapterConformanceReason.CAPABILITY_MISSING,
+            AdapterConformanceReason.CONFORMANCE_MISSING,
+            AdapterConformanceReason.CONFORMANCE_INCOMPLETE,
+        }
         state = AdapterConformanceState.FAILED if hard else AdapterConformanceState.NEEDS_MORE_EVIDENCE
     else:
         state = AdapterConformanceState.ELIGIBLE_FOR_ADAPTER_REVIEW
@@ -276,9 +438,12 @@ def evaluate_adapter_conformance(
         tuple(dict.fromkeys(reasons)),
         manifest.canonical_digest,
         capability.canonical_digest,
+        suite.canonical_digest,
+        actual_result_digests,
         evidence.canonical_digest,
         policy.canonical_digest,
         evaluation_time,
+        _marker=_CONFORMANCE_MARKER,
     )
 
 
@@ -484,6 +649,8 @@ class AdapterRegistryResult:
 class _AdapterRegistryState:
     records: tuple[ApprovedStorageAdapterRecord, ...] = ()
     used_manifest_digests: frozenset[str] = frozenset()
+    used_conformance_suite_digests: frozenset[str] = frozenset()
+    used_capability_result_digests: frozenset[str] = frozenset()
     used_evidence_digests: frozenset[str] = frozenset()
     used_review_digests: frozenset[str] = frozenset()
     used_approval_digests: frozenset[str] = frozenset()
@@ -513,6 +680,8 @@ class TestApprovedStorageAdapterRegistry:
     def used_digests(self):
         return (
             self._state.used_manifest_digests,
+            self._state.used_conformance_suite_digests,
+            self._state.used_capability_result_digests,
             self._state.used_evidence_digests,
             self._state.used_review_digests,
             self._state.used_approval_digests,
@@ -525,6 +694,8 @@ class TestApprovedStorageAdapterRegistry:
         record_id: str,
         manifest: StorageAdapterManifest,
         capability: StorageAdapterCapability,
+        suite: StorageAdapterConformanceSuiteResult,
+        capability_results: tuple[StorageAdapterCapabilityConformanceResult, ...],
         evidence: StorageAdapterAttestationEvidence,
         conformance: AdapterConformanceResult,
         review: StorageAdapterReview,
@@ -537,16 +708,34 @@ class TestApprovedStorageAdapterRegistry:
         fault: AdapterRegistryFault = AdapterRegistryFault.NONE,
     ) -> AdapterRegistryResult:
         reasons: list[AdapterRegistryReason] = []
-        objects = (manifest, capability, evidence, conformance, review, approval, policy, roles)
+        reevaluated = evaluate_adapter_conformance(
+            manifest, capability, suite, capability_results, evidence, policy,
+            evaluation_time=conformance.evaluated_at,
+        )
+        objects = (
+            manifest, capability, suite, *capability_results, evidence,
+            conformance, review, approval, policy, roles,
+        )
+        capability_result_digests = tuple(
+            value.canonical_digest for value in capability_results
+        )
         exact = (
             all(canonical_object_valid(v) for v in objects),
             manifest.capability_digest == capability.canonical_digest,
+            suite.adapter_manifest_digest == manifest.canonical_digest,
+            suite.capability_digest == capability.canonical_digest,
+            suite.capability_result_digests == capability_result_digests,
             evidence.adapter_manifest_digest == manifest.canonical_digest,
             evidence.capability_digest == capability.canonical_digest,
+            evidence.conformance_suite_digest == suite.canonical_digest,
+            evidence.capability_result_digests == capability_result_digests,
             conformance.manifest_digest == manifest.canonical_digest,
             conformance.capability_digest == capability.canonical_digest,
+            conformance.conformance_suite_digest == suite.canonical_digest,
+            conformance.capability_result_digests == capability_result_digests,
             conformance.evidence_digest == evidence.canonical_digest,
             conformance.policy_digest == policy.canonical_digest,
+            reevaluated.canonical_digest == conformance.canonical_digest,
             review.manifest_digest == manifest.canonical_digest,
             review.evidence_digest == evidence.canonical_digest,
             review.conformance_result_digest == conformance.canonical_digest,
@@ -582,6 +771,9 @@ class TestApprovedStorageAdapterRegistry:
             reasons.append(AdapterRegistryReason.TEMPORAL_INVALID)
         if (
             manifest.canonical_digest in self._state.used_manifest_digests
+            or suite.canonical_digest in self._state.used_conformance_suite_digests
+            or any(value in self._state.used_capability_result_digests
+                   for value in capability_result_digests)
             or evidence.canonical_digest in self._state.used_evidence_digests
             or review.canonical_digest in self._state.used_review_digests
             or approval.canonical_digest in self._state.used_approval_digests
@@ -612,15 +804,33 @@ class TestApprovedStorageAdapterRegistry:
             if fault is AdapterRegistryFault.COUNTERS:
                 raise RuntimeError
             candidate = _AdapterRegistryState(
-                self._state.records + (record,),
-                self._state.used_manifest_digests | {manifest.canonical_digest},
-                self._state.used_evidence_digests | {evidence.canonical_digest},
-                self._state.used_review_digests | {review.canonical_digest},
-                self._state.used_approval_digests | {approval.canonical_digest},
-                self._state.used_record_digests | {record.canonical_digest},
-                self.write_count + 1,
-                self.mutation_count + 1,
-                self.event_count + 1,
+                records=self._state.records + (record,),
+                used_manifest_digests=(
+                    self._state.used_manifest_digests | {manifest.canonical_digest}
+                ),
+                used_conformance_suite_digests=(
+                    self._state.used_conformance_suite_digests
+                    | {suite.canonical_digest}
+                ),
+                used_capability_result_digests=(
+                    self._state.used_capability_result_digests
+                    | frozenset(capability_result_digests)
+                ),
+                used_evidence_digests=(
+                    self._state.used_evidence_digests | {evidence.canonical_digest}
+                ),
+                used_review_digests=(
+                    self._state.used_review_digests | {review.canonical_digest}
+                ),
+                used_approval_digests=(
+                    self._state.used_approval_digests | {approval.canonical_digest}
+                ),
+                used_record_digests=(
+                    self._state.used_record_digests | {record.canonical_digest}
+                ),
+                write_count=self.write_count + 1,
+                mutation_count=self.mutation_count + 1,
+                event_count=self.event_count + 1,
             )
             if fault is AdapterRegistryFault.BEFORE_SWAP:
                 raise RuntimeError

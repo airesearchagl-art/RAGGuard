@@ -6,6 +6,8 @@
 
 - Immutable metadata-only storage-adapter manifest, capability, evidence, review, approval, policy,
   and approved-record contracts.
+- Object-backed ten-result conformance suite; Boolean capability claims are never independently
+  trusted, and attestation evidence exact-binds the verified suite and individual results.
 - Pure fail-closed conformance and v0.19 object-backed write-compatibility evaluators.
 - Test-only atomic adapter registry with successful-only replay consumption, fault retry, monotonic
   lifecycle, and Security E2E zero-side-effect coverage.

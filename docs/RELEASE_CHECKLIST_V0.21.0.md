@@ -4,6 +4,8 @@
 
 - [ ] Full pytest succeeds.
 - [ ] v0.21 contract, attestation, Security E2E, and release-contract suites succeed.
+- [ ] All ten capability claims are object-backed by exact manifest-bound conformance results.
+- [ ] Boolean claims and caller-supplied matching digests cannot independently pass conformance.
 - [ ] v0.20 through v0.10 regression suites succeed.
 - [ ] Compatibility, profile integration, and HTTP security suites succeed.
 - [ ] `python -m ragguard check-mask --help` succeeds.
@@ -13,6 +15,8 @@
 - [ ] `git diff --check` succeeds.
 - [ ] GitHub Actions Python 3.11 / 3.12 succeeds.
 - [ ] Main and origin/main are synchronized and tracked status is clean before a tag.
+- [ ] CLI exit codes remain unchanged.
+- [ ] Report top-level schema remains unchanged and compatibility contracts pass.
 
 ## Contract boundaries
 
