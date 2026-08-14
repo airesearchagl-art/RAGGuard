@@ -1,5 +1,14 @@
 # Design Notes
 
+## RAGGuard v0.21 approved storage adapter boundary
+
+v0.21 separates an adapter candidate, capability claims, metadata-only attestation, pure
+conformance evaluation, independent review, distinct approval, test-only registry commit, and
+v0.19 write-compatibility review. Each edge is canonical-digest bound and all eight participating
+roles are distinct. Only successful atomic commits consume replay identities; denial and injected
+faults leave state and external-effect counters unchanged. Approved metadata is not a connection,
+write authority, durable operation, production registry entry, or runtime activation.
+
 ## RAGGuard v0.20 controlled validation boundary
 
 v0.20 accepts the complete v0.16 manual-validation and v0.17 equivalence object chains together

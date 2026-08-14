@@ -1,5 +1,15 @@
 # RAGGuard Roadmap
 
+## Delivery candidate: v0.21 approved actual storage adapter boundary
+
+- Metadata-only adapter manifest, capability, evidence, review, approval, and policy contracts.
+- Eight-role separation, explicit time, successful-only replay consumption, and one-way lifecycle.
+- Test-only atomic approved-adapter registry and pure v0.19 object-backed compatibility review.
+- Actual storage execution, write authorization, production-registry mutation, and runtime
+  activation remain separate future design-and-approval tasks.
+
+Authoritative design: [v0.21 Approved Storage Adapter Boundary](docs/APPROVED_STORAGE_ADAPTER_BOUNDARY_DESIGN_V0.21.md).
+
 ## Delivery candidate: v0.20 controlled real-world validation boundary
 
 - Controlled fixture authorization, execution, evidence, review, approval, and atomic ledger.
