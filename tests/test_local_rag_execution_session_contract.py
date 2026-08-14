@@ -74,6 +74,13 @@ def approved_session_chain(*, fault=SessionRegistryFault.NONE):
         int_manifest.canonical_digest, plan.canonical_digest, fixture.canonical_digest,
         "session-requester", "session-operator", NOW + timedelta(minutes=9),
         NOW + timedelta(hours=20))
+    session_review = LocalRAGExecutionSessionReview("session-pre-review-023",
+        request.canonical_digest, env_approval.canonical_digest,
+        int_manifest.canonical_digest, fixture.canonical_digest, "session-reviewer",
+        NOW + timedelta(minutes=9, seconds=10), SessionReviewResult.APPROVED, D)
+    session_approval = LocalRAGExecutionSessionApproval("session-pre-approval-023",
+        request.canonical_digest, session_review.canonical_digest, "session-approver",
+        NOW + timedelta(minutes=9, seconds=20), SessionApprovalResult.APPROVED)
     registry = TestOnlySessionRegistry()
     result = registry.approve(session_id="session-023", request=request,
         environment_manifest=env_manifest, environment_suite=env_suite,
@@ -82,16 +89,18 @@ def approved_session_chain(*, fault=SessionRegistryFault.NONE):
         integration_manifest=int_manifest, data_flow_plan=plan, fixture=fixture,
         integration_receipt=int_receipt, integration_review=int_review,
         integration_approval=int_approval, integration_roles=int_roles,
+        session_review=session_review, session_approval=session_approval,
         session_roles=roles, session_generation=1, predecessor_session_digest=None,
         approved_at=NOW + timedelta(minutes=10), fault=fault)
     return (registry, result, request, roles, env_manifest, env_suite, env_decision,
-            env_review, env_approval, env_roles, *integration)
+            env_review, env_approval, env_roles, *integration, session_review, session_approval)
 
 
 def controlled_execution():
     chain = approved_session_chain()
     registry, result, request, roles, env_manifest, _, env_decision, _, env_approval, _, \
-        int_manifest, fixture, plan, int_receipt, int_review, int_approval, int_roles = chain
+        int_manifest, fixture, plan, int_receipt, int_review, int_approval, int_roles, \
+        session_review, session_approval = chain
     assert result.applied and result.session is not None
     evidence, accounting, receipt = ControlledLocalRAGExecutionAdapter().execute(
         execution_receipt_id="execution-receipt-023", session=result.session, request=request,
@@ -102,15 +111,54 @@ def controlled_execution():
     return chain, evidence, accounting, receipt
 
 
+def registry_kwargs(chain):
+    _, _, request, roles, env_manifest, env_suite, env_decision, env_review, \
+        env_approval, env_roles, int_manifest, fixture, plan, int_receipt, int_review, \
+        int_approval, int_roles, session_review, session_approval = chain
+    return dict(session_id="session-candidate-023", request=request,
+        environment_manifest=env_manifest, environment_suite=env_suite,
+        environment_decision=env_decision, environment_review=env_review,
+        environment_approval=env_approval, environment_roles=env_roles,
+        integration_manifest=int_manifest, data_flow_plan=plan, fixture=fixture,
+        integration_receipt=int_receipt, integration_review=int_review,
+        integration_approval=int_approval, integration_roles=int_roles,
+        session_review=session_review, session_approval=session_approval,
+        session_roles=roles, session_generation=1, predecessor_session_digest=None,
+        approved_at=NOW + timedelta(minutes=10))
+
+
 def test_session_request_is_metadata_only_and_exactly_bound():
-    _, result, request, *_ = approved_session_chain()
+    chain = approved_session_chain()
+    registry, result, request, *_, session_review, session_approval = chain
     assert result.applied and result.session.session_request_digest == request.canonical_digest
+    assert result.session.session_review_digest == session_review.canonical_digest
+    assert result.session.session_approval_digest == session_approval.canonical_digest
+    assert registry.replay_snapshot == (
+        frozenset({request.canonical_digest}),
+        frozenset({session_review.canonical_digest}),
+        frozenset({session_approval.canonical_digest}),
+        frozenset({result.session.canonical_digest}),
+    )
     names = {value.name for value in fields(LocalRAGExecutionSessionRequest)}
     assert not names.intersection({"hostname", "ip", "port", "path", "endpoint", "dsn",
                                    "credential", "token", "raw_data", "customer_id"})
+    for contract in (LocalRAGExecutionSessionReview, LocalRAGExecutionSessionApproval):
+        contract_names = {value.name for value in fields(contract)}
+        assert not contract_names.intersection({"raw", "content", "path", "endpoint",
+                                                "credential", "token", "customer_id"})
     assert result.session.real_data_approved is result.session.production_active is False
     with pytest.raises(LocalRAGExecutionError, match="approved_session_invalid"):
         replace(result.session, session_id="forged-session")
+
+
+def test_preapproval_contracts_are_distinct_from_post_execution_review_and_approval():
+    chain = approved_session_chain()
+    *_, review, approval = chain
+    assert isinstance(review, LocalRAGExecutionSessionReview)
+    assert isinstance(approval, LocalRAGExecutionSessionApproval)
+    assert not isinstance(review, SessionExecutionReview)
+    assert not isinstance(approval, SessionExecutionApproval)
+    assert approval.real_data_approved is approval.real_data_use_authorized is False
 
 
 def test_session_roles_are_pairwise_separated_at_required_boundaries():
@@ -120,11 +168,79 @@ def test_session_roles_are_pairwise_separated_at_required_boundaries():
          "same", "same", "session-reviewer", "session-approver"),
         ("environment-verifier", "environment-reviewer", "environment-approver",
          "requester", "same", "same", "session-approver"),
+        ("environment-verifier", "environment-reviewer", "environment-approver",
+         "same", "session-operator", "same", "session-approver"),
+        ("environment-verifier", "environment-reviewer", "environment-approver",
+         "requester", "same", "session-reviewer", "same"),
         ("environment-verifier", "environment-reviewer", "same",
          "requester", "operator", "reviewer", "same"),
     ):
         with pytest.raises(LocalRAGExecutionError, match="session_role_conflict"):
             SessionRoleContext(*values)
+
+
+@pytest.mark.parametrize("attack", (
+    "missing_review", "missing_approval", "rejected_review", "rejected_approval",
+    "forged_review", "forged_approval", "review_request_mismatch",
+    "approval_review_mismatch", "reviewer_role_mismatch", "approver_role_mismatch",
+    "same_forged_digest", "temporal_order",
+))
+def test_session_preapproval_adversarial_chains_leave_registry_and_replay_unchanged(attack):
+    chain = approved_session_chain()
+    kwargs = registry_kwargs(chain)
+    review = kwargs["session_review"]
+    approval = kwargs["session_approval"]
+    if attack == "missing_review":
+        kwargs["session_review"] = None
+    elif attack == "missing_approval":
+        kwargs["session_approval"] = None
+    elif attack == "rejected_review":
+        kwargs["session_review"] = replace(review, result=SessionReviewResult.REJECTED)
+    elif attack == "rejected_approval":
+        kwargs["session_approval"] = replace(approval, result=SessionApprovalResult.REJECTED)
+    elif attack == "forged_review":
+        object.__setattr__(review, "findings_digest", digest("forged-findings"))
+    elif attack == "forged_approval":
+        object.__setattr__(approval, "review_digest", digest("forged-review"))
+    elif attack == "review_request_mismatch":
+        wrong_review = replace(review, session_request_digest=digest("other-request"))
+        kwargs["session_review"] = wrong_review
+        kwargs["session_approval"] = replace(approval,
+                                               review_digest=wrong_review.canonical_digest)
+    elif attack == "approval_review_mismatch":
+        kwargs["session_approval"] = replace(approval, review_digest=digest("other-review"))
+    elif attack == "reviewer_role_mismatch":
+        wrong_review = replace(review, reviewer_id="other-session-reviewer")
+        kwargs["session_review"] = wrong_review
+        kwargs["session_approval"] = replace(approval,
+                                               review_digest=wrong_review.canonical_digest)
+    elif attack == "approver_role_mismatch":
+        kwargs["session_approval"] = replace(approval, approver_id="other-session-approver")
+    elif attack == "same_forged_digest":
+        forged_request_digest = digest("forged-request")
+        wrong_review = replace(review, session_request_digest=forged_request_digest)
+        kwargs["session_review"] = wrong_review
+        kwargs["session_approval"] = replace(approval,
+            session_request_digest=forged_request_digest,
+            review_digest=wrong_review.canonical_digest)
+    else:
+        kwargs["session_review"] = replace(
+            review, reviewed_at=approval.approved_at + timedelta(seconds=1))
+    registry = TestOnlySessionRegistry()
+    before = (registry.sessions, registry.write_count, registry.mutation_count,
+              registry.event_count, registry.replay_snapshot)
+    denied = registry.approve(**kwargs)
+    assert not denied.applied
+    expected_reason = (SessionRegistryReason.ROLE_CONFLICT
+        if attack in {"reviewer_role_mismatch", "approver_role_mismatch"}
+        else SessionRegistryReason.TEMPORAL_INVALID
+        if attack == "temporal_order" else SessionRegistryReason.INVALID_CHAIN)
+    assert expected_reason in denied.reasons
+    assert before == (registry.sessions, registry.write_count, registry.mutation_count,
+                      registry.event_count, registry.replay_snapshot)
+    assert registry.replay_snapshot == (
+        frozenset(), frozenset(), frozenset(), frozenset())
+    assert ExecutionSideEffectAccounting().all_zero
 
 
 @pytest.mark.parametrize("mutation,reason", (
@@ -136,7 +252,7 @@ def test_registry_replay_generation_and_predecessor_fail_closed(mutation, reason
     chain = approved_session_chain()
     registry, result, request, roles, env_manifest, env_suite, env_decision, env_review, \
         env_approval, env_roles, int_manifest, fixture, plan, int_receipt, int_review, \
-        int_approval, int_roles = chain
+        int_approval, int_roles, session_review, session_approval = chain
     before = (registry.sessions, registry.write_count, registry.mutation_count,
               registry.event_count, registry.replay_snapshot)
     kwargs = dict(session_id="session-rejected", request=request,
@@ -145,7 +261,9 @@ def test_registry_replay_generation_and_predecessor_fail_closed(mutation, reason
         environment_approval=env_approval, environment_roles=env_roles,
         integration_manifest=int_manifest, data_flow_plan=plan, fixture=fixture,
         integration_receipt=int_receipt, integration_review=int_review,
-        integration_approval=int_approval, integration_roles=int_roles, session_roles=roles,
+        integration_approval=int_approval, integration_roles=int_roles,
+        session_review=session_review, session_approval=session_approval,
+        session_roles=roles,
         session_generation=2, predecessor_session_digest=result.session.canonical_digest,
         approved_at=NOW + timedelta(minutes=11))
     if mutation == "generation":
@@ -165,14 +283,14 @@ def test_registry_fault_injection_leaves_state_and_replay_unchanged(fault):
     assert not result.applied and result.reasons == (SessionRegistryReason.COMMIT_FAULT,)
     assert registry.sessions == ()
     assert (registry.write_count, registry.mutation_count, registry.event_count) == (0, 0, 0)
-    assert registry.replay_snapshot == (frozenset(), frozenset())
+    assert registry.replay_snapshot == (frozenset(), frozenset(), frozenset(), frozenset())
 
 
 def test_registry_retry_after_commit_fault_succeeds_once():
     chain = approved_session_chain(fault=SessionRegistryFault.BEFORE_SWAP)
     registry, failed, request, roles, env_manifest, env_suite, env_decision, env_review, \
         env_approval, env_roles, int_manifest, fixture, plan, int_receipt, int_review, \
-        int_approval, int_roles = chain
+        int_approval, int_roles, session_review, session_approval = chain
     assert not failed.applied
     retried = registry.approve(session_id="session-023", request=request,
         environment_manifest=env_manifest, environment_suite=env_suite,
@@ -181,6 +299,7 @@ def test_registry_retry_after_commit_fault_succeeds_once():
         integration_manifest=int_manifest, data_flow_plan=plan, fixture=fixture,
         integration_receipt=int_receipt, integration_review=int_review,
         integration_approval=int_approval, integration_roles=int_roles,
+        session_review=session_review, session_approval=session_approval,
         session_roles=roles, session_generation=1, predecessor_session_digest=None,
         approved_at=NOW + timedelta(minutes=10))
     assert retried.applied
@@ -220,7 +339,7 @@ def test_exact_v022_object_chain_rejects_forged_operator():
     chain = approved_session_chain()
     registry, _, request, roles, env_manifest, env_suite, env_decision, env_review, \
         env_approval, env_roles, int_manifest, fixture, plan, int_receipt, int_review, \
-        int_approval, int_roles = chain
+        int_approval, int_roles, session_review, session_approval = chain
     object.__setattr__(int_receipt, "operator_id", "forged-operator")
     rejected = TestOnlySessionRegistry().approve(session_id="forged-session", request=request,
         environment_manifest=env_manifest, environment_suite=env_suite,
@@ -228,7 +347,9 @@ def test_exact_v022_object_chain_rejects_forged_operator():
         environment_approval=env_approval, environment_roles=env_roles,
         integration_manifest=int_manifest, data_flow_plan=plan, fixture=fixture,
         integration_receipt=int_receipt, integration_review=int_review,
-        integration_approval=int_approval, integration_roles=int_roles, session_roles=roles,
+        integration_approval=int_approval, integration_roles=int_roles,
+        session_review=session_review, session_approval=session_approval,
+        session_roles=roles,
         session_generation=1, predecessor_session_digest=None,
         approved_at=NOW + timedelta(minutes=10))
     assert not rejected.applied and SessionRegistryReason.INVALID_CHAIN in rejected.reasons

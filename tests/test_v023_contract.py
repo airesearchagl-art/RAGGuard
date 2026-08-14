@@ -12,6 +12,7 @@ def test_v023_public_contract_is_exported_without_replacing_legacy_environment_c
     required = {
         "LocalRAGEnvironmentManifest", "EnvironmentAttestationSuite",
         "EnvironmentAttestationDecision", "LocalRAGExecutionSessionRequest",
+        "LocalRAGExecutionSessionReview", "LocalRAGExecutionSessionApproval",
         "ApprovedLocalRAGExecutionSession", "SessionExecutionReceipt",
         "ControlledLocalRAGExecutionAdapter", "evaluate_real_data_trial_readiness",
     }
@@ -31,6 +32,9 @@ def test_v023_design_and_release_checklist_fix_the_authorization_boundaries():
         "approved session != real-data use approved",
         "controlled execution passed != real-data approved",
         "real-data trial approval review eligible != real-data use authorized",
+        "session approved != real-data approved",
+        "execution approval != real-data use authorized",
+        "eligible_for_explicit_real_data_trial_approval_review != real-data use authorized",
     )
     assert all(value in design for value in required)
     assert all(value in checklist for value in required)

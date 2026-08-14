@@ -7,7 +7,10 @@
 - [ ] Network disabled, credentials none, synthetic fixture, and test-only storage hard gates pass.
 - [ ] Environment verifier, reviewer, and approver are pairwise distinct.
 - [ ] Session request exact-binds environment approval and actual v0.22 manifest/plan/fixture objects.
-- [ ] Session requester, operator, reviewer, and approver separation is enforced.
+- [ ] Pre-execution session review exact-binds request/environment/integration/fixture objects.
+- [ ] Pre-execution session approval exact-binds the request and review before registry admission.
+- [ ] Session requester, operator, pre-reviewer, and pre-approver separation is enforced.
+- [ ] Approved session canonically includes pre-review and pre-approval digests.
 - [ ] Registry generation, predecessor, replay, terminal lifecycle, and fault atomicity tests pass.
 - [ ] Controlled execution emits exactly eleven metadata-only stage results.
 - [ ] Receipt exact-binds session, environment, v0.22 chain, fixture, operator, stages, and accounting.
@@ -20,6 +23,9 @@
 - [ ] `approved session != real-data use approved`
 - [ ] `controlled execution passed != real-data approved`
 - [ ] `real-data trial approval review eligible != real-data use authorized`
+- [ ] `session approved != real-data approved`
+- [ ] `execution approval != real-data use authorized`
+- [ ] `eligible_for_explicit_real_data_trial_approval_review != real-data use authorized`
 - [ ] External network / HTTP / cloud counts are 0.
 - [ ] Credential / token use counts are 0.
 - [ ] Real-data access count is 0.

@@ -57,6 +57,7 @@ def test_readiness_progresses_through_environment_session_and_security_gates():
     assert eligible.state is RealDataTrialReadinessState.ELIGIBLE_FOR_EXPLICIT_REAL_DATA_TRIAL_APPROVAL_REVIEW
     assert eligible.real_data_approved is eligible.real_data_use_authorized is False
     assert eligible.production_active is False
+    assert approval.real_data_use_authorized is False
 
 
 def test_eligible_decision_has_zero_external_side_effect_and_real_data_counts():

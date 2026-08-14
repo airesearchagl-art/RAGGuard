@@ -2,11 +2,14 @@
 
 ## RAGGuard v0.23 approved Local RAG execution session attestation
 
-v0.23 separates environment verification, environment review/approval, session request/commit,
-controlled eleven-stage execution, and session security review/approval. Canonical digests bind
+v0.23 separates environment verification, environment review/approval, session request,
+independent pre-execution session review/approval, registry commit, controlled eleven-stage
+execution, and separate post-execution security review/approval. Canonical digests bind
 the actual v0.22 objects at every edge; copied claims or digest strings do not replace those
 objects. Test-only registry commits are monotonic, predecessor-bound, replay-safe, and atomic.
-Expired, revoked, or superseded sessions cannot execute.
+Approved sessions include the pre-review and pre-approval digests. Successful commits alone
+consume request/review/approval/session replay identities. Expired, revoked, or superseded
+sessions cannot execute.
 
 Execution evidence is metadata-only and all external, credential, real-data, persistent-write,
 registry, and runtime counters are fixed at zero. Environment attestation is not production

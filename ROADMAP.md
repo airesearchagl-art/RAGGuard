@@ -3,7 +3,8 @@
 ## Delivery candidate: v0.23 approved Local RAG execution session attestation
 
 - Seven object-backed environment hard gates with independent verifier, reviewer, and approver.
-- Exact v0.22 chain-bound, short-lived operator session with replay and lifecycle protection.
+- Exact v0.22 chain-bound, independently pre-reviewed/pre-approved short-lived operator session.
+- Successful-only request/review/approval/session replay consumption and lifecycle protection.
 - Eleven-stage metadata-only controlled execution and independent security review.
 - Explicit real-data trial approval review eligibility without real-data authorization.
 - Zero external network, credential, real-data, persistent-write, registry, and runtime effects.

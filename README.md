@@ -3,8 +3,10 @@
 v0.23 adds an Approved Local RAG Execution Session / Environment Attestation boundary. Seven
 object-backed environment checks gate a short-lived, operator-bound test session; a controlled
 adapter then records all eleven v0.22 stages as metadata-only evidence for independent security
-review. All external, credential, real-data, persistent-write, registry, and runtime counts remain
-zero. Review eligibility does not authorize real-data use. See
+review. Independent object-backed pre-execution session review and approval are mandatory before
+registry admission and remain distinct from post-execution readiness review. All external,
+credential, real-data, persistent-write, registry, and runtime counts remain zero. Review
+eligibility does not authorize real-data use. See
 [the v0.23 design](docs/LOCAL_RAG_EXECUTION_SESSION_ATTESTATION_DESIGN_V0.23.md).
 
 v0.21 adds an Approved Actual Storage Adapter governance boundary. Object-backed capability

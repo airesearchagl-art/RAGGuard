@@ -22,11 +22,13 @@ surface.
 4. Evaluate the complete chain and obtain independent environment review and approval.
 5. Create `LocalRAGExecutionSessionRequest` bound to the exact environment approval and exact
    v0.22 manifest, data-flow plan, fixture, and operator.
-6. Commit one short-lived `ApprovedLocalRAGExecutionSession` through the test-only atomic registry.
-7. Execute all eleven v0.22 stages through `ControlledLocalRAGExecutionAdapter` and emit only
+6. Obtain `LocalRAGExecutionSessionReview` and `LocalRAGExecutionSessionApproval` from the
+   independent pre-execution reviewer and approver.
+7. Commit one short-lived `ApprovedLocalRAGExecutionSession` through the test-only atomic registry.
+8. Execute all eleven v0.22 stages through `ControlledLocalRAGExecutionAdapter` and emit only
    canonical stage digests, reason metadata, timestamps, and zero-valued side-effect accounting.
-8. Obtain independent session review and approval before evaluating eligibility for a separate,
-   explicit real-data trial approval review.
+9. Obtain separate post-execution `SessionExecutionReview` and `SessionExecutionApproval` before
+   evaluating eligibility for a separate, explicit real-data trial approval review.
 
 ## Environment hard gates
 
@@ -44,17 +46,22 @@ for controlled execution only:
 
 ## Approved execution session
 
-The request carries only canonical digests, opaque identifiers, and aware timestamps. The registry
-recomputes every canonical identity and validates the actual environment and v0.22 objects before
-one successful state swap. Generation is monotonic, predecessor binding is exact, and a successful
-request cannot be replayed. Denial and injected commit faults do not consume replay identities or
-change write, mutation, or event counts.
+The request carries only canonical digests, opaque identifiers, and aware timestamps. It cannot
+directly create a session. Before registry admission, `LocalRAGExecutionSessionReview` exact-binds
+the request, environment approval, integration manifest, fixture, reviewer, result, and time;
+`LocalRAGExecutionSessionApproval` then exact-binds that request and review to a distinct approver.
+The registry recomputes every canonical identity and validates the actual environment, v0.22, and
+pre-approval objects before one successful state swap. Generation is monotonic and predecessor
+binding is exact. Successful commits alone consume request, pre-review, pre-approval, and approved
+session replay identities. Denial and injected commit faults consume none and do not change write,
+mutation, or event counts.
 
 Approved sessions are short-lived and operator-bound. Expired, revoked, and superseded sessions
 are terminal for execution. A lifecycle enum or copied digest cannot mint an executable session;
 the internal marker is available only to the registry after the complete chain passes.
 
 - approved session != real-data use approved
+- session approved != real-data approved
 - approved session != production activation
 
 ## Controlled eleven-stage execution
@@ -78,8 +85,10 @@ credential use, token use, runtime activation, runtime switching, and real-data 
 
 ## Independent security review and readiness
 
-Environment verification/review/approval and session request/operator/review/approval remain
-separate roles at the required boundaries. The readiness evaluator requires the exact environment
+Environment verification/review/approval and session requester/operator/pre-review/pre-approval
+remain separate roles at the required boundaries. Post-execution `SessionExecutionReview` and
+`SessionExecutionApproval` are separate objects used only by readiness and never substitute for
+pre-execution authorization. The readiness evaluator requires the exact environment
 decision, approved live session, eleven passed stage objects, zero side-effect object, passed
 receipt, independent session review, distinct approval, and exact role context. Forged operator,
 role context, stage evidence, receipt, review, approval, time, or lifecycle fails closed.
@@ -89,6 +98,8 @@ The maximum result is
 
 - real-data trial approval review eligible != real-data use authorized
 - real-data trial approval review eligible != real-data approved
+- execution approval != real-data use authorized
+- eligible_for_explicit_real_data_trial_approval_review != real-data use authorized
 
 All readiness decisions keep `real_data_approved`, `real_data_use_authorized`, and
 `production_active` false and expose only zero side-effect counters.

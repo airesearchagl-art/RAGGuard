@@ -187,9 +187,85 @@ class LocalRAGExecutionSessionRequest(_Canonical):
 
 
 @dataclass(frozen=True, repr=False)
+class LocalRAGExecutionSessionReview(_Canonical):
+    review_id: str
+    session_request_digest: str
+    environment_approval_digest: str
+    integration_manifest_digest: str
+    fixture_manifest_digest: str
+    reviewer_id: str
+    reviewed_at: datetime
+    result: SessionReviewResult
+    findings_digest: str
+
+    def __post_init__(self) -> None:
+        if (not is_identifier(self.review_id) or not is_identifier(self.reviewer_id)
+                or not all(is_digest(value) for value in (
+                    self.session_request_digest, self.environment_approval_digest,
+                    self.integration_manifest_digest, self.fixture_manifest_digest,
+                    self.findings_digest))
+                or not is_aware(self.reviewed_at)
+                or not isinstance(self.result, SessionReviewResult)):
+            raise LocalRAGExecutionError("session_pre_review_invalid")
+        self._seal(self._payload())
+
+    def _payload(self) -> dict[str, object]:
+        return {"environment_approval_digest": self.environment_approval_digest,
+                "findings_digest": self.findings_digest,
+                "fixture_manifest_digest": self.fixture_manifest_digest,
+                "integration_manifest_digest": self.integration_manifest_digest,
+                "result": self.result.value, "review_id": self.review_id,
+                "reviewed_at": canonical_datetime(self.reviewed_at),
+                "reviewer_id": self.reviewer_id,
+                "session_request_digest": self.session_request_digest}
+
+    def canonical_json(self) -> str:
+        return canonical_json(self._payload())
+
+
+@dataclass(frozen=True, repr=False)
+class LocalRAGExecutionSessionApproval(_Canonical):
+    approval_id: str
+    session_request_digest: str
+    review_digest: str
+    approver_id: str
+    approved_at: datetime
+    result: SessionApprovalResult
+
+    def __post_init__(self) -> None:
+        if (not is_identifier(self.approval_id) or not is_identifier(self.approver_id)
+                or not is_digest(self.session_request_digest)
+                or not is_digest(self.review_digest)
+                or not is_aware(self.approved_at)
+                or not isinstance(self.result, SessionApprovalResult)):
+            raise LocalRAGExecutionError("session_pre_approval_invalid")
+        self._seal(self._payload())
+
+    def _payload(self) -> dict[str, object]:
+        return {"approval_id": self.approval_id,
+                "approved_at": canonical_datetime(self.approved_at),
+                "approver_id": self.approver_id, "result": self.result.value,
+                "review_digest": self.review_digest,
+                "session_request_digest": self.session_request_digest}
+
+    def canonical_json(self) -> str:
+        return canonical_json(self._payload())
+
+    @property
+    def real_data_approved(self) -> bool:
+        return False
+
+    @property
+    def real_data_use_authorized(self) -> bool:
+        return False
+
+
+@dataclass(frozen=True, repr=False)
 class ApprovedLocalRAGExecutionSession(_Canonical):
     session_id: str
     session_request_digest: str
+    session_review_digest: str
+    session_approval_digest: str
     environment_manifest_digest: str
     environment_approval_digest: str
     integration_manifest_digest: str
@@ -206,7 +282,8 @@ class ApprovedLocalRAGExecutionSession(_Canonical):
     def __post_init__(self, _marker: object | None) -> None:
         if (not is_identifier(self.session_id) or not is_identifier(self.operator_id)
                 or not all(is_digest(v) for v in (
-                    self.session_request_digest, self.environment_manifest_digest,
+                    self.session_request_digest, self.session_review_digest,
+                    self.session_approval_digest, self.environment_manifest_digest,
                     self.environment_approval_digest, self.integration_manifest_digest,
                     self.fixture_manifest_digest))
                 or (self.predecessor_session_digest is not None
@@ -230,7 +307,9 @@ class ApprovedLocalRAGExecutionSession(_Canonical):
                 "lifecycle": self.lifecycle.value, "operator_id": self.operator_id,
                 "predecessor_session_digest": self.predecessor_session_digest,
                 "session_generation": self.session_generation, "session_id": self.session_id,
-                "session_request_digest": self.session_request_digest, "state": self.state.value}
+                "session_approval_digest": self.session_approval_digest,
+                "session_request_digest": self.session_request_digest,
+                "session_review_digest": self.session_review_digest, "state": self.state.value}
 
     def canonical_json(self) -> str:
         return canonical_json(self._payload())
@@ -419,6 +498,10 @@ class SessionExecutionApproval(_Canonical):
     def canonical_json(self) -> str:
         return canonical_json(self._payload())
 
+    @property
+    def real_data_use_authorized(self) -> bool:
+        return False
+
 
 def validate_v022_integration_chain(
     manifest: LocalRAGIntegrationManifest,
@@ -456,6 +539,48 @@ def validate_v022_integration_chain(
     return tuple(dict.fromkeys(reasons))
 
 
+def _validate_session_preapproval(
+    request: LocalRAGExecutionSessionRequest,
+    review: LocalRAGExecutionSessionReview | None,
+    approval: LocalRAGExecutionSessionApproval | None,
+    roles: SessionRoleContext,
+    environment_approval: EnvironmentApproval,
+    integration_manifest: LocalRAGIntegrationManifest,
+    fixture: SyntheticConfidentialFixture,
+    *,
+    registry_approved_at: datetime,
+) -> tuple[SessionRegistryReason, ...]:
+    reasons: list[SessionRegistryReason] = []
+    if (not isinstance(review, LocalRAGExecutionSessionReview)
+            or not isinstance(approval, LocalRAGExecutionSessionApproval)):
+        return (SessionRegistryReason.INVALID_CHAIN,)
+    if not all(canonical_object_valid(value) for value in (request, review, approval, roles)):
+        reasons.append(SessionRegistryReason.INVALID_CHAIN)
+    if (review.session_request_digest != request.canonical_digest
+            or review.environment_approval_digest != environment_approval.canonical_digest
+            or review.integration_manifest_digest != integration_manifest.canonical_digest
+            or review.fixture_manifest_digest != fixture.canonical_digest
+            or approval.session_request_digest != request.canonical_digest
+            or approval.review_digest != review.canonical_digest
+            or review.result is not SessionReviewResult.APPROVED
+            or approval.result is not SessionApprovalResult.APPROVED):
+        reasons.append(SessionRegistryReason.INVALID_CHAIN)
+    role_ids = (request.requester_id, request.operator_id, review.reviewer_id,
+                approval.approver_id)
+    if (request.requester_id != roles.session_requester_id
+            or request.operator_id != roles.session_operator_id
+            or review.reviewer_id != roles.session_reviewer_id
+            or approval.approver_id != roles.session_approver_id
+            or len(set(role_ids)) != len(role_ids)
+            or roles.environment_approver_id == approval.approver_id):
+        reasons.append(SessionRegistryReason.ROLE_CONFLICT)
+    if (not is_aware(registry_approved_at)
+            or not (request.requested_at <= review.reviewed_at
+                    < approval.approved_at <= registry_approved_at < request.expires_at)):
+        reasons.append(SessionRegistryReason.TEMPORAL_INVALID)
+    return tuple(dict.fromkeys(reasons))
+
+
 @dataclass(frozen=True)
 class SessionRegistryResult:
     applied: bool
@@ -470,6 +595,8 @@ class SessionRegistryResult:
 class _SessionRegistryState:
     sessions: tuple[ApprovedLocalRAGExecutionSession, ...] = ()
     used_request_digests: frozenset[str] = frozenset()
+    used_review_digests: frozenset[str] = frozenset()
+    used_approval_digests: frozenset[str] = frozenset()
     used_session_digests: frozenset[str] = frozenset()
     write_count: int = 0
     mutation_count: int = 0
@@ -499,8 +626,10 @@ class TestOnlySessionRegistry:
         return self._state.event_count
 
     @property
-    def replay_snapshot(self) -> tuple[frozenset[str], frozenset[str]]:
-        return self._state.used_request_digests, self._state.used_session_digests
+    def replay_snapshot(self) -> tuple[
+            frozenset[str], frozenset[str], frozenset[str], frozenset[str]]:
+        return (self._state.used_request_digests, self._state.used_review_digests,
+                self._state.used_approval_digests, self._state.used_session_digests)
 
     def approve(
         self,
@@ -520,6 +649,8 @@ class TestOnlySessionRegistry:
         integration_review: IntegrationReview,
         integration_approval: IntegrationApproval,
         integration_roles: IntegrationRoleContext,
+        session_review: LocalRAGExecutionSessionReview | None,
+        session_approval: LocalRAGExecutionSessionApproval | None,
         session_roles: SessionRoleContext,
         session_generation: int,
         predecessor_session_digest: str | None,
@@ -534,13 +665,18 @@ class TestOnlySessionRegistry:
         integration_reasons = validate_v022_integration_chain(
             integration_manifest, data_flow_plan, fixture, integration_receipt,
             integration_review, integration_approval, integration_roles)
+        session_preapproval_reasons = _validate_session_preapproval(
+            request, session_review, session_approval, session_roles,
+            environment_approval, integration_manifest, fixture,
+            registry_approved_at=approved_at)
         objects = (request, session_roles, environment_manifest, environment_suite,
             environment_decision, environment_review, environment_approval, environment_roles,
             integration_manifest, data_flow_plan, fixture, integration_receipt,
-            integration_review, integration_approval, integration_roles)
+            integration_review, integration_approval, integration_roles,
+            session_review, session_approval)
         exact = (
             all(canonical_object_valid(v) for v in objects),
-            not environment_reasons, not integration_reasons,
+            not environment_reasons, not integration_reasons, not session_preapproval_reasons,
             request.environment_manifest_digest == environment_manifest.canonical_digest,
             request.environment_approval_digest == environment_approval.canonical_digest,
             request.v0_22_integration_manifest_digest == integration_manifest.canonical_digest,
@@ -564,6 +700,7 @@ class TestOnlySessionRegistry:
         )
         if not all(exact):
             reasons.append(SessionRegistryReason.INVALID_CHAIN)
+        reasons.extend(session_preapproval_reasons)
         expected_generation = len(self.sessions) + 1
         expected_predecessor = self.sessions[-1].canonical_digest if self.sessions else None
         if session_generation != expected_generation:
@@ -571,6 +708,11 @@ class TestOnlySessionRegistry:
         if predecessor_session_digest != expected_predecessor:
             reasons.append(SessionRegistryReason.PREDECESSOR_MISMATCH)
         if request.canonical_digest in self._state.used_request_digests:
+            reasons.append(SessionRegistryReason.REPLAY)
+        review_digest = getattr(session_review, "canonical_digest", None)
+        approval_digest = getattr(session_approval, "canonical_digest", None)
+        if (review_digest in self._state.used_review_digests
+                or approval_digest in self._state.used_approval_digests):
             reasons.append(SessionRegistryReason.REPLAY)
         if (not is_aware(approved_at)
                 or not (environment_approval.approved_at < request.requested_at
@@ -584,7 +726,8 @@ class TestOnlySessionRegistry:
             if fault is SessionRegistryFault.CANDIDATE_STATE:
                 raise RuntimeError
             session = ApprovedLocalRAGExecutionSession(
-                session_id, request.canonical_digest, environment_manifest.canonical_digest,
+                session_id, request.canonical_digest, session_review.canonical_digest,
+                session_approval.canonical_digest, environment_manifest.canonical_digest,
                 environment_approval.canonical_digest, integration_manifest.canonical_digest,
                 fixture.canonical_digest, request.operator_id, session_generation,
                 predecessor_session_digest, approved_at, request.expires_at,
@@ -592,6 +735,10 @@ class TestOnlySessionRegistry:
             candidate = replace(self._state,
                 sessions=self.sessions + (session,),
                 used_request_digests=self._state.used_request_digests | {request.canonical_digest},
+                used_review_digests=self._state.used_review_digests | {
+                    session_review.canonical_digest},
+                used_approval_digests=self._state.used_approval_digests | {
+                    session_approval.canonical_digest},
                 used_session_digests=self._state.used_session_digests | {session.canonical_digest},
                 write_count=self.write_count + 1,
                 mutation_count=self.mutation_count + 1,
@@ -623,6 +770,7 @@ class TestOnlySessionRegistry:
             return self._result(False, (SessionRegistryReason.COMMIT_FAULT,), None)
         session = ApprovedLocalRAGExecutionSession(
             new_session_id, source_session.session_request_digest,
+            source_session.session_review_digest, source_session.session_approval_digest,
             source_session.environment_manifest_digest, source_session.environment_approval_digest,
             source_session.integration_manifest_digest, source_session.fixture_manifest_digest,
             source_session.operator_id, source_session.session_generation + 1,
@@ -883,7 +1031,8 @@ def evaluate_real_data_trial_readiness(
 __all__ = [
     "ApprovedLocalRAGExecutionSession", "ControlledLocalRAGExecutionAdapter",
     "ExecutionSideEffectAccounting", "LocalRAGExecutionError",
-    "LocalRAGExecutionSessionRequest", "RealDataTrialReadinessDecision",
+    "LocalRAGExecutionSessionApproval", "LocalRAGExecutionSessionRequest",
+    "LocalRAGExecutionSessionReview", "RealDataTrialReadinessDecision",
     "RealDataTrialReadinessState", "SessionApprovalResult", "SessionAuthorizationState",
     "SessionExecutionApproval", "SessionExecutionReceipt", "SessionExecutionResult",
     "SessionExecutionReview", "SessionLifecycle", "SessionRegistryFault",
