@@ -99,6 +99,23 @@ from ragguard.real_data_read_receipt import (
     ReadExecutionResultState, RealDataReadReceipt, RealDataReadReceiptError,
     RealDataReadReceiptResult, VerifiedMaskedContentCandidate,
 )
+from ragguard.real_target_resolver import (
+    ControlledTargetReference, FileIdentitySnapshot, RealTargetResolver,
+    RealTargetResolverError, RealTargetResolverPolicy, ResolvedTarget,
+    TrialRootClass, TrialRootDescriptor,
+)
+from ragguard.one_shot_trial import (
+    ControlledFilesystemReadAdapter, ControlledFilesystemReadFault,
+    IdentityChainEvidence, OneShotTrialError, OneShotTrialExecutionRequest,
+    OneShotTrialExecutionResult, OneShotTrialExecutionResultState,
+    OneShotTrialLedgerFault, OneShotTrialLedgerResult, OneShotTrialLifecycle,
+    OneShotTrialReason, OneShotTrialReceipt, PreOpenVerification,
+    PreOpenVerificationResult, TestOnlyOneShotTrialLedger, TrialClosureFault,
+    TrialClosureLedgerResult,
+)
+from ragguard.trial_closure import (
+    PostReadEvidence, TrialClosureError, TrialClosureRecord, TrialClosureResult,
+)
 
 from ragguard.equivalence_attestation import (
     EquivalenceApproval,
@@ -466,6 +483,17 @@ __all__ = [
     "PostReadVerificationState", "ReadDownstreamState", "ReadExecutionResult",
     "ReadExecutionResultState", "RealDataReadReceipt", "RealDataReadReceiptError",
     "RealDataReadReceiptResult", "VerifiedMaskedContentCandidate",
+    "ControlledTargetReference", "FileIdentitySnapshot", "RealTargetResolver",
+    "RealTargetResolverError", "RealTargetResolverPolicy", "ResolvedTarget",
+    "TrialRootClass", "TrialRootDescriptor",
+    "ControlledFilesystemReadAdapter", "ControlledFilesystemReadFault",
+    "IdentityChainEvidence", "OneShotTrialError", "OneShotTrialExecutionRequest",
+    "OneShotTrialExecutionResult", "OneShotTrialExecutionResultState",
+    "OneShotTrialLedgerFault", "OneShotTrialLedgerResult", "OneShotTrialLifecycle",
+    "OneShotTrialReason", "OneShotTrialReceipt", "PreOpenVerification",
+    "PreOpenVerificationResult", "TestOnlyOneShotTrialLedger", "TrialClosureFault",
+    "TrialClosureLedgerResult", "PostReadEvidence", "TrialClosureError",
+    "TrialClosureRecord", "TrialClosureResult",
     "CANONICAL_STORAGE_ADAPTER_DIGEST_ALGORITHM",
     "MAX_ADAPTER_EVIDENCE_AGE",
     "AdapterApprovalResult", "AdapterCapabilityName", "AdapterCapabilityTestResult",

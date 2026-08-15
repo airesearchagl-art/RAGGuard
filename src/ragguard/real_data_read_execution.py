@@ -575,15 +575,17 @@ def _pre_read_checks(
     context: RealDataReadAuthorizationContext,
     request: RealDataReadExecutionRequest,
     target: ReadTargetDescriptor,
-    adapter: ControlledReadAdapter,
+    adapter: ControlledReadAdapter | None,
     *,
     evaluated_at: datetime,
+    target_descriptor_digest: str | None = None,
+    content_identity_digest: str | None = None,
 ) -> tuple[tuple[ReadExecutionLedgerReason, ...], dict[str, bool]]:
     objects = tuple(
         value
         for name, value in vars(context).items()
         if name != "canonical_digest"
-    ) + (context, request, target, adapter)
+    ) + (context, request, target) + (() if adapter is None else (adapter,))
     canonical_valid = all(canonical_object_valid(item) for item in objects)
     source_valid = not validate_v024_access_source_chain(
         context.approved_trial,
@@ -659,10 +661,20 @@ def _pre_read_checks(
         == context.operator_assignment.canonical_digest,
         request.usage_state_digest == context.usage_contract.canonical_digest,
     )
+    bound_target_digest = (
+        adapter.target_descriptor_digest
+        if adapter is not None
+        else target_descriptor_digest
+    )
+    bound_content_digest = (
+        adapter.fixture_content_digest
+        if adapter is not None
+        else content_identity_digest
+    )
     selector_match = (
         target.selector_digest == context.selector.canonical_digest
-        and adapter.target_descriptor_digest == target.canonical_digest
-        and adapter.fixture_content_digest == target.content_identity_digest
+        and bound_target_digest == target.canonical_digest
+        and bound_content_digest == target.content_identity_digest
     )
     classification_match = (
         target.data_class is RealDataClass.INTERNAL_LOW

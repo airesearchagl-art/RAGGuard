@@ -1,5 +1,21 @@
 # Design Notes
 
+## RAGGuard v0.27 explicit one-shot real-data trial execution boundary
+
+v0.27 replaces the v0.26 protocol-only future hook with a controlled synthetic-filesystem
+execution boundary, not a production or arbitrary-path reader. Public objects contain only root,
+reference, policy, identity, evidence, and receipt digests. A private capability confines exactly
+one opaque reference under one marked test root. Component-wise `lstat`, canonical root checks,
+regular-file/type/size gates, and link/reparse denial run before open.
+
+The adapter opens only a resolver-issued handle. Pre-open, opened-target, and post-read snapshots
+must agree on target metadata, size class, and content identity. Stable identity, v0.26
+classification, and masking all precede a single atomic receipt/exhaustion/usage/replay/pending-
+closure swap. Failure and faults leave state retryable. Closure is explicit and metadata-only;
+completed closure is neither downstream-processing nor persistent-storage approval. The actual
+Local RAG material trial remains unexecuted. See the authoritative
+[v0.27 Explicit One-Shot Real-Data Trial Execution Boundary](ONE_SHOT_REAL_DATA_TRIAL_EXECUTION_DESIGN_V0.27.md).
+
 ## RAGGuard v0.26 limited real-data read execution boundary
 
 v0.26 adds the controlled execution contract after v0.25 without introducing a production file

@@ -1,5 +1,21 @@
 # Usage
 
+## v0.27 explicit one-shot trial execution contracts
+
+Create a digest-only `TrialRootDescriptor`, fail-closed `RealTargetResolverPolicy`, and opaque
+`ControlledTargetReference`. A private controlled-fixture capability binds the reference to one
+synthetic temporary root; no public contract accepts or returns a raw path. Resolve it through
+`RealTargetResolver`, then use `ControlledFilesystemReadAdapter` and
+`TestOnlyOneShotTrialLedger` with the actual v0.26 authorization context, request, and target.
+
+The ledger revalidates the v0.25/v0.26 chain and operator, requires one remaining read, compares
+pre-open/opened/post-read identities, and reuses the object-backed classification and masking
+contracts. Only a stable, fully verified read atomically commits the one-shot receipt, exhausted
+authorization, zero-remaining usage, replay identities, and pending closure. Explicit closure
+creates metadata-only evidence. Neither the receipt nor completed closure authorizes embedding,
+persistence, export, or runtime activation. Automated use is limited to controlled synthetic
+fixtures; no actual Local RAG material trial or new CLI command is provided.
+
 ## v0.26 limited real-data read execution contracts
 
 Build `RealDataReadAuthorizationContext` only from the actual v0.25 authorization, request,
