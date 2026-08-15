@@ -1,5 +1,13 @@
 # RAGGuard
 
+v0.25 adds a Real-Data Access Authorization Boundary. It exact-binds a live v0.24 approved trial
+record and its actual source objects to a metadata-only selector, internal-low-only one-shot policy,
+independent security and governance reviews, explicit future operator assignment, distinct access
+approval, and a test-only atomic authorization record. The maximum readiness state is
+`eligible_for_limited_real_data_read_execution`; no file is opened or read, and persistence,
+external network, production registry, credential, and runtime counters remain zero. See
+[the v0.25 design](docs/REAL_DATA_ACCESS_AUTHORIZATION_BOUNDARY_DESIGN_V0.25.md).
+
 v0.24 adds an Explicit Real-Data Trial Approval Boundary. It exact-binds the complete v0.23
 environment/session/execution/readiness chain to a metadata-only scope, safe classification,
 stage, retention, logging, cache, export, and persistence policies, independent security and data

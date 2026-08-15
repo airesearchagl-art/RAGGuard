@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.25.0 - Unreleased
+
+### Added
+
+- Immutable metadata-only real-data selector and internal-low-only one-shot access policy capped
+  at the chunking candidate stage.
+- Exact v0.24 trial/source object verification with independent access security and governance
+  reviews, explicit future operator assignment, and distinct access approval.
+- Test-only atomic authorization registry with generation, predecessor, successful-only replay,
+  retry, immutable usage-count, and terminal lifecycle contracts.
+- Pure readiness evaluator that stops at limited real-data read execution eligibility.
+
+### Security boundary
+
+- Access authorization and operator assignment do not execute an actual file open/read or grant
+  persistence, production registry, or runtime activation authority.
+- Actual file open/read, real-data access, filesystem/database/persistent-vector writes, external
+  network/HTTP/cloud, credential/token, production registry, and runtime counters remain zero.
+
 ## v0.24.0 - Unreleased
 
 ### Added

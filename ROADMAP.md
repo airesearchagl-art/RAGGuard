@@ -1,5 +1,18 @@
 # RAGGuard Roadmap
 
+## Delivery candidate: v0.25 real-data access authorization boundary
+
+- Metadata-only selector exact-bound to an actual, live v0.24 approved-trial object chain.
+- Internal-low-only, one-document, one-read policy capped at the chunking candidate stage.
+- Independent security and governance reviews, explicit future operator assignment, and distinct
+  access approval with full role separation.
+- Atomic test-only authorization registry with generation, predecessor, successful-only replay,
+  one-way lifecycle, and immutable usage-count contracts.
+- Limited-read execution eligibility without an actual file open/read, persistence authority, or
+  runtime activation.
+
+Authoritative design: [v0.25 Real-Data Access Authorization Boundary](docs/REAL_DATA_ACCESS_AUTHORIZATION_BOUNDARY_DESIGN_V0.25.md).
+
 ## Delivery candidate: v0.24 explicit real-data trial approval boundary
 
 - Metadata-only trial scope and safe classification/stage/retention/log/cache/export/persistence
