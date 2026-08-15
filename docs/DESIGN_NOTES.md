@@ -1,5 +1,20 @@
 # Design Notes
 
+## RAGGuard v0.25 real-data access authorization boundary
+
+v0.25 exact-binds an actual, live v0.24 approved-trial record and its scope, policies, reviews,
+approval, environment approval, and execution session to a metadata-only selector and access
+authorization chain. The safe policy is internal-low-only, one-document, one-read, and capped at
+the masking-complete chunking candidate stage; retention, raw log/cache, persistence, export, and
+network remain denied.
+
+Independent access security and governance reviews precede explicit future operator assignment and
+a distinct access approval. A test-only atomic registry enforces generation, predecessor,
+successful-only replay, retry, immutable usage counts, expiry, revocation, and supersession. The
+pure evaluator stops at limited-read execution eligibility. No actual read, persistence authority,
+production write, or runtime activation is introduced. See the authoritative
+[v0.25 Real-Data Access Authorization Boundary](REAL_DATA_ACCESS_AUTHORIZATION_BOUNDARY_DESIGN_V0.25.md).
+
 ## RAGGuard v0.24 explicit real-data trial approval boundary
 
 v0.24 exact-binds the actual v0.23 environment, approved session, controlled execution receipt,

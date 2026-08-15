@@ -1,5 +1,19 @@
 # Usage
 
+## v0.25 real-data access authorization contracts
+
+Start from the actual, live v0.24 approved trial record, trial scope and policies, independent
+trial reviews/approval, environment approval, and approved execution session. Construct a
+metadata-only `RealDataAccessSelector` and the internal-low-only `RealDataAccessPolicy`, then an
+access request, independent security review, separate governance review, explicit future operator
+assignment, and distinct access approval. Only the test-only registry can issue the immutable
+authorization record and one-shot usage-count contract.
+
+The maximum readiness result is `eligible_for_limited_real_data_read_execution`. It does not open
+or read a file and does not authorize persistence, export, network use, production registry writes,
+or runtime activation. No public decrement/consume method or actual read executor exists in v0.25;
+actual read execution remains v0.26-or-later work. No new CLI command is added.
+
 ## v0.24 explicit real-data trial approval contracts
 
 Start only from the exact v0.23 environment approval, approved live session, passed execution
