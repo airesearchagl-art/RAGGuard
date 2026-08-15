@@ -1,5 +1,16 @@
 # RAGGuard Roadmap
 
+## Delivery candidate: v0.26 limited real-data read execution boundary
+
+- Exact v0.25 authorization, selector, policy, operator, approval, usage, and v0.24 source binding.
+- Hard pre-read verification followed by an immutable fixture-backed controlled read only.
+- Post-read classification and masking verification with metadata-only receipt evidence.
+- Successful-only one-shot usage consumption and atomic test-ledger replay protection.
+- Downstream stop at `verified_masked_content_candidate`; no embedding or persistence authority.
+- A protocol-only future explicit trial hook; the actual one-shot real-data trial remains separate.
+
+Authoritative design: [v0.26 Limited Real-Data Read Execution Boundary](docs/LIMITED_REAL_DATA_READ_EXECUTION_DESIGN_V0.26.md).
+
 ## Delivery candidate: v0.25 real-data access authorization boundary
 
 - Metadata-only selector exact-bound to an actual, live v0.24 approved-trial object chain.

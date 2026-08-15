@@ -51,6 +51,7 @@ from ragguard.storage_adapter import (
 MAX_ACCESS_REQUEST_AGE = timedelta(hours=1)
 _AUTHORIZATION_RECORD_MARKER = object()
 _ELIGIBLE_READINESS_MARKER = object()
+_LIMITED_READ_EXECUTOR_MARKER = object()
 
 
 class RealDataAccessAuthorizationError(ValueError):
@@ -1100,6 +1101,65 @@ def evaluate_real_data_read_execution_readiness(
         security_review.canonical_digest, governance_review.canonical_digest,
         operator_assignment.canonical_digest, approval.canonical_digest,
         record.canonical_digest, usage_contract.canonical_digest, eligible=True)
+
+
+def _consume_authorization_usage_for_verified_read(
+    record: RealDataAccessAuthorizationRecord,
+    usage_contract: AuthorizationUsageCounterContract,
+    *,
+    executor_marker: object,
+) -> tuple[RealDataAccessAuthorizationRecord, AuthorizationUsageCounterContract]:
+    """Private v0.26 capability; no public decrement, reset, or refill surface."""
+    if (
+        executor_marker is not _LIMITED_READ_EXECUTOR_MARKER
+        or not canonical_object_valid(record)
+        or not canonical_object_valid(usage_contract)
+        or record.lifecycle is not RealDataAccessAuthorizationLifecycle.AUTHORIZED
+        or record.remaining_read_count != 1
+        or record.allowed_read_count != 1
+        or usage_contract.authorization_record_digest != record.canonical_digest
+        or usage_contract.allowed_read_count != record.allowed_read_count
+        or usage_contract.remaining_read_count != record.remaining_read_count
+    ):
+        raise RealDataAccessAuthorizationError("verified_read_usage_consume_invalid")
+    exhausted_record = RealDataAccessAuthorizationRecord(
+        record.authorization_record_id,
+        record.access_request_digest,
+        record.selector_digest,
+        record.policy_digest,
+        record.approved_trial_record_digest,
+        record.security_review_digest,
+        record.governance_review_digest,
+        record.operator_assignment_digest,
+        record.approval_digest,
+        record.operator_id,
+        record.authorization_generation + 1,
+        record.canonical_digest,
+        record.allowed_read_count,
+        0,
+        record.issued_at,
+        record.expires_at,
+        record.state,
+        RealDataAccessAuthorizationLifecycle.EXHAUSTED,
+        _marker=_AUTHORIZATION_RECORD_MARKER,
+    )
+    consumed_usage = AuthorizationUsageCounterContract(
+        exhausted_record.canonical_digest,
+        record.allowed_read_count,
+        0,
+        digest(
+            canonical_json(
+                {
+                    "authorization": exhausted_record.canonical_digest,
+                    "previous_authorization": record.canonical_digest,
+                    "previous_usage": usage_contract.canonical_digest,
+                    "remaining_read_count": 0,
+                }
+            )
+        ),
+        digest("v0.26-limited-real-data-read-executor-only"),
+    )
+    return exhausted_record, consumed_usage
 
 
 __all__ = [

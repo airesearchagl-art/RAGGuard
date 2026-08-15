@@ -1,5 +1,22 @@
 # Usage
 
+## v0.26 limited real-data read execution contracts
+
+Build `RealDataReadAuthorizationContext` only from the actual v0.25 authorization, request,
+selector, policy, reviews, assignment, approval, usage, and role objects together with their
+actual v0.24 source objects. Create a metadata-only `RealDataReadExecutionRequest` and opaque
+`ReadTargetDescriptor`, then use `TestOnlyRealDataReadExecutionLedger` with the immutable
+`ControlledReadAdapter`. Do not provide a path, filename, directory, credential, token, customer
+identity, or actual document content.
+
+The pre-read gate revalidates classification, stage, retention/log/cache, persistence/export/
+network, operator, usage, lifecycle, and UTC temporal rules. Only a read whose classification and
+masking checks pass can atomically commit a `RealDataReadReceipt`, exhausted authorization, zero
+remaining usage, and `VerifiedMaskedContentCandidate`. Failure or fault consumes nothing. The
+candidate is not embedding, persistence, retrieval, prompt, LLM, or export authorization. The
+future explicit-trial hook is an interface only; no actual real-data trial executor or new CLI
+command is provided.
+
 ## v0.25 real-data access authorization contracts
 
 Start from the actual, live v0.24 approved trial record, trial scope and policies, independent
