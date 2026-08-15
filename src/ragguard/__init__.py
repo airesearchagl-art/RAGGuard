@@ -83,6 +83,22 @@ from ragguard.real_data_access_authorization import (
     TestOnlyRealDataAccessAuthorizationRegistry,
     evaluate_real_data_read_execution_readiness, validate_v024_access_source_chain,
 )
+from ragguard.real_data_read_execution import (
+    ControlledReadAdapter, ControlledReadFailure,
+    ExplicitRealDataTrialExecutionHook, ExplicitRealDataTrialExecutionState,
+    PreReadVerificationResult, PreReadVerificationState,
+    ReadExecutionLedgerFault, ReadExecutionLedgerReason,
+    ReadExecutionLifecycle, ReadTargetDescriptor,
+    RealDataReadAuthorizationContext, RealDataReadExecutionError,
+    RealDataReadExecutionRequest, RealDataReadLedgerResult,
+    RealDataReadSideEffectAccounting, TestOnlyRealDataReadExecutionLedger,
+)
+from ragguard.real_data_read_receipt import (
+    PostReadClassificationResult, PostReadMaskingVerification,
+    PostReadVerificationState, ReadDownstreamState, ReadExecutionResult,
+    ReadExecutionResultState, RealDataReadReceipt, RealDataReadReceiptError,
+    RealDataReadReceiptResult, VerifiedMaskedContentCandidate,
+)
 
 from ragguard.equivalence_attestation import (
     EquivalenceApproval,
@@ -438,6 +454,18 @@ __all__ = [
     "RealDataReadExecutionReadinessDecision", "RealDataReadExecutionReadinessState",
     "TestOnlyRealDataAccessAuthorizationRegistry",
     "evaluate_real_data_read_execution_readiness", "validate_v024_access_source_chain",
+    "ControlledReadAdapter", "ControlledReadFailure",
+    "ExplicitRealDataTrialExecutionHook", "ExplicitRealDataTrialExecutionState",
+    "PreReadVerificationResult", "PreReadVerificationState",
+    "ReadExecutionLedgerFault", "ReadExecutionLedgerReason",
+    "ReadExecutionLifecycle", "ReadTargetDescriptor",
+    "RealDataReadAuthorizationContext", "RealDataReadExecutionError",
+    "RealDataReadExecutionRequest", "RealDataReadLedgerResult",
+    "RealDataReadSideEffectAccounting", "TestOnlyRealDataReadExecutionLedger",
+    "PostReadClassificationResult", "PostReadMaskingVerification",
+    "PostReadVerificationState", "ReadDownstreamState", "ReadExecutionResult",
+    "ReadExecutionResultState", "RealDataReadReceipt", "RealDataReadReceiptError",
+    "RealDataReadReceiptResult", "VerifiedMaskedContentCandidate",
     "CANONICAL_STORAGE_ADAPTER_DIGEST_ALGORITHM",
     "MAX_ADAPTER_EVIDENCE_AGE",
     "AdapterApprovalResult", "AdapterCapabilityName", "AdapterCapabilityTestResult",

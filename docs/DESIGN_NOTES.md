@@ -1,5 +1,22 @@
 # Design Notes
 
+## RAGGuard v0.26 limited real-data read execution boundary
+
+v0.26 adds the controlled execution contract after v0.25 without introducing a production file
+reader. A hard pre-read gate revalidates the actual v0.25 authorization/usage and complete v0.24
+source chain, exact-binds selector, policy, assignment, approval, and operator, and enforces the
+internal-low-only, one-document, one-read, chunking-ceiling policy. The automated adapter holds an
+immutable synthetic fixture and exposes no path surface.
+
+Read, classification, and masking evidence contains digests rather than raw content. A receipt,
+masked candidate, exhausted authorization, zero-remaining usage contract, and seven replay
+identities commit in one test-only state swap only after all verification passes. Denial and fault
+leave state unchanged and retryable. Processing stops at `verified_masked_content_candidate`;
+embedding, retrieval, prompt/LLM input, export, persistence, registry writes, and runtime
+activation are not authorized. The future explicit one-shot trial hook is a protocol without an
+implementation. See the authoritative
+[v0.26 Limited Real-Data Read Execution Boundary](LIMITED_REAL_DATA_READ_EXECUTION_DESIGN_V0.26.md).
+
 ## RAGGuard v0.25 real-data access authorization boundary
 
 v0.25 exact-binds an actual, live v0.24 approved-trial record and its scope, policies, reviews,

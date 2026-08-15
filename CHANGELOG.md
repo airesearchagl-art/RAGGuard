@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.26.0 - Unreleased
+
+### Added
+
+- Immutable metadata-only read request and opaque controlled-target descriptor.
+- Actual v0.25/v0.24 object-chain pre-read verification and exact operator/usage binding.
+- Immutable fixture-backed controlled adapter with deterministic injected failure modes.
+- Metadata-only execution, classification, masking, receipt, and masked-candidate contracts.
+- Test-only atomic ledger with seven successful-only replay identities and one-shot exhaustion.
+- Protocol-only future explicit one-shot real-data trial hook without an implementation.
+
+### Security boundary
+
+- Only a successfully classified and masked controlled read consumes usage from one to zero.
+- Failure, forgery, replay, and commit fault consume nothing and leave ledger state unchanged.
+- The maximum downstream state is `verified_masked_content_candidate`; embedding, persistent
+  vector write, retrieval, prompt/LLM input, export, persistence, and runtime activation remain
+  unauthorized.
+- Automated execution performs no arbitrary-file or actual real-data read. All external,
+  credential, storage, registry, and runtime side-effect counts remain zero.
+
 ## v0.25.0 - Unreleased
 
 ### Added

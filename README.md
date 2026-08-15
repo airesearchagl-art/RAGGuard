@@ -1,5 +1,14 @@
 # RAGGuard
 
+v0.26 adds a Limited Real-Data Read Execution Boundary. It exact-binds the actual v0.25
+authorization, request, selector, policy, operator assignment, access approval, usage contract,
+and complete v0.24 source chain before an immutable fixture-backed controlled read. Post-read
+classification and masking must pass before a receipt, exhausted authorization, usage update, and
+`verified_masked_content_candidate` commit atomically. Failures consume nothing. Automated tests
+open no arbitrary file and access no actual real data; embedding, persistence, external network,
+production registry, credential, and runtime authority remain denied. See
+[the v0.26 design](docs/LIMITED_REAL_DATA_READ_EXECUTION_DESIGN_V0.26.md).
+
 v0.25 adds a Real-Data Access Authorization Boundary. It exact-binds a live v0.24 approved trial
 record and its actual source objects to a metadata-only selector, internal-low-only one-shot policy,
 independent security and governance reviews, explicit future operator assignment, distinct access
