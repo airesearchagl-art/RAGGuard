@@ -1,5 +1,17 @@
 # RAGGuard Roadmap
 
+## Delivery candidate: v0.24 explicit real-data trial approval boundary
+
+- Metadata-only trial scope and safe classification/stage/retention/log/cache/export/persistence
+  policies exact-bound to the actual v0.23 environment, session, execution, and readiness objects.
+- Independent security review, independent data-governance review, and distinct trial approval.
+- Atomic test-only registry with generation, predecessor, successful-only replay consumption,
+  retry, expiry, revocation, and supersession protection.
+- Access-authorization review eligibility without actual real-data access authorization or read.
+- Zero external network, credential, real-data, storage, registry, and runtime effects.
+
+Authoritative design: [v0.24 Explicit Real-Data Trial Approval Boundary](docs/REAL_DATA_TRIAL_APPROVAL_BOUNDARY_DESIGN_V0.24.md).
+
 ## Delivery candidate: v0.23 approved Local RAG execution session attestation
 
 - Seven object-backed environment hard gates with independent verifier, reviewer, and approver.

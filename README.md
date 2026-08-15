@@ -1,5 +1,13 @@
 # RAGGuard
 
+v0.24 adds an Explicit Real-Data Trial Approval Boundary. It exact-binds the complete v0.23
+environment/session/execution/readiness chain to a metadata-only scope, safe classification,
+stage, retention, logging, cache, export, and persistence policies, independent security and data
+governance reviews, a distinct approval, and a test-only atomic record. The maximum result is
+`eligible_for_real_data_access_authorization_review`; it does not authorize real-data use or read
+any material. All external, storage, credential, runtime, and real-data counters remain zero. See
+[the v0.24 design](docs/REAL_DATA_TRIAL_APPROVAL_BOUNDARY_DESIGN_V0.24.md).
+
 v0.23 adds an Approved Local RAG Execution Session / Environment Attestation boundary. Seven
 object-backed environment checks gate a short-lived, operator-bound test session; a controlled
 adapter then records all eleven v0.22 stages as metadata-only evidence for independent security

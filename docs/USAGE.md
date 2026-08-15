@@ -1,5 +1,18 @@
 # Usage
 
+## v0.24 explicit real-data trial approval contracts
+
+Start only from the exact v0.23 environment approval, approved live session, passed execution
+receipt, post-execution review/approval, and eligible readiness decision objects. Create a
+metadata-only `RealDataTrialScope` with the safe classification, stage, retention, logging, cache,
+export, and persistence policies. Obtain an independent `TrialSecurityReview`, a separate
+`TrialDataGovernanceReview`, and a distinct `TrialApproval` before using the test-only registry.
+
+The maximum readiness result is `eligible_for_real_data_access_authorization_review`. It does not
+authorize real-data use, open a document, execute a real-data trial, export content, persist data,
+or activate a runtime. Do not provide actual paths, filenames, customer identities, endpoints,
+credentials, tokens, or raw content. No new CLI command is added.
+
 ## v0.23 approved Local RAG execution session contracts
 
 Construct a metadata-only environment manifest and all seven concrete verification result objects,

@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.24.0 - Unreleased
+
+### Added
+
+- Immutable metadata-only real-data trial scope and safe data-class, stage, retention, logging,
+  cache, export, and persistence policy contracts.
+- Exact v0.23 environment/session/execution/readiness object binding with independent security and
+  data-governance reviews plus distinct trial approval.
+- Test-only atomic approved-trial registry with generation, predecessor, replay, retry, fault, and
+  one-way lifecycle protection.
+- Pure readiness evaluator that stops at real-data access authorization review eligibility.
+
+### Security boundary
+
+- Trial approval does not authorize real-data access, real-data use, or an actual document read.
+- No filesystem/database/persistent-vector write, external network/HTTP/cloud, credential/token,
+  production registry write, runtime activation, or runtime switch.
+
 ## v0.23.0 - Unreleased
 
 ### Added

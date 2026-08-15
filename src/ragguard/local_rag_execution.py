@@ -40,6 +40,7 @@ from ragguard.storage_adapter import (
 
 _SESSION_MARKER = object()
 _EXECUTION_RECEIPT_MARKER = object()
+_READINESS_DECISION_MARKER = object()
 
 
 class LocalRAGExecutionError(ValueError):
@@ -902,14 +903,18 @@ class RealDataTrialReadinessDecision(_Canonical):
     runtime_activation_count: int = field(init=False, default=0)
     runtime_switch_count: int = field(init=False, default=0)
     real_data_access_count: int = field(init=False, default=0)
+    _marker: InitVar[object | None] = None
 
-    def __post_init__(self) -> None:
+    def __post_init__(self, _marker: object | None) -> None:
         if (not isinstance(self.state, RealDataTrialReadinessState)
                 or not all(is_digest(v) for v in (
                     self.environment_decision_digest, self.session_digest,
                     self.execution_receipt_digest, self.review_digest, self.approval_digest))
                 or not self.reason_codes or not all(is_identifier(v) for v in self.reason_codes)
-                or not is_aware(self.evaluated_at)):
+                or not is_aware(self.evaluated_at)
+                or (self.state is
+                    RealDataTrialReadinessState.ELIGIBLE_FOR_EXPLICIT_REAL_DATA_TRIAL_APPROVAL_REVIEW
+                    and _marker is not _READINESS_DECISION_MARKER)):
             raise LocalRAGExecutionError("readiness_decision_invalid")
         self._seal(self._payload())
 
@@ -1025,7 +1030,11 @@ def evaluate_real_data_trial_readiness(
                  else RealDataTrialReadinessState.ELIGIBLE_FOR_EXPLICIT_REAL_DATA_TRIAL_APPROVAL_REVIEW)
     return RealDataTrialReadinessDecision(state, environment_decision.canonical_digest,
         session.canonical_digest, receipt.canonical_digest, review_digest, approval_digest,
-        tuple(dict.fromkeys(reasons or ["controlled_session_evidence_approved"])), evaluation_time)
+        tuple(dict.fromkeys(reasons or ["controlled_session_evidence_approved"])), evaluation_time,
+        _marker=_READINESS_DECISION_MARKER
+            if state is
+                RealDataTrialReadinessState.ELIGIBLE_FOR_EXPLICIT_REAL_DATA_TRIAL_APPROVAL_REVIEW
+            else None)
 
 
 __all__ = [
