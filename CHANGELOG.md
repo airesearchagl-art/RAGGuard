@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.28.0 - Unreleased
+
+### Added
+
+- Immutable purpose, root-provisioning request, opaque root identity, target selection, closure
+  requirement, approval request, review, approval, and approved-trial contracts.
+- Object-backed root confinement, link/reparse, permission, write-prohibition, and network-
+  isolation verification with exact attestation binding.
+- Exact live v0.25 authorization/operator/usage and v0.27 root descriptor/resolver/target binding.
+- Independent security and governance review plus distinct execution approval and eight-role
+  separation.
+- Test-only atomic registry with generation, predecessor, successful-only replay, retry, expiry,
+  revocation, supersession, execution-pending, and closed lifecycle contracts.
+
+### Security boundary
+
+- Approval stops at explicit one-shot execution review eligibility and performs no file open/read.
+- Internal-low, one-document, one-read, chunking-candidate, no-retention/log/cache/persistence,
+  prohibited export/network, and mandatory closure gates are fail closed.
+- Actual Local RAG/restricted material, arbitrary filesystem access, external services,
+  credentials, persistent storage, production registries, and runtime activation remain outside
+  this boundary; all corresponding side-effect counts are zero.
+
 ## v0.27.0 - Unreleased
 
 ### Added
