@@ -1,5 +1,31 @@
 # Changelog
 
+## v0.30.0 - Unreleased, trial-gated
+
+### Added
+
+- Production-capable executor that exact-binds the complete v0.29 packet and source object chain.
+- Immutable, short-lived Human execution approval exact-bound to the packet and assigned operator.
+- Opaque actual-root provisioning for exactly one Human-selected relative target, with no
+  discovery, glob, walk, unrestricted-root, raw-path downstream, or network-share surface.
+- Deterministic local raw-derived classification, irreversible token-digest masking, and
+  digest-only chunking candidates capped before embedding.
+- Process-local atomic ledger for receipt, exhausted authorization, zero usage, post-read
+  evidence, closure, and replay identities.
+
+### Security and release boundary
+
+- PR tests run the production executor only against a controlled synthetic temp root. They do not
+  read actual Local RAG or restricted material.
+- Missing/mismatched Human approval and all pre-read failures open nothing. Once a read occurs,
+  failure leaves authorization usage unchanged but spends that Human approval, prohibiting an
+  automatic second read.
+- Raw bytes remain memory-only and are not logged, cached, persisted, exported, embedded, or
+  included in exceptions or evidence. Network, HTTP, cloud, persistent vector storage,
+  production writes, credentials, and runtime activation remain zero.
+- Merge does not release v0.30.0. A separate Human-approved actual one-shot trial and review must
+  pass before tag or Release creation.
+
 ## v0.29.0 - Unreleased
 
 ### Added

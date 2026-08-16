@@ -1,5 +1,26 @@
 # Usage
 
+## v0.30 actual one-shot execution bridge
+
+The Python API accepts one canonical `OneShotTrialExecutionPacket`, its complete
+`ActualExecutionObjectChain`, one `HumanExecutionApproval`, one resolver-issued opaque root
+capability, its exact `HumanSelectedOpaqueTarget`, the existing authorization context and assigned
+operator, and an explicit UTC execution time. `evaluate_actual_trial_gate()` re-runs the v0.29
+object-backed checks; a digest string alone is never sufficient.
+
+`provision_human_selected_actual_root()` accepts only one explicit root and one explicit relative
+target. It does not discover roots, walk directories, expand globs, generate candidates, or return
+a raw path. The executor performs one handle-relative open/read, verifies identity, computes local
+classification from the raw bytes, masks them irreversibly, and generates digest-only chunks.
+Only verified internal-low content can commit. No CLI command or unrestricted path reader is
+added.
+
+Do not run an actual trial from this development PR. After merge and full regression, a separate
+Human approval must name the reviewed packet/operator and the exact selected target. Any
+post-read failure spends that approval while leaving usage at one, so retry requires a newly
+reviewed Human approval. A successful trial alone changes usage from one to zero and exhausts the
+authorization. The v0.30.0 tag and Release remain blocked until that separate trial passes.
+
 ## v0.29 one-shot trial execution preparation contracts
 
 Construct `OneShotTrialExecutionPacket` only from the canonical digests of the actual v0.25-v0.28

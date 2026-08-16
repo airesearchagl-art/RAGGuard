@@ -1,5 +1,15 @@
 # RAGGuard
 
+v0.30 adds the production-capable Actual One-Shot Execution Bridge and Trial Gate. It revalidates
+the complete v0.29 packet object chain, requires a separate short-lived Human execution approval,
+and confines one explicitly selected target to an opaque root capability. After one handle-bound
+read, local deterministic classification, irreversible masking, and digest-only chunking must all
+pass before a process-local atomic ledger exhausts the authorization and records the receipt,
+post-read evidence, and closure. The PR tests use only a controlled synthetic temp root; they do
+not read Local RAG or restricted material. Merge is followed by a separate Human-approved actual
+trial, and v0.30.0 may be tagged or released only after that trial passes. See
+[the v0.30 design](docs/ACTUAL_ONE_SHOT_EXECUTION_DESIGN_V0.30.md).
+
 v0.29 adds a One-Shot Real-Data Trial Execution Preparation Boundary. It bundles the actual
 v0.25 authorization/operator/usage objects, v0.27 root/resolver/opaque-target objects, and v0.28
 purpose, provisioning, attestation, approval, and closure objects into one immutable metadata-only
