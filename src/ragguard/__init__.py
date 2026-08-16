@@ -152,7 +152,8 @@ from ragguard.one_shot_trial_preparation import (
 )
 from ragguard.actual_content_classification import (
     ActualContentClassification, ActualContentClassificationError,
-    ActualObservedDataClass, classify_actual_content,
+    ActualObservedDataClass, PositiveInternalLowEvidence,
+    classify_actual_content,
 )
 from ragguard.actual_content_masking import (
     ActualContentMasking, ActualContentMaskingError, mask_actual_content,
@@ -460,7 +461,8 @@ __version__ = "0.1.0"
 
 __all__ = [
     "ActualContentClassification", "ActualContentClassificationError",
-    "ActualObservedDataClass", "classify_actual_content",
+    "ActualObservedDataClass", "PositiveInternalLowEvidence",
+    "classify_actual_content",
     "ActualContentMasking", "ActualContentMaskingError", "mask_actual_content",
     "ActualRootProvisioning", "ActualTrialRootCapability", "ActualTrialRootError",
     "ActualTrialRootUse", "HumanSelectedOpaqueTarget",

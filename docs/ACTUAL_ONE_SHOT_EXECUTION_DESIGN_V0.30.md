@@ -21,7 +21,10 @@ Fixed distinctions:
 
 `ActualExecutionObjectChain` carries the actual preparation request, approved trial, v0.25 access
 source, purpose, five root-verification results, attestation, target, closure requirement,
-independent reviews, execution approval, and eight-role context. `evaluate_actual_trial_gate()`
+independent reviews, execution approval, eight-role context, and a
+`PositiveInternalLowEvidence` object. That evidence exact-binds the canonical v0.24
+classification policy, v0.25 selector/authorization/source trial, v0.28 approved one-shot trial,
+and actual target selection. `evaluate_actual_trial_gate()`
 reuses the v0.29 evaluator to validate every canonical object and binding. It requires the exact
 `OneShotTrialExecutionPacket` object in
 `ready_for_explicit_execution_approval` state. No digest string, reconstructed packet, Boolean
@@ -51,16 +54,20 @@ content digest is derived only after the one read and is exact-bound to the rece
 
 ## Raw-derived processing
 
-The pure local classifier accepts only bytes already in memory. It derives the raw digest,
-observed class, sensitive classes, matched rule IDs, credential-like detection, and ambiguity.
-Only unambiguous `internal_low` continues. Personal data, contractual confidential,
-credential-like, highly restricted, unknown, and ambiguous content fail closed. It uses no LLM,
+The pure local classifier accepts only bytes already in memory plus the actual object-backed
+positive evidence chain. It derives the raw digest, observed class, sensitive classes, matched
+rule IDs, credential-like detection, and ambiguity. Absence of a sensitive-pattern match is not positive
+classification evidence: without the valid exact-bound evidence, ordinary-looking content is
+`unknown` and fails closed. Numeric-only candidates, opaque code-only content, unrecognized
+sensitive wording, and new credential-like shapes also fail closed. Only positive evidence plus
+an unambiguous actual-content verification agreeing on `internal_low` continues. It uses no LLM,
 external API, cloud, HTTP, or network.
 
 Masking is calculated from the actual bytes and classification. Every non-space token becomes an
 irreversible index-bound digest token. Evidence binds raw and transformed digests, masked/blocked
 class digests, token count, and residue verification; raw and transformed digests must differ.
-The transformed value is reclassified before it can become a chunking candidate.
+The transformed value receives a non-authorizing residue inspection before it can become a
+chunking candidate.
 
 Chunking receives only the verified transformed value. Its metadata contains the masking digest,
 transformed digest, chunking-policy digest, chunk count, chunk digests, and residue result. It does

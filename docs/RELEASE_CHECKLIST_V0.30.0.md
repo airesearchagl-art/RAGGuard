@@ -6,6 +6,8 @@
 - [ ] A valid, live Human execution approval exact-binds packet and operator before open.
 - [ ] One explicit root and one explicit relative target are capability-bound without scan.
 - [ ] Raw content digest is derived after read, not trusted as a pre-read identity.
+- [ ] Canonical v0.24/v0.25/v0.28 classification objects are exact-bound as positive evidence.
+- [ ] No-match, missing/forged evidence, unknown, opaque, numeric-only, and ambiguity fail closed.
 - [ ] Classification, masking, and chunking are derived from the controlled synthetic read.
 - [ ] Controlled integration open/read counts are exactly one/one.
 - [ ] Successful commit changes usage one-to-zero and exhausts authorization atomically.
@@ -20,7 +22,9 @@
 - [ ] Main remains clean and matches the reviewed merge head.
 - [ ] One exact packet/operator/root/target has a separately recorded Human approval.
 - [ ] Approved actual file open count is one and read count is one.
-- [ ] Classification is unambiguous `internal_low`.
+- [ ] Positive object-backed classification evidence is valid and exact-bound to the target.
+- [ ] Actual-content verification agrees with expected `internal_low` without sensitive/unknown
+  signals.
 - [ ] Masking is verified and transformed/raw digests differ.
 - [ ] A residue-free digest-only chunking candidate is generated.
 - [ ] Raw retention, logging, cache, persistence, and export counts are zero.

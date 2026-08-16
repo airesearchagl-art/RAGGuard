@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import timedelta
 from pathlib import Path
 
+from ragguard.actual_content_classification import PositiveInternalLowEvidence
 from ragguard.actual_trial_execution import (
     ActualExecutionObjectChain,
     ActualOneShotTrialExecutor,
@@ -241,6 +242,14 @@ def actual_execution_chain(
     approval_result = TestOnlyRealTrialApprovalRegistry().approve(**approval_call)
     assert approval_result.applied and approval_result.record is not None
     approved_trial = approval_result.record
+    positive_classification_evidence = PositiveInternalLowEvidence(
+        access.classification_policy,
+        access.selector,
+        access.authorization_record,
+        access.approved_trial,
+        approved_trial,
+        target_selection,
+    )
     packet = OneShotTrialExecutionPacket(
         "actual-one-shot-execution-packet-030",
         approved_trial.canonical_digest,
@@ -293,6 +302,7 @@ def actual_execution_chain(
         governance_review,
         execution_approval,
         roles,
+        positive_classification_evidence,
     )
     gate = evaluate_actual_trial_gate(packet=packet, object_chain=chain)
     human_approval = HumanExecutionApproval(
@@ -312,6 +322,7 @@ def actual_execution_chain(
         "gate": gate,
         "human_approval": human_approval,
         "authorization_context": access,
+        "positive_classification_evidence": positive_classification_evidence,
         "operator_id": access.operator_assignment.operator_id,
         "executed_at": NOW + timedelta(minutes=44),
         "executor": ActualOneShotTrialExecutor(),

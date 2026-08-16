@@ -5,7 +5,9 @@
 - Exact object-backed execution binding to the complete v0.29 preparation packet.
 - Separate expiring Human approval exact-bound to the packet and assigned operator.
 - One Human-selected target under an opaque, no-scan, handle-backed root capability.
-- Raw-derived local classification and masking followed by digest-only chunking evidence.
+- Raw-derived local classification requires exact positive internal-low source evidence; a
+  no-match result alone fails closed as unknown.
+- Verified classification and masking are followed by digest-only chunking evidence.
 - Process-local atomic success commit; post-read failure spends approval but not usage.
 - PR validation uses only controlled synthetic roots; actual trial is a separate post-merge gate.
 - v0.30.0 tag and Release remain blocked until the Human-approved actual trial passes.

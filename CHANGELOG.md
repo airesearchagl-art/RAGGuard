@@ -8,8 +8,9 @@
 - Immutable, short-lived Human execution approval exact-bound to the packet and assigned operator.
 - Opaque actual-root provisioning for exactly one Human-selected relative target, with no
   discovery, glob, walk, unrestricted-root, raw-path downstream, or network-share surface.
-- Deterministic local raw-derived classification, irreversible token-digest masking, and
-  digest-only chunking candidates capped before embedding.
+- Deterministic local raw-derived classification that requires an exact object-backed positive
+  internal-low chain; no sensitive-pattern match alone is unknown and denied.
+- Irreversible token-digest masking and digest-only chunking candidates capped before embedding.
 - Process-local atomic ledger for receipt, exhausted authorization, zero usage, post-read
   evidence, closure, and replay identities.
 
@@ -20,6 +21,8 @@
 - Missing/mismatched Human approval and all pre-read failures open nothing. Once a read occurs,
   failure leaves authorization usage unchanged but spends that Human approval, prohibiting an
   automatic second read.
+- Missing, forged, reconstructed, non-internal-low, ambiguous, numeric-only, opaque, unknown
+  sensitive, and credential-shaped classification evidence fails closed after the controlled read.
 - Raw bytes remain memory-only and are not logged, cached, persisted, exported, embedded, or
   included in exceptions or evidence. Network, HTTP, cloud, persistent vector storage,
   production writes, credentials, and runtime activation remain zero.

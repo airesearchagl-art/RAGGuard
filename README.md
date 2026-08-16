@@ -3,8 +3,10 @@
 v0.30 adds the production-capable Actual One-Shot Execution Bridge and Trial Gate. It revalidates
 the complete v0.29 packet object chain, requires a separate short-lived Human execution approval,
 and confines one explicitly selected target to an opaque root capability. After one handle-bound
-read, local deterministic classification, irreversible masking, and digest-only chunking must all
-pass before a process-local atomic ledger exhausts the authorization and records the receipt,
+read, local deterministic classification requires the exact object-backed v0.24/v0.25/v0.28
+positive internal-low evidence chain; a no-match result alone is unknown and denied. Classification,
+irreversible masking, and digest-only chunking must all pass before a process-local atomic ledger
+exhausts the authorization and records the receipt,
 post-read evidence, and closure. The PR tests use only a controlled synthetic temp root; they do
 not read Local RAG or restricted material. Merge is followed by a separate Human-approved actual
 trial, and v0.30.0 may be tagged or released only after that trial passes. See

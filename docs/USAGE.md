@@ -10,10 +10,14 @@ object-backed checks; a digest string alone is never sufficient.
 
 `provision_human_selected_actual_root()` accepts only one explicit root and one explicit relative
 target. It does not discover roots, walk directories, expand globs, generate candidates, or return
-a raw path. The executor performs one handle-relative open/read, verifies identity, computes local
-classification from the raw bytes, masks them irreversibly, and generates digest-only chunks.
-Only verified internal-low content can commit. No CLI command or unrestricted path reader is
-added.
+a raw path. The executor performs one handle-relative open/read, verifies identity, and supplies
+the raw bytes to the local classifier together with `PositiveInternalLowEvidence`. This actual
+object exact-binds the canonical classification policy, selector, authorization, source trial,
+approved one-shot trial, and target selection. A caller digest or absence of a sensitive match is
+never sufficient; missing, forged, reconstructed, unknown, opaque, numeric-only, sensitive, or
+ambiguous evidence fails closed. Only positive evidence agreeing with verified actual
+`internal_low` content proceeds to irreversible masking and digest-only chunks. No CLI command or
+unrestricted path reader is added.
 
 Do not run an actual trial from this development PR. After merge and full regression, a separate
 Human approval must name the reviewed packet/operator and the exact selected target. Any

@@ -8,6 +8,8 @@ from threading import RLock
 
 from ragguard.actual_content_classification import (
     ActualContentClassification,
+    PositiveInternalLowEvidence,
+    _has_prohibited_actual_content_signal,
     classify_actual_content,
 )
 from ragguard.actual_content_masking import (
@@ -187,15 +189,22 @@ class ActualExecutionObjectChain:
     governance_review: TrialDataGovernanceReview
     execution_approval: TrialExecutionApproval
     roles: RealTrialApprovalRoleContext
+    positive_classification_evidence: PositiveInternalLowEvidence | None = None
     canonical_digest: str = field(init=False)
 
     def __post_init__(self) -> None:
         objects = tuple(
             value
             for key, value in vars(self).items()
-            if key != "canonical_digest"
+            if key not in {"canonical_digest", "positive_classification_evidence"}
         )
-        if not all(canonical_object_valid(item) for item in objects):
+        if (
+            not all(canonical_object_valid(item) for item in objects)
+            or (
+                self.positive_classification_evidence is not None
+                and not canonical_object_valid(self.positive_classification_evidence)
+            )
+        ):
             raise ActualTrialExecutionError("actual_execution_object_chain_invalid")
         object.__setattr__(self, "canonical_digest", digest(self.canonical_json()))
 
@@ -205,7 +214,9 @@ class ActualExecutionObjectChain:
     def canonical_json(self) -> str:
         return canonical_json(
             {
-                key: value.canonical_digest
+                key: (
+                    value.canonical_digest if value is not None else None
+                )
                 for key, value in vars(self).items()
                 if key != "canonical_digest"
             }
@@ -373,11 +384,7 @@ def create_actual_chunking_candidate(
     transformed = masking_outcome.transformed_content
     if digest(transformed) != masking_outcome.evidence.transformed_content_digest:
         raise ActualTrialExecutionError("chunking_masking_binding_mismatch")
-    residue = classify_actual_content(
-        transformed.encode("utf-8"),
-        policy_digest=chunking_policy_digest,
-    )
-    sensitive = not residue.approved_internal_low
+    sensitive = _has_prohibited_actual_content_signal(transformed.encode("utf-8"))
     tokens = transformed.split()
     chunks = [
         " ".join(tokens[index : index + max_tokens_per_chunk])
@@ -1176,10 +1183,30 @@ class ActualOneShotTrialExecutor:
                     ActualTrialExecutionState.IDENTITY_FAILED,
                     (ActualTrialFailureReason.IDENTITY_MISMATCH,),
                 )
+            positive_evidence = object_chain.positive_classification_evidence
+            evidence_exact = (
+                positive_evidence is not None
+                and positive_evidence.classification_policy
+                is authorization_context.classification_policy
+                and positive_evidence.selector is authorization_context.selector
+                and positive_evidence.authorization_record
+                is authorization_context.authorization_record
+                and positive_evidence.approved_source_trial
+                is authorization_context.approved_trial
+                and positive_evidence.approved_one_shot_trial
+                is object_chain.approved_trial
+                and positive_evidence.target_selection
+                is object_chain.target_selection
+            )
             classification = classify_actual_content(
                 raw_buffer,
-                policy_digest=object_chain.target_selection.expected_classification_digest,
+                positive_evidence=positive_evidence if evidence_exact else None,
             )
+            if not classification.positive_evidence_verified:
+                return after_read_failure(
+                    ActualTrialExecutionState.CLASSIFICATION_FAILED,
+                    (ActualTrialFailureReason.CLASSIFICATION_REJECTED,),
+                )
             if classification.ambiguous:
                 return after_read_failure(
                     ActualTrialExecutionState.CLASSIFICATION_FAILED,

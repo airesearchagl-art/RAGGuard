@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 
 from ragguard.actual_content_classification import (
     ActualContentClassification,
-    classify_actual_content,
+    _has_prohibited_actual_content_signal,
 )
 from ragguard.storage_adapter import (
     canonical_json,
@@ -130,10 +130,7 @@ def mask_actual_content(
     del tokens
     transformed = " ".join(transformed_tokens)
     del transformed_tokens
-    residue = classify_actual_content(
-        transformed.encode("utf-8"), policy_digest=classification.policy_digest
-    )
-    prohibited = not residue.approved_internal_low
+    prohibited = _has_prohibited_actual_content_signal(transformed.encode("utf-8"))
     evidence = ActualContentMasking(
         classification.canonical_digest,
         masking_policy_digest,

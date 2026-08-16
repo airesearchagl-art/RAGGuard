@@ -16,6 +16,7 @@ from ragguard.actual_trial_execution import (
     ActualTrialGateDecision,
     HumanExecutionApproval,
 )
+from ragguard.actual_content_classification import PositiveInternalLowEvidence
 from ragguard.actual_trial_root import (
     ActualRootProvisioning,
     ActualTrialRootCapability,
@@ -38,6 +39,7 @@ PUBLIC_NAMES = (
     "ActualOneShotTrialReceipt",
     "ActualPostReadEvidence",
     "ActualTrialClosureRecord",
+    "PositiveInternalLowEvidence",
 )
 
 
@@ -69,6 +71,7 @@ def test_public_result_contracts_are_metadata_only():
         "transformed_content",
     }
     contracts = (
+        PositiveInternalLowEvidence,
         HumanExecutionApproval,
         ActualTrialGateDecision,
         ActualTrialExecutionResult,
@@ -179,3 +182,15 @@ def test_pr_boundary_explicitly_retains_actual_material_zero():
     )
     assert "controlled synthetic temporary files" in design
     assert "does not read actual Local RAG material or restricted material" in design
+
+
+def test_actual_classification_release_gate_requires_positive_object_evidence():
+    design = Path("docs/ACTUAL_ONE_SHOT_EXECUTION_DESIGN_V0.30.md").read_text(
+        encoding="utf-8"
+    )
+    checklist = Path("docs/RELEASE_CHECKLIST_V0.30.0.md").read_text(
+        encoding="utf-8"
+    )
+    assert "PositiveInternalLowEvidence" in design
+    assert "Absence of a sensitive-pattern match is not positive" in design
+    assert "Positive object-backed classification evidence" in checklist

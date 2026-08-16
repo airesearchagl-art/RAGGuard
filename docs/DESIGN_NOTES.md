@@ -13,9 +13,13 @@ downstream code receives no raw path and cannot override its use class. Componen
 no-follow semantics and opened-handle identity checks remain the read authority. The pre-read
 target identity is metadata-only; the raw content digest is first derived after the one read.
 
-The classifier, masker, and chunker are deterministic and local. Anything other than unambiguous
-internal-low content fails closed. Masking replaces every token with a one-way digest token and
-reclassifies the transformed value. Only digests and counts survive into chunking evidence. A
+The classifier, masker, and chunker are deterministic and local. `PositiveInternalLowEvidence`
+exact-binds the actual classification policy, selector, authorization, source trial, approved
+one-shot trial, and target object. Absence of a sensitive-pattern match is not approval: without valid
+positive evidence the result is unknown. Sensitive, unknown wording, numeric-only, opaque, and
+ambiguous inputs fail closed. Masking replaces every token with a one-way digest token and applies
+a non-authorizing residue inspection to the transformed value. Only digests and counts survive
+into chunking evidence. A
 candidate-state/single-swap process ledger commits the exhausted authorization, zero remaining
 usage, receipt, evidence, closure, and replay identities together. Pre-read failure mutates
 nothing. Post-read failure or commit fault leaves usage unchanged but records the Human approval

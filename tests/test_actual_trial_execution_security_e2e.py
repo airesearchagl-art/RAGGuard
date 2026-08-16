@@ -13,6 +13,7 @@ from ragguard.actual_trial_execution import (
     ActualTrialFailureReason,
     HumanExecutionApprovalResult,
     _install_actual_execution_test_hook,
+    evaluate_actual_trial_gate,
 )
 from ragguard.actual_trial_root import (
     ActualTrialRootError,
@@ -239,6 +240,48 @@ def test_disallowed_actual_classification_rejects_after_one_read(
     assert result.side_effects.approved_file_open_count == 1
     assert result.side_effects.approved_file_read_count == 1
     assert call["human_approval"].canonical_digest in call["ledger"].replay_snapshot()[3]
+    assert_usage_unconsumed(call, result)
+
+
+def test_missing_positive_classification_evidence_spends_approval_not_usage(
+    tmp_path,
+):
+    call = actual_execution_chain(tmp_path)
+    chain = replace(call["chain"], positive_classification_evidence=None)
+    gate = evaluate_actual_trial_gate(packet=call["packet"], object_chain=chain)
+    result = execute_actual_chain(call, object_chain=chain, gate=gate)
+    assert result.state is ActualTrialExecutionState.CLASSIFICATION_FAILED
+    assert result.reasons == (ActualTrialFailureReason.CLASSIFICATION_REJECTED,)
+    assert result.classification is not None
+    assert not result.classification.positive_evidence_verified
+    assert result.side_effects.approved_file_open_count == 1
+    assert result.side_effects.approved_file_read_count == 1
+    assert call["human_approval"].canonical_digest in call["ledger"].replay_snapshot()[3]
+    assert_usage_unconsumed(call, result)
+
+    retry = execute_actual_chain(call, object_chain=chain, gate=gate)
+    assert retry.reasons == (ActualTrialFailureReason.REPLAY,)
+    assert retry.side_effects.approved_file_open_count == 0
+    assert retry.side_effects.approved_file_read_count == 0
+    assert_no_prohibited_side_effects(retry)
+
+
+def test_reconstructed_classification_object_is_not_execution_authority(tmp_path):
+    call = actual_execution_chain(tmp_path)
+    evidence = replace(
+        call["positive_classification_evidence"],
+        classification_policy=replace(
+            call["authorization_context"].classification_policy
+        ),
+    )
+    assert evidence.verified_internal_low
+    chain = replace(call["chain"], positive_classification_evidence=evidence)
+    gate = evaluate_actual_trial_gate(packet=call["packet"], object_chain=chain)
+    result = execute_actual_chain(call, object_chain=chain, gate=gate)
+    assert result.state is ActualTrialExecutionState.CLASSIFICATION_FAILED
+    assert result.reasons == (ActualTrialFailureReason.CLASSIFICATION_REJECTED,)
+    assert result.side_effects.approved_file_open_count == 1
+    assert result.side_effects.approved_file_read_count == 1
     assert_usage_unconsumed(call, result)
 
 
