@@ -1,5 +1,16 @@
 # RAGGuard Roadmap
 
+## Delivery candidate: v0.27 explicit one-shot real-data trial execution boundary
+
+- Digest-only root descriptor, fail-closed resolver policy, and opaque target reference.
+- Controlled-root confinement with traversal, absolute path, link/reparse, type, and size denial.
+- Pre-open, opened-target, and post-read identity snapshots with TOCTOU fail-closed behavior.
+- Exact reuse of v0.26 classification/masking and successful-only one-to-zero usage consumption.
+- Atomic receipt/exhaustion/usage/replay/pending-closure commit and explicit completed closure.
+- Controlled synthetic filesystem fixtures only; the actual Local RAG material trial is separate.
+
+Authoritative design: [v0.27 Explicit One-Shot Real-Data Trial Execution Boundary](docs/ONE_SHOT_REAL_DATA_TRIAL_EXECUTION_DESIGN_V0.27.md).
+
 ## Delivery candidate: v0.26 limited real-data read execution boundary
 
 - Exact v0.25 authorization, selector, policy, operator, approval, usage, and v0.24 source binding.

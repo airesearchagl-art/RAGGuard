@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.27.0 - Unreleased
+
+### Added
+
+- Metadata-only controlled-root descriptor, resolver policy, opaque target reference, identity
+  snapshots, one-shot request/result/receipt, closure, and post-read evidence contracts.
+- Capability-bound resolver and filesystem adapter for controlled synthetic fixtures only.
+- Root confinement, regular-file/type/size validation, and symlink/junction/reparse denial.
+- Root-directory and pinned-file handle authority with component-by-component no-follow opens;
+  the read adapter performs no path-based reopen.
+- Pre/open/post identity comparison and fail-closed TOCTOU fault coverage.
+- Test-only atomic ledger with nine successful-only replay identities and pending closure state.
+
+### Security boundary
+
+- Traversal, absolute/drive/UNC/device paths, alternate streams, wildcards, links, root escape,
+  identity changes, verification failures, forgery, replay, and commit faults consume nothing.
+- A stable read plus exact v0.26 classification and masking is required before usage changes from
+  one to zero. Closure completion grants no downstream-processing or persistence authority.
+- Automated tests use controlled synthetic filesystem targets only. Actual Local RAG material,
+  restricted material, arbitrary files, external services, credentials, persistent storage,
+  production registries, and runtime activation remain outside this boundary.
+
 ## v0.26.0 - Unreleased
 
 ### Added

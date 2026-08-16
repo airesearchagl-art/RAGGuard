@@ -1,5 +1,16 @@
 # RAGGuard
 
+v0.27 adds an Explicit One-Shot Real-Data Trial Execution Boundary for controlled synthetic
+filesystem targets only. An opaque reference is confined to one capability-bound root; traversal,
+absolute/UNC/device paths, symlinks, junctions, reparse points, non-regular files, wrong types, and
+oversized targets fail before read. The resolver pins a root directory capability and opens each
+relative component with no-follow handle semantics; the adapter never reopens a raw path.
+Pre/open/post identity snapshots protect the v0.26
+classification and masking chain from TOCTOU changes. A successful verified read alone atomically
+exhausts one-shot usage and creates a metadata-only receipt pending explicit closure. The receipt
+grants no embedding, persistence, export, or runtime authority. No actual Local RAG material trial
+is performed. See [the v0.27 design](docs/ONE_SHOT_REAL_DATA_TRIAL_EXECUTION_DESIGN_V0.27.md).
+
 v0.26 adds a Limited Real-Data Read Execution Boundary. It exact-binds the actual v0.25
 authorization, request, selector, policy, operator assignment, access approval, usage contract,
 and complete v0.24 source chain before an immutable fixture-backed controlled read. Post-read
