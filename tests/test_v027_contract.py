@@ -56,6 +56,9 @@ def test_no_public_arbitrary_path_reader_scanner_or_runtime_surface():
     assert "path" not in adapter_parameters
     assert "root_path" not in adapter_parameters
     assert "filename" not in adapter_parameters
+    adapter_source = inspect.getsource(ControlledFilesystemReadAdapter._execute)
+    assert "handle.path" not in adapter_source
+    assert "os.open(" not in adapter_source
 
 
 def test_public_root_reference_and_identity_metadata_contain_no_raw_path(tmp_path):

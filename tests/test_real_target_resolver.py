@@ -1,5 +1,7 @@
 from dataclasses import replace
 from datetime import timedelta
+import os
+import stat
 
 import pytest
 
@@ -148,3 +150,20 @@ def test_resolver_policy_is_fail_closed_for_all_link_and_path_classes(tmp_path):
     assert not policy.allow_absolute_user_input
     assert policy.require_regular_file
     assert policy.require_identity_stability
+
+
+def test_resolved_read_authority_is_pinned_file_handle_not_path(tmp_path):
+    _, call, _ = one_shot_call(tmp_path)
+    resolver = call["resolver"]
+    resolved = resolver.resolve(
+        call["target_reference"], observed_at=NOW + timedelta(minutes=31)
+    )
+    handle = resolver._handle_for(resolved)
+    assert not hasattr(handle, "path")
+    assert not hasattr(handle, "root_path")
+    assert handle.pinned_file_fd >= 0
+    assert stat.S_ISREG(os.fstat(handle.pinned_file_fd).st_mode)
+    assert resolver._capability.root_directory_fd >= 0
+    assert stat.S_ISDIR(os.fstat(resolver._capability.root_directory_fd).st_mode)
+    assert handle.component_metadata_digests
+    resolver._release_resolved(resolved)

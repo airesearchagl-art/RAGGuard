@@ -8,6 +8,11 @@ from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path, PureWindowsPath
 
+if os.name == "nt":
+    import ctypes
+    import msvcrt
+    from ctypes import wintypes
+
 from ragguard.real_data_access import RealDataByteClass, RealDataDocumentClass
 from ragguard.storage_adapter import (
     canonical_datetime,
@@ -23,6 +28,79 @@ from ragguard.storage_adapter import (
 _CONTROLLED_ROOT_SENTINEL = ".ragguard-v027-controlled-root"
 _SAFE_COMPONENT = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}")
 _SMALL_DOCUMENT_MAX_BYTES = 64 * 1024
+
+
+if os.name == "nt":
+    _FILE_SHARE_READ = 0x00000001
+    _FILE_SHARE_WRITE = 0x00000002
+    _FILE_SHARE_DELETE = 0x00000004
+    _FILE_OPEN = 0x00000001
+    _FILE_DIRECTORY_FILE = 0x00000001
+    _FILE_SYNCHRONOUS_IO_NONALERT = 0x00000020
+    _FILE_OPEN_REPARSE_POINT = 0x00200000
+    _FILE_LIST_DIRECTORY = 0x00000001
+    _FILE_READ_DATA = 0x00000001
+    _FILE_READ_ATTRIBUTES = 0x00000080
+    _SYNCHRONIZE = 0x00100000
+    _OBJ_CASE_INSENSITIVE = 0x00000040
+    _OBJ_DONT_REPARSE = 0x00001000
+    _FILE_FLAG_BACKUP_SEMANTICS = 0x02000000
+    _OPEN_EXISTING = 3
+    _INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
+
+    class _UnicodeString(ctypes.Structure):
+        _fields_ = (
+            ("Length", wintypes.USHORT),
+            ("MaximumLength", wintypes.USHORT),
+            ("Buffer", wintypes.LPWSTR),
+        )
+
+    class _ObjectAttributes(ctypes.Structure):
+        _fields_ = (
+            ("Length", wintypes.ULONG),
+            ("RootDirectory", wintypes.HANDLE),
+            ("ObjectName", ctypes.POINTER(_UnicodeString)),
+            ("Attributes", wintypes.ULONG),
+            ("SecurityDescriptor", wintypes.LPVOID),
+            ("SecurityQualityOfService", wintypes.LPVOID),
+        )
+
+    class _IoStatusBlock(ctypes.Structure):
+        _fields_ = (
+            ("Status", ctypes.c_void_p),
+            ("Information", ctypes.c_size_t),
+        )
+
+    _nt_create_file = ctypes.WinDLL("ntdll", use_last_error=True).NtCreateFile
+    _nt_create_file.argtypes = (
+        ctypes.POINTER(wintypes.HANDLE),
+        wintypes.ULONG,
+        ctypes.POINTER(_ObjectAttributes),
+        ctypes.POINTER(_IoStatusBlock),
+        ctypes.c_void_p,
+        wintypes.ULONG,
+        wintypes.ULONG,
+        wintypes.ULONG,
+        wintypes.ULONG,
+        ctypes.c_void_p,
+        wintypes.ULONG,
+    )
+    _nt_create_file.restype = ctypes.c_long
+
+    _create_file = ctypes.WinDLL("kernel32", use_last_error=True).CreateFileW
+    _create_file.argtypes = (
+        wintypes.LPCWSTR,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.LPVOID,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.HANDLE,
+    )
+    _create_file.restype = wintypes.HANDLE
+    _close_handle = ctypes.WinDLL("kernel32", use_last_error=True).CloseHandle
+    _close_handle.argtypes = (wintypes.HANDLE,)
+    _close_handle.restype = wintypes.BOOL
 
 
 class RealTargetResolverError(ValueError):
@@ -204,49 +282,69 @@ class FileIdentitySnapshot(_Canonical):
 class _ControlledRootCapability:
     __slots__ = (
         "root_path",
+        "root_directory_fd",
+        "root_metadata_digest",
         "descriptor_digest",
         "policy_digest",
         "target_bindings",
         "token",
+        "closed",
     )
 
     def __init__(
         self,
         root_path: Path,
+        root_directory_fd: int,
+        root_metadata_digest: str,
         descriptor_digest: str,
         policy_digest: str,
         target_bindings: dict[str, str],
     ) -> None:
         self.root_path = root_path
+        self.root_directory_fd = root_directory_fd
+        self.root_metadata_digest = root_metadata_digest
         self.descriptor_digest = descriptor_digest
         self.policy_digest = policy_digest
         self.target_bindings = dict(target_bindings)
         self.token = object()
+        self.closed = False
+
+    def close(self) -> None:
+        if not self.closed:
+            self.closed = True
+            _close_fd(self.root_directory_fd)
+            self.root_directory_fd = -1
+
+    def __del__(self) -> None:
+        self.close()
 
 
 class _ResolvedTargetHandle:
     __slots__ = (
-        "path",
-        "root_path",
         "target_reference_digest",
         "pre_identity",
         "capability_token",
+        "relative_components",
+        "component_metadata_digests",
+        "pinned_file_fd",
     )
 
     def __init__(
         self,
         *,
-        path: Path,
-        root_path: Path,
         target_reference_digest: str,
         pre_identity: FileIdentitySnapshot,
         capability_token: object,
+        relative_components: tuple[str, ...],
+        component_metadata_digests: tuple[str, ...],
+        pinned_file_fd: int,
     ) -> None:
-        self.path = path
-        self.root_path = root_path
         self.target_reference_digest = target_reference_digest
         self.pre_identity = pre_identity
         self.capability_token = capability_token
+        self.relative_components = relative_components
+        self.component_metadata_digests = component_metadata_digests
+        self.pinned_file_fd = pinned_file_fd
 
 
 class ResolvedTarget:
@@ -287,6 +385,159 @@ def _is_reparse_point(file_stat: os.stat_result) -> bool:
     attributes = getattr(file_stat, "st_file_attributes", 0)
     reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
     return bool(attributes & reparse_flag)
+
+
+def _close_fd(file_descriptor: int) -> None:
+    if isinstance(file_descriptor, int) and file_descriptor >= 0:
+        try:
+            os.close(file_descriptor)
+        except OSError:
+            pass
+
+
+def _open_root_directory_fd(root_path: Path) -> int:
+    if os.name == "nt":
+        native_handle = _create_file(
+            str(root_path),
+            _FILE_LIST_DIRECTORY | _FILE_READ_ATTRIBUTES | _SYNCHRONIZE,
+            _FILE_SHARE_READ | _FILE_SHARE_WRITE | _FILE_SHARE_DELETE,
+            None,
+            _OPEN_EXISTING,
+            _FILE_FLAG_BACKUP_SEMANTICS | _FILE_OPEN_REPARSE_POINT,
+            None,
+        )
+        if native_handle == _INVALID_HANDLE_VALUE:
+            raise OSError(ctypes.get_last_error(), "controlled_root_open_failed")
+        try:
+            return msvcrt.open_osfhandle(
+                int(native_handle), os.O_RDONLY | getattr(os, "O_BINARY", 0)
+            )
+        except OSError:
+            _close_handle(native_handle)
+            raise
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    flags |= getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0)
+    return os.open(root_path, flags)
+
+
+def _open_relative_component_fd(
+    parent_fd: int,
+    component: str,
+    *,
+    directory: bool,
+) -> int:
+    if os.name == "nt":
+        name_buffer = ctypes.create_unicode_buffer(component)
+        unicode_name = _UnicodeString(
+            len(component.encode("utf-16-le")),
+            len(component.encode("utf-16-le")) + 2,
+            ctypes.cast(name_buffer, wintypes.LPWSTR),
+        )
+        attributes = _ObjectAttributes(
+            ctypes.sizeof(_ObjectAttributes),
+            wintypes.HANDLE(msvcrt.get_osfhandle(parent_fd)),
+            ctypes.pointer(unicode_name),
+            _OBJ_CASE_INSENSITIVE | _OBJ_DONT_REPARSE,
+            None,
+            None,
+        )
+        io_status = _IoStatusBlock()
+        native_handle = wintypes.HANDLE()
+        desired_access = _FILE_READ_ATTRIBUTES | _SYNCHRONIZE
+        desired_access |= _FILE_LIST_DIRECTORY if directory else _FILE_READ_DATA
+        create_options = _FILE_SYNCHRONOUS_IO_NONALERT | _FILE_OPEN_REPARSE_POINT
+        if directory:
+            create_options |= _FILE_DIRECTORY_FILE
+        status_code = _nt_create_file(
+            ctypes.byref(native_handle),
+            desired_access,
+            ctypes.byref(attributes),
+            ctypes.byref(io_status),
+            None,
+            0,
+            _FILE_SHARE_READ | _FILE_SHARE_WRITE | _FILE_SHARE_DELETE,
+            _FILE_OPEN,
+            create_options,
+            None,
+            0,
+        )
+        if status_code < 0 or not native_handle.value:
+            raise OSError(
+                int(status_code) & 0xFFFFFFFF,
+                "relative_component_open_failed",
+            )
+        try:
+            return msvcrt.open_osfhandle(
+                int(native_handle.value),
+                os.O_RDONLY | getattr(os, "O_BINARY", 0),
+            )
+        except OSError:
+            _close_handle(native_handle)
+            raise
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    flags |= getattr(os, "O_CLOEXEC", 0)
+    if directory:
+        flags |= getattr(os, "O_DIRECTORY", 0)
+    return os.open(component, flags, dir_fd=parent_fd)
+
+
+def _open_component_chain(
+    capability: _ControlledRootCapability,
+    parts: tuple[str, ...],
+    *,
+    expected_metadata_digests: tuple[str, ...] | None = None,
+) -> tuple[int, tuple[str, ...]]:
+    if capability.closed or capability.root_directory_fd < 0 or not parts:
+        raise RealTargetResolverError("root_directory_capability_invalid")
+    if expected_metadata_digests is not None and len(
+        expected_metadata_digests
+    ) != len(parts):
+        raise RealTargetResolverError("component_identity_contract_invalid")
+    try:
+        current_fd = os.dup(capability.root_directory_fd)
+    except OSError as exc:
+        raise RealTargetResolverError("root_directory_capability_invalid") from exc
+    metadata: list[str] = []
+    try:
+        root_stat = os.fstat(current_fd)
+        if (
+            not stat.S_ISDIR(root_stat.st_mode)
+            or _is_reparse_point(root_stat)
+            or _root_identity_digest_from_stat(root_stat)
+            != capability.root_metadata_digest
+        ):
+            raise RealTargetResolverError("root_directory_capability_changed")
+        for index, component in enumerate(parts):
+            directory = index < len(parts) - 1
+            next_fd = _open_relative_component_fd(
+                current_fd, component, directory=directory
+            )
+            next_stat = os.fstat(next_fd)
+            if _is_reparse_point(next_stat):
+                _close_fd(next_fd)
+                raise RealTargetResolverError("link_or_reparse_target_rejected")
+            if directory and not stat.S_ISDIR(next_stat.st_mode):
+                _close_fd(next_fd)
+                raise RealTargetResolverError("directory_component_required")
+            if not directory and not stat.S_ISREG(next_stat.st_mode):
+                _close_fd(next_fd)
+                raise RealTargetResolverError("regular_file_required")
+            component_metadata = _metadata_digest(next_stat)
+            if (
+                expected_metadata_digests is not None
+                and component_metadata != expected_metadata_digests[index]
+            ):
+                _close_fd(next_fd)
+                raise RealTargetResolverError("target_binding_changed_before_read")
+            metadata.append(component_metadata)
+            _close_fd(current_fd)
+            current_fd = next_fd
+        return current_fd, tuple(metadata)
+    except (OSError, RealTargetResolverError) as exc:
+        _close_fd(current_fd)
+        if isinstance(exc, RealTargetResolverError):
+            raise
+        raise RealTargetResolverError("target_component_open_failed") from exc
 
 
 def _metadata_digest(file_stat: os.stat_result) -> str:
@@ -343,6 +594,10 @@ def _controlled_root_identity_digest(root_path: Path) -> str:
     """Test-support helper; returns metadata digest only and never exposes the path."""
     candidate = Path(root_path)
     root_stat = candidate.lstat()
+    return _root_identity_digest_from_stat(root_stat)
+
+
+def _root_identity_digest_from_stat(root_stat: os.stat_result) -> str:
     return digest(
         canonical_json(
             {
@@ -363,37 +618,53 @@ def _create_controlled_root_capability(
 ) -> _ControlledRootCapability:
     """Private synthetic-fixture factory; it is intentionally absent from __all__."""
     candidate = Path(root_path)
+    root_fd = -1
+    sentinel_fd = -1
     try:
         root_lstat = candidate.lstat()
         resolved = candidate.resolve(strict=True)
-        sentinel = resolved / _CONTROLLED_ROOT_SENTINEL
-        sentinel_stat = sentinel.lstat()
+        root_fd = _open_root_directory_fd(resolved)
+        opened_root_stat = os.fstat(root_fd)
+        sentinel_fd = _open_relative_component_fd(
+            root_fd, _CONTROLLED_ROOT_SENTINEL, directory=False
+        )
+        sentinel_stat = os.fstat(sentinel_fd)
     except OSError as exc:
+        _close_fd(sentinel_fd)
+        _close_fd(root_fd)
         raise RealTargetResolverError("controlled_root_unavailable") from exc
+    finally:
+        _close_fd(sentinel_fd)
     anchor = Path(resolved.anchor) if resolved.anchor else None
     if (
         PureWindowsPath(str(candidate)).drive.startswith("\\\\")
         or anchor is None
         or resolved == anchor
         or not stat.S_ISDIR(root_lstat.st_mode)
+        or not stat.S_ISDIR(opened_root_stat.st_mode)
         or candidate.is_symlink()
         or _is_reparse_point(root_lstat)
+        or _is_reparse_point(opened_root_stat)
         or not stat.S_ISREG(sentinel_stat.st_mode)
-        or sentinel.is_symlink()
         or _is_reparse_point(sentinel_stat)
         or sentinel_stat.st_size != 0
-        or descriptor.root_identity_digest != _controlled_root_identity_digest(resolved)
+        or descriptor.root_identity_digest
+        != _root_identity_digest_from_stat(opened_root_stat)
         or descriptor.resolver_policy_digest != policy.canonical_digest
         or policy.allowed_root_digest != descriptor.root_identity_digest
     ):
+        _close_fd(root_fd)
         raise RealTargetResolverError("controlled_root_invalid")
     if not isinstance(target_bindings, dict) or not all(
         is_digest(key) and isinstance(value, str)
         for key, value in target_bindings.items()
     ):
+        _close_fd(root_fd)
         raise RealTargetResolverError("controlled_target_bindings_invalid")
     return _ControlledRootCapability(
         resolved,
+        root_fd,
+        _root_identity_digest_from_stat(opened_root_stat),
         descriptor.canonical_digest,
         policy.canonical_digest,
         target_bindings,
@@ -458,30 +729,25 @@ class RealTargetResolver:
             raise RealTargetResolverError("target_reference_binding_invalid")
         binding = self._capability.target_bindings[reference.relative_target_digest]
         parts = _validate_relative_binding(binding)
-        root = self._capability.root_path
-        candidate = root.joinpath(*parts)
+        pinned_file_fd = -1
         try:
-            current = root
-            for part in parts:
-                current = current / part
-                current_stat = current.lstat()
-                if current.is_symlink() or _is_reparse_point(current_stat):
-                    raise RealTargetResolverError("link_or_reparse_target_rejected")
-            target_stat = candidate.lstat()
-            resolved = candidate.resolve(strict=True)
+            pinned_file_fd, component_metadata = _open_component_chain(
+                self._capability, parts
+            )
+            target_stat = os.fstat(pinned_file_fd)
         except RealTargetResolverError:
             raise
         except OSError as exc:
+            _close_fd(pinned_file_fd)
             raise RealTargetResolverError("target_unavailable") from exc
-        try:
-            resolved.relative_to(root)
-        except ValueError as exc:
-            raise RealTargetResolverError("root_escape_rejected") from exc
         if not stat.S_ISREG(target_stat.st_mode):
+            _close_fd(pinned_file_fd)
             raise RealTargetResolverError("regular_file_required")
-        if resolved.suffix.lower() not in self.policy.allowed_file_types:
+        if Path(parts[-1]).suffix.lower() not in self.policy.allowed_file_types:
+            _close_fd(pinned_file_fd)
             raise RealTargetResolverError("file_type_rejected")
         if target_stat.st_size > _SMALL_DOCUMENT_MAX_BYTES:
+            _close_fd(pinned_file_fd)
             raise RealTargetResolverError("file_size_rejected")
         pre_identity = _snapshot_from_stat(
             target_reference_digest=reference.canonical_digest,
@@ -490,17 +756,21 @@ class RealTargetResolver:
             observed_at=observed_at,
         )
         handle = _ResolvedTargetHandle(
-            path=resolved,
-            root_path=root,
             target_reference_digest=reference.canonical_digest,
             pre_identity=pre_identity,
             capability_token=self._capability.token,
+            relative_components=parts,
+            component_metadata_digests=component_metadata,
+            pinned_file_fd=pinned_file_fd,
         )
         resolved_target = ResolvedTarget(
             reference.canonical_digest,
             self.descriptor.canonical_digest,
             pre_identity,
         )
+        previous = self._issued_handles.get(resolved_target.canonical_digest)
+        if previous is not None:
+            _close_fd(previous.pinned_file_fd)
         self._issued_handles[resolved_target.canonical_digest] = handle
         return resolved_target
 
@@ -518,9 +788,85 @@ class RealTargetResolver:
         if (
             not isinstance(handle, _ResolvedTargetHandle)
             or handle.capability_token is not self._capability.token
-            or handle.root_path != self._capability.root_path
+            or self._capability.closed
+            or not handle.relative_components
+            or handle.pinned_file_fd < 0
         ):
             raise RealTargetResolverError("resolved_handle_invalid")
+        try:
+            pinned_stat = os.fstat(handle.pinned_file_fd)
+        except OSError as exc:
+            raise RealTargetResolverError("resolved_handle_invalid") from exc
+        if (
+            not stat.S_ISREG(pinned_stat.st_mode)
+            or _is_reparse_point(pinned_stat)
+            or _metadata_digest(pinned_stat) != handle.pre_identity.metadata_digest
+        ):
+            raise RealTargetResolverError("resolved_handle_identity_invalid")
+
+    def _acquire_read_descriptor(self, resolved: ResolvedTarget) -> int:
+        handle = self._handle_for(resolved)
+        candidate_fd = -1
+        try:
+            candidate_fd, component_metadata = _open_component_chain(
+                self._capability,
+                handle.relative_components,
+                expected_metadata_digests=handle.component_metadata_digests,
+            )
+            candidate_stat = os.fstat(candidate_fd)
+            pinned_stat = os.fstat(handle.pinned_file_fd)
+            if (
+                component_metadata != handle.component_metadata_digests
+                or _metadata_digest(candidate_stat)
+                != handle.pre_identity.metadata_digest
+                or _metadata_digest(pinned_stat)
+                != handle.pre_identity.metadata_digest
+                or not stat.S_ISREG(candidate_stat.st_mode)
+                or _is_reparse_point(candidate_stat)
+            ):
+                raise RealTargetResolverError("target_binding_changed_before_read")
+            return candidate_fd
+        except (OSError, RealTargetResolverError):
+            _close_fd(candidate_fd)
+            raise
+
+    def _post_read_binding_valid(
+        self, resolved: ResolvedTarget, opened_file_fd: int
+    ) -> bool:
+        try:
+            handle = self._handle_for(resolved)
+            opened_stat = os.fstat(opened_file_fd)
+            rebound_fd, component_metadata = _open_component_chain(
+                self._capability,
+                handle.relative_components,
+                expected_metadata_digests=handle.component_metadata_digests,
+            )
+            try:
+                rebound_stat = os.fstat(rebound_fd)
+                return (
+                    component_metadata == handle.component_metadata_digests
+                    and _metadata_digest(opened_stat)
+                    == handle.pre_identity.metadata_digest
+                    and _metadata_digest(rebound_stat)
+                    == handle.pre_identity.metadata_digest
+                )
+            finally:
+                _close_fd(rebound_fd)
+        except (OSError, RealTargetResolverError):
+            return False
+
+    def _release_resolved(self, resolved: ResolvedTarget) -> None:
+        handle = self._issued_handles.pop(resolved.canonical_digest, None)
+        if handle is not None:
+            _close_fd(handle.pinned_file_fd)
+            handle.pinned_file_fd = -1
+
+    def __del__(self) -> None:
+        handles = getattr(self, "_issued_handles", {})
+        for handle in handles.values():
+            _close_fd(handle.pinned_file_fd)
+            handle.pinned_file_fd = -1
+        handles.clear()
 
 
 __all__ = [

@@ -5,10 +5,13 @@
 v0.27 replaces the v0.26 protocol-only future hook with a controlled synthetic-filesystem
 execution boundary, not a production or arbitrary-path reader. Public objects contain only root,
 reference, policy, identity, evidence, and receipt digests. A private capability confines exactly
-one opaque reference under one marked test root. Component-wise `lstat`, canonical root checks,
-regular-file/type/size gates, and link/reparse denial run before open.
+one opaque reference under one marked test root. The capability pins the root directory handle;
+resolution opens each relative component with no-follow, directory/regular-file constraints and
+pins the final file handle. The adapter receives that authority rather than reopening a path.
 
-The adapter opens only a resolver-issued handle. Pre-open, opened-target, and post-read snapshots
+The adapter reads only a resolver-issued file descriptor. Before raw bytes, the resolver walks the
+relative component chain again from the pinned root handle and compares each component identity.
+Pre-open, opened-target, and post-read snapshots
 must agree on target metadata, size class, and content identity. Stable identity, v0.26
 classification, and masking all precede a single atomic receipt/exhaustion/usage/replay/pending-
 closure swap. Failure and faults leave state retryable. Closure is explicit and metadata-only;

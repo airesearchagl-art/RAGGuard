@@ -8,6 +8,7 @@ from ragguard.one_shot_trial import (
     OneShotTrialLedgerFault,
     OneShotTrialReason,
     TestOnlyOneShotTrialLedger,
+    _install_controlled_filesystem_test_hook,
 )
 from ragguard.real_data_access_authorization import (
     RealDataAccessAuthorizationLifecycle,
@@ -15,6 +16,9 @@ from ragguard.real_data_access_authorization import (
 from ragguard.storage_adapter import digest
 from test_local_rag_execution_session_contract import NOW
 from test_one_shot_trial_execution import one_shot_call
+
+
+OUTSIDE_SYNTHETIC_PAYLOAD = "synthetic outside-root payload must never be read"
 
 
 def deny(ledger, call, expected_reason):
@@ -31,6 +35,34 @@ def deny(ledger, call, expected_reason):
     assert ledger.pending_closure_receipt_digests == frozenset()
     assert (ledger.write_count, ledger.mutation_count, ledger.event_count) == (0, 0, 0)
     assert result.side_effects.external_all_zero
+    return result
+
+
+def assert_parent_race_denied(ledger, call):
+    before = ledger.replay_snapshot
+    result = ledger.execute(**call)
+    assert not result.applied
+    assert any(
+        reason in result.reasons
+        for reason in (
+            OneShotTrialReason.IDENTITY_CHANGED,
+            OneShotTrialReason.OPEN_FAILED,
+        )
+    )
+    assert result.execution_result.raw_content_digest != digest(
+        OUTSIDE_SYNTHETIC_PAYLOAD
+    )
+    assert result.side_effects.controlled_adapter_read_count == 0
+    assert result.side_effects.actual_arbitrary_file_open_count == 0
+    assert result.side_effects.actual_arbitrary_file_read_count == 0
+    assert result.side_effects.local_rag_material_access_count == 0
+    assert result.side_effects.restricted_material_access_count == 0
+    assert result.usage_before.remaining_read_count == 1
+    assert result.usage_after is None
+    assert result.receipt is None
+    assert ledger.replay_snapshot == before == (frozenset(),) * 9
+    assert ledger.receipts == ()
+    assert ledger.pending_closure_receipt_digests == frozenset()
     return result
 
 
@@ -187,3 +219,110 @@ def test_closure_operator_binding_is_exact_and_failed_closed(tmp_path):
     assert not closed.applied
     assert closed.reasons == (OneShotTrialReason.CLOSURE_INVALID,)
     assert ledger.closures == ()
+
+
+def test_safe_resolve_then_parent_symlink_swap_never_reads_outside_payload(
+    tmp_path,
+):
+    ledger, call, root = one_shot_call(
+        tmp_path, relative_name="safe-parent/synthetic-fixture.txt"
+    )
+    outside = tmp_path / "outside-synthetic-parent"
+    outside.mkdir()
+    (outside / "synthetic-fixture.txt").write_text(
+        OUTSIDE_SYNTHETIC_PAYLOAD, encoding="utf-8"
+    )
+
+    def swap_parent_to_symlink():
+        assert call["resolver"]._issued_handles
+        safe_parent = root / "safe-parent"
+        safe_parent.rename(tmp_path / "pinned-safe-parent")
+        try:
+            safe_parent.symlink_to(outside, target_is_directory=True)
+        except OSError:
+            pytest.skip("controlled fixture directory symlink is unavailable")
+
+    _install_controlled_filesystem_test_hook(call["adapter"], swap_parent_to_symlink)
+    assert_parent_race_denied(ledger, call)
+
+
+def test_safe_resolve_then_parent_directory_rename_swap_is_rejected_before_read(
+    tmp_path,
+):
+    ledger, call, root = one_shot_call(
+        tmp_path, relative_name="safe-parent/synthetic-fixture.txt"
+    )
+    replacement = tmp_path / "replacement-parent"
+    replacement.mkdir()
+    (replacement / "synthetic-fixture.txt").write_text(
+        OUTSIDE_SYNTHETIC_PAYLOAD, encoding="utf-8"
+    )
+
+    def rename_swap_parent():
+        (root / "safe-parent").rename(tmp_path / "pinned-original-parent")
+        replacement.rename(root / "safe-parent")
+
+    _install_controlled_filesystem_test_hook(call["adapter"], rename_swap_parent)
+    assert_parent_race_denied(ledger, call)
+
+
+def test_nested_parent_component_swap_is_rejected_before_raw_read(tmp_path):
+    ledger, call, root = one_shot_call(
+        tmp_path,
+        relative_name="outer-parent/inner-parent/synthetic-fixture.txt",
+    )
+    replacement = tmp_path / "replacement-inner-parent"
+    replacement.mkdir()
+    (replacement / "synthetic-fixture.txt").write_text(
+        OUTSIDE_SYNTHETIC_PAYLOAD, encoding="utf-8"
+    )
+
+    def swap_nested_parent():
+        original = root / "outer-parent" / "inner-parent"
+        original.rename(tmp_path / "pinned-original-inner-parent")
+        replacement.rename(root / "outer-parent" / "inner-parent")
+
+    _install_controlled_filesystem_test_hook(call["adapter"], swap_nested_parent)
+    assert_parent_race_denied(ledger, call)
+
+
+def test_final_component_symlink_swap_is_rejected_before_raw_read(tmp_path):
+    ledger, call, root = one_shot_call(
+        tmp_path, relative_name="safe-parent/synthetic-fixture.txt"
+    )
+    outside = tmp_path / "outside-final-synthetic.txt"
+    outside.write_text(OUTSIDE_SYNTHETIC_PAYLOAD, encoding="utf-8")
+
+    def swap_final_to_symlink():
+        target = root / "safe-parent" / "synthetic-fixture.txt"
+        target.rename(tmp_path / "pinned-original-final.txt")
+        try:
+            target.symlink_to(outside)
+        except OSError:
+            pytest.skip("controlled fixture file symlink is unavailable")
+
+    _install_controlled_filesystem_test_hook(call["adapter"], swap_final_to_symlink)
+    assert_parent_race_denied(ledger, call)
+
+
+def test_resolver_safe_open_unsafe_root_escape_race_fails_closed(tmp_path):
+    ledger, call, root = one_shot_call(
+        tmp_path,
+        relative_name="race-parent/nested/synthetic-fixture.txt",
+    )
+    outside = tmp_path / "outside-race-tree"
+    (outside / "nested").mkdir(parents=True)
+    (outside / "nested" / "synthetic-fixture.txt").write_text(
+        OUTSIDE_SYNTHETIC_PAYLOAD, encoding="utf-8"
+    )
+
+    def introduce_reparse_race():
+        parent = root / "race-parent"
+        parent.rename(tmp_path / "pinned-race-parent")
+        try:
+            parent.symlink_to(outside, target_is_directory=True)
+        except OSError:
+            pytest.skip("controlled fixture reparse simulation is unavailable")
+
+    _install_controlled_filesystem_test_hook(call["adapter"], introduce_reparse_race)
+    assert_parent_race_denied(ledger, call)

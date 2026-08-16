@@ -28,14 +28,18 @@ fixed true.
 
 `ControlledTargetReference` contains an opaque relative-target digest rather than user path text.
 Only a private synthetic-fixture capability maps that digest to a relative component sequence.
-The public adapter accepts no path, filename, directory, glob, scanner, or recursive-walk input.
+It also owns the pinned root directory handle. The public adapter accepts no path, filename,
+directory, glob, scanner, or recursive-walk input.
 
 ## Resolver and pre-open gate
 
-`RealTargetResolver` validates the marked controlled root, resolves each mapped component with
-`lstat`, rejects links/reparse points, canonicalizes the final target, proves root ancestry, and
-requires a regular allowlisted small file. Invalid `..`, drive-qualified, absolute, UNC, device,
-alternate-stream, wildcard, and empty components are rejected without target access.
+`RealTargetResolver` validates the marked controlled root and creates the root handle capability.
+On POSIX, every component is opened relative to the preceding directory descriptor with
+`O_NOFOLLOW`; intermediate components must be directories and the final component must be a
+regular file. On Windows, native relative handle opens use the pinned root/directory handle,
+`OBJ_DONT_REPARSE`, and `FILE_OPEN_REPARSE_POINT`, followed by file-attribute and identity checks.
+No component is rediscovered from an absolute path. Invalid `..`, drive-qualified, absolute, UNC,
+device, alternate-stream, wildcard, and empty components are rejected without target access.
 
 The resolver creates a metadata-only `FileIdentitySnapshot`. `PreOpenVerification` then
 revalidates the complete v0.25/v0.26 source chain, operator exact binding, one remaining read,
@@ -44,11 +48,13 @@ identity. Failure consumes no usage and commits nothing.
 
 ## Controlled open and TOCTOU verification
 
-`ControlledFilesystemReadAdapter` accepts only a resolver-issued internal handle. It performs one
-bounded read of one controlled synthetic file. Opened-target identity comes from the open file
-descriptor; post-read identity comes from the same confined target. Pre/open/post metadata,
-content identity, and size class must agree. Replacement, rename/swap, content or metadata
-mutation, and link/reparse swap evidence fail closed.
+`ControlledFilesystemReadAdapter` accepts only a resolver-issued internal authority and never
+calls `open` with a stored path. The resolver pins the safe final descriptor during resolution,
+then reacquires the component chain from the root handle before read and compares each directory
+and file identity. A parent mismatch stops before the final component and raw payload read.
+Opened-target and post-read identity use `fstat` on the confined descriptor. Pre/open/post
+metadata, content identity, and size class must agree. Replacement, rename/swap, content or
+metadata mutation, and link/reparse swap evidence fail closed.
 
 `OneShotTrialExecutionResult` and `IdentityChainEvidence` retain digests and timestamps, never raw
 document text. The v0.26 `PostReadClassificationResult` and `PostReadMaskingVerification` remain

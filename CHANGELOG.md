@@ -8,6 +8,8 @@
   snapshots, one-shot request/result/receipt, closure, and post-read evidence contracts.
 - Capability-bound resolver and filesystem adapter for controlled synthetic fixtures only.
 - Root confinement, regular-file/type/size validation, and symlink/junction/reparse denial.
+- Root-directory and pinned-file handle authority with component-by-component no-follow opens;
+  the read adapter performs no path-based reopen.
 - Pre/open/post identity comparison and fail-closed TOCTOU fault coverage.
 - Test-only atomic ledger with nine successful-only replay identities and pending closure state.
 

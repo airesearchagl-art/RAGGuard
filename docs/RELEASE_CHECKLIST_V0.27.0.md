@@ -12,16 +12,20 @@
 - [ ] Root descriptor and target reference expose digest-only metadata.
 - [ ] Policy denies symlink, junction, reparse, traversal, and absolute user input.
 - [ ] Drive/UNC/device, alternate stream, wildcard, root escape, directory, wrong type, and
-  oversized targets fail before open.
+  oversized targets fail before any raw payload read.
 - [ ] No public arbitrary-path reader, unrestricted open, directory scanner, real-material root
   connector, credential loader, persistent writer, or runtime activator exists.
+- [ ] The private root capability owns a directory handle and resolution opens relative components
+  with no-follow semantics; the adapter performs no raw-path reopen.
 - [ ] Authorization, operator, one remaining read, selector, root, file class, and pre-identity
-  are revalidated before open.
+  are revalidated before the controlled read.
 
 ## TOCTOU, verification, usage, and closure
 
 - [ ] Pre-open, opened-target, and post-read identity snapshots agree on stable success.
 - [ ] Replacement/swap, content/metadata mutation, and link/reparse swap fail closed.
+- [ ] Parent, nested-parent, and final-component swaps cannot expose outside-root raw payload and
+  fail without usage/replay/receipt consumption.
 - [ ] v0.26 classification and masking remain distinct object-backed checks.
 - [ ] Raw and transformed digests differ; raw/transformed document text is not retained.
 - [ ] Only successful verified read consumes usage exactly once from one to zero.

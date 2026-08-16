@@ -39,13 +39,19 @@ from test_real_data_read_execution_contract import (
 )
 
 
-def one_shot_call(tmp_path: Path, **execute_overrides):
+def one_shot_call(
+    tmp_path: Path,
+    *,
+    relative_name: str = "synthetic-fixture.txt",
+    **execute_overrides,
+):
     _, _, v026_call, _ = read_execution_chain(execute=False)
     root = tmp_path / "ragguard-v027-controlled-root"
     root.mkdir()
     (root / ".ragguard-v027-controlled-root").touch()
-    relative_name = "synthetic-fixture.txt"
-    (root / relative_name).write_text(CONTROLLED_FIXTURE, encoding="utf-8")
+    fixture_path = root.joinpath(*relative_name.split("/"))
+    fixture_path.parent.mkdir(parents=True, exist_ok=True)
+    fixture_path.write_text(CONTROLLED_FIXTURE, encoding="utf-8")
     root_identity = _controlled_root_identity_digest(root)
     policy = RealTargetResolverPolicy(
         root_identity,

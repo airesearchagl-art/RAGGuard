@@ -427,6 +427,7 @@ class ControlledFilesystemReadAdapter:
         "blocked_class_digest",
         "canonical_digest",
         "_transformed_payload",
+        "_before_read_test_hook",
     )
 
     def __init__(
@@ -464,6 +465,7 @@ class ControlledFilesystemReadAdapter:
         self.sensitive_class_digest = sensitive_class_digest
         self.masked_class_digest = masked_class_digest
         self.blocked_class_digest = blocked_class_digest
+        self._before_read_test_hook = None
         self.canonical_digest = digest(self.canonical_json())
 
     def __repr__(self) -> str:
@@ -501,6 +503,7 @@ class ControlledFilesystemReadAdapter:
             or finished_at < started_at
             or not isinstance(fault, ControlledFilesystemReadFault)
         ):
+            self.resolver._release_resolved(resolved)
             raise OneShotTrialError("controlled_filesystem_execution_invalid")
         pre = resolved.pre_identity
         unavailable_digest = digest("controlled-target-identity-unavailable")
@@ -529,7 +532,7 @@ class ControlledFilesystemReadAdapter:
                 OneShotTrialExecutionResultState.OPEN_FAILED,
                 unavailable_digest,
             )
-            return _FilesystemReadOutcome(
+            outcome = _FilesystemReadOutcome(
                 result,
                 missing,
                 missing,
@@ -541,12 +544,16 @@ class ControlledFilesystemReadAdapter:
                 self.blocked_class_digest,
                 RealDataReadSideEffectAccounting(),
             )
+            self.resolver._release_resolved(resolved)
+            return outcome
 
         descriptor: int | None = None
         try:
-            flags = os.O_RDONLY | getattr(os, "O_BINARY", 0)
-            flags |= getattr(os, "O_NOFOLLOW", 0)
-            descriptor = os.open(handle.path, flags)
+            before_read_hook = self._before_read_test_hook
+            self._before_read_test_hook = None
+            if before_read_hook is not None:
+                before_read_hook()
+            descriptor = self.resolver._acquire_read_descriptor(resolved)
             opened_stat = os.fstat(descriptor)
             if not stat.S_ISREG(opened_stat.st_mode) or _is_reparse_point(opened_stat):
                 raise OSError("controlled_target_not_regular")
@@ -629,7 +636,10 @@ class ControlledFilesystemReadAdapter:
                 content_identity_digest=raw_digest,
                 observed_at=started_at,
             )
-            post_stat = handle.path.lstat()
+            post_stat = os.fstat(descriptor)
+            binding_stable = self.resolver._post_read_binding_valid(
+                resolved, descriptor
+            )
             post = _snapshot_from_stat(
                 target_reference_digest=handle.target_reference_digest,
                 file_stat=post_stat,
@@ -639,7 +649,7 @@ class ControlledFilesystemReadAdapter:
             if fault in (
                 ControlledFilesystemReadFault.POST_IDENTITY_CHANGED,
                 ControlledFilesystemReadFault.SYMLINK_SWAPPED,
-            ):
+            ) or not binding_stable:
                 changed = digest("injected-post-identity-change")
                 post = FileIdentitySnapshot(
                     handle.target_reference_digest,
@@ -684,6 +694,32 @@ class ControlledFilesystemReadAdapter:
                     controlled_adapter_read_count=controlled_count
                 ),
             )
+        except RealTargetResolverError:
+            missing = unavailable_snapshot(finished_at)
+            result = OneShotTrialExecutionResult(
+                request.canonical_digest,
+                handle.target_reference_digest,
+                pre.canonical_digest,
+                missing.canonical_digest,
+                missing.canonical_digest,
+                request.operator_id,
+                started_at,
+                finished_at,
+                OneShotTrialExecutionResultState.IDENTITY_CHANGED,
+                unavailable_digest,
+            )
+            return _FilesystemReadOutcome(
+                result,
+                missing,
+                missing,
+                None,
+                None,
+                self.observed_classification_digest,
+                self.sensitive_class_digest,
+                self.masked_class_digest,
+                self.blocked_class_digest,
+                RealDataReadSideEffectAccounting(),
+            )
         except OSError:
             missing = unavailable_snapshot(finished_at)
             result = OneShotTrialExecutionResult(
@@ -713,6 +749,17 @@ class ControlledFilesystemReadAdapter:
         finally:
             if descriptor is not None:
                 os.close(descriptor)
+            self.resolver._release_resolved(resolved)
+
+
+def _install_controlled_filesystem_test_hook(
+    adapter: ControlledFilesystemReadAdapter,
+    hook,
+) -> None:
+    """Private adversarial-test hook; absent from the package public API."""
+    if not isinstance(adapter, ControlledFilesystemReadAdapter) or not callable(hook):
+        raise OneShotTrialError("controlled_filesystem_test_hook_invalid")
+    adapter._before_read_test_hook = hook
 
 
 @dataclass(frozen=True)
