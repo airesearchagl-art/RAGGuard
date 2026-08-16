@@ -42,6 +42,7 @@ from ragguard.real_trial_root import (
     RootConfinementVerificationResult,
     RootProvisioningAttestation,
     WriteProhibitionVerificationResult,
+    fixed_real_trial_closure_policy_digest,
     validate_real_trial_root_chain,
 )
 from ragguard.storage_adapter import (
@@ -111,14 +112,22 @@ class RealTrialApprovalRegistryReason(str, Enum):
 
 
 class OneShotTrialApprovalReadinessState(str, Enum):
-    NOT_APPROVED = "not_approved"
+    INELIGIBLE = "ineligible"
+    NEEDS_ROOT_ATTESTATION = "needs_root_attestation"
+    NEEDS_SECURITY_REVIEW = "needs_security_review"
+    NEEDS_GOVERNANCE_REVIEW = "needs_governance_review"
+    NEEDS_EXECUTION_APPROVAL = "needs_execution_approval"
     EXPIRED = "expired"
     REVOKED = "revoked"
     SUPERSEDED = "superseded"
     EXECUTION_PENDING = "execution_pending"
     CLOSED = "closed"
+    ELIGIBLE_FOR_EXPLICIT_ONE_SHOT_REAL_DATA_EXECUTION = (
+        "eligible_for_explicit_one_shot_real_data_execution"
+    )
+    NOT_APPROVED = "ineligible"
     ELIGIBLE_FOR_EXPLICIT_ONE_SHOT_EXECUTION_REVIEW = (
-        "eligible_for_explicit_one_shot_execution_review"
+        "eligible_for_explicit_one_shot_real_data_execution"
     )
 
 
@@ -215,14 +224,15 @@ class RealTrialApprovalSourceContext(_Canonical):
 class RealTrialApprovalRequest(_Canonical):
     approval_request_id: str
     purpose_digest: str
+    root_identity_digest: str
     root_provisioning_request_digest: str
     root_attestation_digest: str
     target_selection_digest: str
-    access_authorization_record_digest: str
+    v0_25_authorization_record_digest: str
     access_approval_digest: str
     approved_trial_record_digest: str
     root_descriptor_digest: str
-    resolver_policy_digest: str
+    v0_27_reader_policy_digest: str
     controlled_target_reference_digest: str
     closure_requirement_digest: str
     requester_id: str
@@ -252,12 +262,21 @@ class RealTrialApprovalRequest(_Canonical):
     def canonical_json(self) -> str:
         return canonical_json(_payload(self))
 
+    @property
+    def access_authorization_record_digest(self) -> str:
+        return self.v0_25_authorization_record_digest
+
+    @property
+    def resolver_policy_digest(self) -> str:
+        return self.v0_27_reader_policy_digest
+
 
 @dataclass(frozen=True, repr=False)
 class TrialSecurityReview(_Canonical):
     review_id: str
     approval_request_digest: str
     root_attestation_digest: str
+    target_selection_digest: str
     resolver_policy_digest: str
     reviewer_id: str
     reviewed_at: datetime
@@ -269,6 +288,7 @@ class TrialSecurityReview(_Canonical):
             not is_identifier(self.review_id)
             or not is_digest(self.approval_request_digest)
             or not is_digest(self.root_attestation_digest)
+            or not is_digest(self.target_selection_digest)
             or not is_digest(self.resolver_policy_digest)
             or not is_identifier(self.reviewer_id)
             or not _is_utc(self.reviewed_at)
@@ -289,6 +309,10 @@ class TrialDataGovernanceReview(_Canonical):
     purpose_digest: str
     target_selection_digest: str
     closure_requirement_digest: str
+    classification_digest: str
+    retention_policy_digest: str
+    logging_policy_digest: str
+    persistence_policy_digest: str
     reviewer_id: str
     reviewed_at: datetime
     result: TrialAuthorizationReviewResult
@@ -301,6 +325,10 @@ class TrialDataGovernanceReview(_Canonical):
             or not is_digest(self.purpose_digest)
             or not is_digest(self.target_selection_digest)
             or not is_digest(self.closure_requirement_digest)
+            or not is_digest(self.classification_digest)
+            or not is_digest(self.retention_policy_digest)
+            or not is_digest(self.logging_policy_digest)
+            or not is_digest(self.persistence_policy_digest)
             or not is_identifier(self.reviewer_id)
             or not _is_utc(self.reviewed_at)
             or not isinstance(self.result, TrialAuthorizationReviewResult)
@@ -367,8 +395,8 @@ class ApprovedOneShotRealDataTrial(_Canonical):
     resolver_policy_digest: str
     controlled_target_reference_digest: str
     operator_id: str
-    approval_generation: int
-    predecessor_approval_digest: str | None
+    generation: int
+    predecessor_trial_digest: str | None
     approved_at: datetime
     expires_at: datetime
     lifecycle_changed_at: datetime
@@ -391,12 +419,12 @@ class ApprovedOneShotRealDataTrial(_Canonical):
             or not is_identifier(self.approved_trial_id)
             or not all(is_digest(item) for item in digest_values)
             or (
-                self.predecessor_approval_digest is not None
-                and not is_digest(self.predecessor_approval_digest)
+                self.predecessor_trial_digest is not None
+                and not is_digest(self.predecessor_trial_digest)
             )
             or not is_identifier(self.operator_id)
-            or type(self.approval_generation) is not int
-            or self.approval_generation < 1
+            or type(self.generation) is not int
+            or self.generation < 1
             or not _is_utc(self.approved_at)
             or not _is_utc(self.expires_at)
             or not _is_utc(self.lifecycle_changed_at)
@@ -416,6 +444,14 @@ class ApprovedOneShotRealDataTrial(_Canonical):
 
     def canonical_json(self) -> str:
         return canonical_json(_payload(self))
+
+    @property
+    def approval_generation(self) -> int:
+        return self.generation
+
+    @property
+    def predecessor_approval_digest(self) -> str | None:
+        return self.predecessor_trial_digest
 
     @property
     def actual_read_executed(self) -> bool:
@@ -773,10 +809,17 @@ class TestOnlyRealTrialApprovalRegistry:
             provisioning_request.access_authorization_record_digest
             == access.authorization_record.canonical_digest,
             target_selection.selector_digest == access.selector.canonical_digest,
+            target_selection.expected_classification_digest
+            == access.classification_policy.canonical_digest,
+            purpose.retention_policy_digest
+            == access.access_policy.retention_policy_digest,
+            purpose.closure_policy_digest
+            == fixed_real_trial_closure_policy_digest(),
             closure_requirement.purpose_digest == purpose.canonical_digest,
             closure_requirement.access_authorization_record_digest
             == access.authorization_record.canonical_digest,
             approval_request.purpose_digest == purpose.canonical_digest,
+            approval_request.root_identity_digest == root_identity.canonical_digest,
             approval_request.root_provisioning_request_digest
             == provisioning_request.canonical_digest,
             approval_request.root_attestation_digest
@@ -801,6 +844,8 @@ class TestOnlyRealTrialApprovalRegistry:
             == approval_request.canonical_digest,
             security_review.root_attestation_digest
             == root_attestation.canonical_digest,
+            security_review.target_selection_digest
+            == target_selection.canonical_digest,
             security_review.resolver_policy_digest
             == source_context.resolver_policy.canonical_digest,
             governance_review.approval_request_digest
@@ -810,6 +855,14 @@ class TestOnlyRealTrialApprovalRegistry:
             == target_selection.canonical_digest,
             governance_review.closure_requirement_digest
             == closure_requirement.canonical_digest,
+            governance_review.classification_digest
+            == access.classification_policy.canonical_digest,
+            governance_review.retention_policy_digest
+            == access.access_policy.retention_policy_digest,
+            governance_review.logging_policy_digest
+            == access.access_policy.logging_policy_digest,
+            governance_review.persistence_policy_digest
+            == access.access_policy.persistence_policy_digest,
             execution_approval.approval_request_digest
             == approval_request.canonical_digest,
             execution_approval.security_review_digest
@@ -1105,12 +1158,16 @@ class TestOnlyRealTrialApprovalRegistry:
 @dataclass(frozen=True)
 class OneShotTrialApprovalReadinessDecision:
     state: OneShotTrialApprovalReadinessState
-    eligible_for_explicit_one_shot_execution_review: bool
+    eligible_for_explicit_one_shot_real_data_execution: bool
     actual_read_executed: bool
     real_data_use_authorized: bool
     embedding_authorized: bool
     persistence_authorized: bool
     external_side_effect_count: int
+
+    @property
+    def eligible_for_explicit_one_shot_execution_review(self) -> bool:
+        return self.eligible_for_explicit_one_shot_real_data_execution
 
 
 def evaluate_one_shot_trial_approval_readiness(

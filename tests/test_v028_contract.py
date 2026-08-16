@@ -36,6 +36,48 @@ def test_v028_public_exports_are_available_without_shadowing_v024_reviews():
     )
 
 
+def test_v028_minimum_public_metadata_fields_are_digest_bound():
+    expected = {
+        ragguard.RealTrialPurpose: {
+            "purpose_id", "purpose_class", "allowed_processing_stage",
+            "expected_outcome_digest", "retention_policy_digest",
+            "closure_policy_digest", "canonical_digest",
+        },
+        ragguard.RealTrialRootProvisioningRequest: {
+            "provisioning_request_id", "approved_trial_record_digest",
+            "access_authorization_record_digest", "purpose_digest",
+            "requested_root_class", "requested_document_class", "operator_id",
+            "requested_at", "expires_at", "canonical_digest",
+        },
+        ragguard.RealTrialRootIdentity: {
+            "root_identity_id", "root_class", "root_identity_digest",
+            "root_policy_digest", "provisioning_request_digest", "provisioned_at",
+            "expires_at", "canonical_digest",
+        },
+        ragguard.RealTrialTargetSelection: {
+            "target_selection_id", "root_identity_digest", "approved_selector_digest",
+            "document_class", "target_identity_digest",
+            "expected_classification_digest", "max_documents", "canonical_digest",
+        },
+        ragguard.RealTrialApprovalRequest: {
+            "approval_request_id", "purpose_digest", "root_identity_digest",
+            "root_attestation_digest", "target_selection_digest",
+            "v0_25_authorization_record_digest", "v0_27_reader_policy_digest",
+            "operator_id", "requested_at", "expires_at", "canonical_digest",
+        },
+        ragguard.ApprovedOneShotRealDataTrial: {
+            "approved_trial_id", "approval_request_digest", "purpose_digest",
+            "root_identity_digest", "root_attestation_digest",
+            "target_selection_digest", "access_authorization_record_digest",
+            "operator_id", "security_review_digest", "governance_review_digest",
+            "execution_approval_digest", "generation", "predecessor_trial_digest",
+            "approved_at", "expires_at", "canonical_digest",
+        },
+    }
+    for contract, required in expected.items():
+        assert required <= {item.name for item in fields(contract)}
+
+
 def test_approved_to_execution_pending_to_closed_lifecycle_is_immutable():
     registry, approved, call = approval_chain()
     pending = registry.transition(
@@ -171,8 +213,8 @@ def test_record_canonical_digest_contains_every_root_and_approval_binding():
         "resolver_policy_digest",
         "controlled_target_reference_digest",
         "operator_id",
-        "approval_generation",
-        "predecessor_approval_digest",
+        "generation",
+        "predecessor_trial_digest",
     }
     assert required <= record_fields
     assert result.record.canonical_digest

@@ -9,7 +9,7 @@
 - Test-only atomic approval registry with generation, predecessor, lifecycle, and replay gates.
 - Execution-review eligibility without an actual file open/read or real-material access.
 
-Authoritative design: [v0.28 Explicit One-Shot Real-Data Trial Approval Boundary](docs/ONE_SHOT_REAL_DATA_TRIAL_APPROVAL_BOUNDARY_DESIGN_V0.28.md).
+Authoritative design: [v0.28 Explicit One-Shot Real-Data Trial Approval Boundary](docs/ONE_SHOT_REAL_DATA_TRIAL_APPROVAL_DESIGN_V0.28.md).
 
 ## Delivery candidate: v0.27 explicit one-shot real-data trial execution boundary
 

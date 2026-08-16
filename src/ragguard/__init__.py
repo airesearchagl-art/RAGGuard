@@ -125,7 +125,8 @@ from ragguard.real_trial_root import (
     RealTrialTargetSelection, RootConfinementVerificationResult,
     RootProvisioningAttestation, RootProvisioningAttestationState,
     RootProvisioningVerificationState, WriteProhibitionVerificationResult,
-    fixed_real_trial_policy_summary, validate_real_trial_root_chain,
+    fixed_real_trial_closure_policy_digest, fixed_real_trial_policy_summary,
+    root_verification_suite_digest, validate_real_trial_root_chain,
 )
 from ragguard.real_trial_approval import (
     MAX_ONE_SHOT_TRIAL_APPROVAL_AGE, ApprovedOneShotRealDataTrial,
@@ -528,7 +529,8 @@ __all__ = [
     "RealTrialTargetSelection", "RootConfinementVerificationResult",
     "RootProvisioningAttestation", "RootProvisioningAttestationState",
     "RootProvisioningVerificationState", "WriteProhibitionVerificationResult",
-    "fixed_real_trial_policy_summary", "validate_real_trial_root_chain",
+    "fixed_real_trial_closure_policy_digest", "fixed_real_trial_policy_summary",
+    "root_verification_suite_digest", "validate_real_trial_root_chain",
     "MAX_ONE_SHOT_TRIAL_APPROVAL_AGE", "ApprovedOneShotRealDataTrial",
     "ApprovedOneShotRealDataTrialLifecycle", "ApprovedOneShotRealDataTrialState",
     "OneShotTrialApprovalReadinessDecision", "OneShotTrialApprovalReadinessState",

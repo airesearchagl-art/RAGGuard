@@ -90,10 +90,10 @@ def _payload(value: object) -> dict[str, object]:
 class RealTrialPurpose(_Canonical):
     purpose_id: str
     purpose_class: RealTrialPurposeClass
-    maximum_stage: RAGStage
+    allowed_processing_stage: RAGStage
     expected_outcome_digest: str
-    retention_class: RealDataAccessRetentionClass
-    closure_required: bool
+    retention_policy_digest: str
+    closure_policy_digest: str
     created_at: datetime
 
     def __post_init__(self) -> None:
@@ -101,10 +101,19 @@ class RealTrialPurpose(_Canonical):
             not is_identifier(self.purpose_id)
             or self.purpose_class
             is not RealTrialPurposeClass.LOCAL_RAG_CONFIDENTIALITY_TRIAL
-            or self.maximum_stage is not RAGStage.CHUNKING
-            or not is_digest(self.expected_outcome_digest)
-            or self.retention_class is not RealDataAccessRetentionClass.NONE
-            or self.closure_required is not True
+            or self.allowed_processing_stage is not RAGStage.CHUNKING
+            or not all(
+                is_digest(item)
+                for item in (
+                    self.expected_outcome_digest,
+                    self.retention_policy_digest,
+                    self.closure_policy_digest,
+                )
+            )
+            or self.retention_policy_digest
+            != digest(canonical_json({"retention_class": "none"}))
+            or self.closure_policy_digest
+            != fixed_real_trial_closure_policy_digest()
             or not _is_utc(self.created_at)
         ):
             raise RealTrialRootError("real_trial_purpose_invalid")
@@ -113,6 +122,18 @@ class RealTrialPurpose(_Canonical):
     def canonical_json(self) -> str:
         return canonical_json(_payload(self))
 
+    @property
+    def maximum_stage(self) -> RAGStage:
+        return self.allowed_processing_stage
+
+    @property
+    def retention_class(self) -> RealDataAccessRetentionClass:
+        return RealDataAccessRetentionClass.NONE
+
+    @property
+    def closure_required(self) -> bool:
+        return True
+
 
 @dataclass(frozen=True, repr=False)
 class RealTrialRootProvisioningRequest(_Canonical):
@@ -120,6 +141,8 @@ class RealTrialRootProvisioningRequest(_Canonical):
     approved_trial_record_digest: str
     access_authorization_record_digest: str
     purpose_digest: str
+    requested_root_class: TrialRootClass
+    requested_document_class: RealDataDocumentClass
     root_descriptor_digest: str
     target_reference_digest: str
     root_provisioner_id: str
@@ -136,6 +159,9 @@ class RealTrialRootProvisioningRequest(_Canonical):
             or not is_identifier(self.root_provisioner_id)
             or not is_identifier(self.operator_id)
             or not all(is_digest(item) for item in digest_values)
+            or self.requested_root_class is not TrialRootClass.CONTROLLED_TRIAL_ROOT
+            or self.requested_document_class
+            is not RealDataDocumentClass.INTERNAL_LOW_DOCUMENT_CANDIDATE
             or self.root_provisioner_id == self.operator_id
             or not _is_utc(self.requested_at)
             or not _is_utc(self.expires_at)
@@ -153,26 +179,37 @@ class RealTrialRootIdentity(_Canonical):
     root_identity_id: str
     provisioning_request_digest: str
     root_class: TrialRootClass
-    opaque_identity_digest: str
-    resolver_policy_digest: str
+    root_identity_digest: str
+    root_policy_digest: str
     provisioned_by: str
     provisioned_at: datetime
+    expires_at: datetime
 
     def __post_init__(self) -> None:
         if (
             not is_identifier(self.root_identity_id)
             or not is_digest(self.provisioning_request_digest)
             or self.root_class is not TrialRootClass.CONTROLLED_TRIAL_ROOT
-            or not is_digest(self.opaque_identity_digest)
-            or not is_digest(self.resolver_policy_digest)
+            or not is_digest(self.root_identity_digest)
+            or not is_digest(self.root_policy_digest)
             or not is_identifier(self.provisioned_by)
             or not _is_utc(self.provisioned_at)
+            or not _is_utc(self.expires_at)
+            or self.expires_at <= self.provisioned_at
         ):
             raise RealTrialRootError("real_trial_root_identity_invalid")
         self._seal(_payload(self))
 
     def canonical_json(self) -> str:
         return canonical_json(_payload(self))
+
+    @property
+    def opaque_identity_digest(self) -> str:
+        return self.root_identity_digest
+
+    @property
+    def resolver_policy_digest(self) -> str:
+        return self.root_policy_digest
 
 
 @dataclass(frozen=True, repr=False)
@@ -181,9 +218,9 @@ class _RootVerificationResult(_Canonical):
     root_identity_digest: str
     provisioning_request_digest: str
     protocol_digest: str
-    observed_evidence_digest: str
-    executor_id: str
-    evaluated_at: datetime
+    observed_state_digest: str
+    executed_at: datetime
+    executed_by: str
     result: RootProvisioningVerificationState
 
     def __post_init__(self) -> None:
@@ -195,11 +232,11 @@ class _RootVerificationResult(_Canonical):
                     self.root_identity_digest,
                     self.provisioning_request_digest,
                     self.protocol_digest,
-                    self.observed_evidence_digest,
+                    self.observed_state_digest,
                 )
             )
-            or not is_identifier(self.executor_id)
-            or not _is_utc(self.evaluated_at)
+            or not is_identifier(self.executed_by)
+            or not _is_utc(self.executed_at)
             or not isinstance(self.result, RootProvisioningVerificationState)
         ):
             raise RealTrialRootError("root_verification_result_invalid")
@@ -210,6 +247,18 @@ class _RootVerificationResult(_Canonical):
 
     def canonical_json(self) -> str:
         return canonical_json(self._canonical_payload())
+
+    @property
+    def observed_evidence_digest(self) -> str:
+        return self.observed_state_digest
+
+    @property
+    def executor_id(self) -> str:
+        return self.executed_by
+
+    @property
+    def evaluated_at(self) -> datetime:
+        return self.executed_at
 
 
 @dataclass(frozen=True, repr=False)
@@ -237,6 +286,26 @@ class NetworkIsolationVerificationResult(_RootVerificationResult):
     pass
 
 
+def root_verification_suite_digest(
+    root_confinement: RootConfinementVerificationResult,
+    link_reparse: LinkReparseVerificationResult,
+    permission: PermissionVerificationResult,
+    write_prohibition: WriteProhibitionVerificationResult,
+    network_isolation: NetworkIsolationVerificationResult,
+) -> str:
+    return digest(
+        canonical_json(
+            {
+                "link_reparse": link_reparse.canonical_digest,
+                "network_isolation": network_isolation.canonical_digest,
+                "permission": permission.canonical_digest,
+                "root_confinement": root_confinement.canonical_digest,
+                "write_prohibition": write_prohibition.canonical_digest,
+            }
+        )
+    )
+
+
 @dataclass(frozen=True, repr=False)
 class RootProvisioningAttestation(_Canonical):
     attestation_id: str
@@ -247,6 +316,7 @@ class RootProvisioningAttestation(_Canonical):
     permission_result_digest: str
     write_prohibition_result_digest: str
     network_isolation_result_digest: str
+    verification_suite_digest: str
     generated_by: str
     generated_at: datetime
     expires_at: datetime
@@ -278,11 +348,12 @@ class RealTrialTargetSelection(_Canonical):
     provisioning_request_digest: str
     root_identity_digest: str
     controlled_target_reference_digest: str
-    selector_digest: str
-    document_identity_digest: str
+    approved_selector_digest: str
+    target_identity_digest: str
+    expected_classification_digest: str
     data_class: RealDataClass
     document_class: RealDataDocumentClass
-    maximum_document_count: int
+    max_documents: int
     operator_id: str
     selected_at: datetime
 
@@ -295,14 +366,15 @@ class RealTrialTargetSelection(_Canonical):
                     self.provisioning_request_digest,
                     self.root_identity_digest,
                     self.controlled_target_reference_digest,
-                    self.selector_digest,
-                    self.document_identity_digest,
+                    self.approved_selector_digest,
+                    self.target_identity_digest,
+                    self.expected_classification_digest,
                 )
             )
             or self.data_class is not RealDataClass.INTERNAL_LOW
             or self.document_class
             is not RealDataDocumentClass.INTERNAL_LOW_DOCUMENT_CANDIDATE
-            or self.maximum_document_count != 1
+            or self.max_documents != 1
             or not is_identifier(self.operator_id)
             or not _is_utc(self.selected_at)
         ):
@@ -311,6 +383,18 @@ class RealTrialTargetSelection(_Canonical):
 
     def canonical_json(self) -> str:
         return canonical_json(_payload(self))
+
+    @property
+    def selector_digest(self) -> str:
+        return self.approved_selector_digest
+
+    @property
+    def document_identity_digest(self) -> str:
+        return self.target_identity_digest
+
+    @property
+    def maximum_document_count(self) -> int:
+        return self.max_documents
 
 
 @dataclass(frozen=True, repr=False)
@@ -324,6 +408,7 @@ class RealTrialClosureRequirement(_Canonical):
     masking_evidence_required: bool
     post_read_evidence_required: bool
     closure_record_required: bool
+    closure_review_required: bool
     downstream_processing_authorized: bool
     embedding_authorized: bool
     persistence_authorized: bool
@@ -338,6 +423,7 @@ class RealTrialClosureRequirement(_Canonical):
             self.masking_evidence_required,
             self.post_read_evidence_required,
             self.closure_record_required,
+            self.closure_review_required,
         )
         prohibited = (
             self.downstream_processing_authorized,
@@ -403,6 +489,10 @@ def validate_real_trial_root_chain(
         reasons.append("forged_root_provisioning_chain")
     exact = (
         provisioning_request.purpose_digest == purpose.canonical_digest,
+        provisioning_request.requested_root_class
+        is TrialRootClass.CONTROLLED_TRIAL_ROOT,
+        provisioning_request.requested_document_class
+        is RealDataDocumentClass.INTERNAL_LOW_DOCUMENT_CANDIDATE,
         provisioning_request.root_descriptor_digest == root_descriptor.canonical_digest,
         provisioning_request.target_reference_digest
         == target_reference.canonical_digest,
@@ -427,6 +517,8 @@ def validate_real_trial_root_chain(
         == write_prohibition.canonical_digest,
         attestation.network_isolation_result_digest
         == network_isolation.canonical_digest,
+        attestation.verification_suite_digest
+        == root_verification_suite_digest(*results),
         attestation.generated_by == root_verifier_id,
         target_selection.provisioning_request_digest
         == provisioning_request.canonical_digest,
@@ -478,6 +570,7 @@ def validate_real_trial_root_chain(
         provisioning_request.requested_at,
         provisioning_request.expires_at,
         root_identity.provisioned_at,
+        root_identity.expires_at,
         *(item.evaluated_at for item in results),
         attestation.generated_at,
         attestation.expires_at,
@@ -495,6 +588,7 @@ def validate_real_trial_root_chain(
             <= attestation.generated_at
             <= target_selection.selected_at
             <= evaluation_time
+            < root_identity.expires_at
             < attestation.expires_at
             <= provisioning_request.expires_at
         )
@@ -519,6 +613,25 @@ def fixed_real_trial_policy_summary() -> dict[str, str | int | bool]:
     }
 
 
+def fixed_real_trial_closure_policy_digest() -> str:
+    return digest(
+        canonical_json(
+            {
+                "classification_verified_required": True,
+                "closure_record_required": True,
+                "closure_review_required": True,
+                "downstream_embedding_authorized": False,
+                "export_authorized": False,
+                "masking_verified_required": True,
+                "persistence_authorized": False,
+                "post_read_evidence_required": True,
+                "receipt_required": True,
+                "usage_exhausted_required": True,
+            }
+        )
+    )
+
+
 __all__ = [
     "LinkReparseVerificationResult",
     "NetworkIsolationVerificationResult",
@@ -536,5 +649,7 @@ __all__ = [
     "RootProvisioningVerificationState",
     "WriteProhibitionVerificationResult",
     "fixed_real_trial_policy_summary",
+    "fixed_real_trial_closure_policy_digest",
+    "root_verification_suite_digest",
     "validate_real_trial_root_chain",
 ]

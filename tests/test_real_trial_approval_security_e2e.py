@@ -22,6 +22,7 @@ from ragguard.real_trial_approval import (
 from ragguard.real_trial_root import (
     RootProvisioningAttestationState,
     RootProvisioningVerificationState,
+    root_verification_suite_digest,
 )
 from ragguard.storage_adapter import digest
 from test_local_rag_execution_session_contract import NOW
@@ -176,7 +177,7 @@ def test_adversarial_chain_is_denied_with_zero_side_effects_and_unchanged_state(
 def test_consistently_rebound_forged_root_identity_still_fails_against_descriptor():
     registry, _, call = approval_chain(approve=False)
     forged_identity = replace(
-        call["root_identity"], opaque_identity_digest=digest("outside-root-identity")
+        call["root_identity"], root_identity_digest=digest("outside-root-identity")
     )
     call["root_identity"] = forged_identity
     result_names = (
@@ -198,6 +199,13 @@ def test_consistently_rebound_forged_root_identity_still_fails_against_descripto
         permission_result_digest=call["permission"].canonical_digest,
         write_prohibition_result_digest=call["write_prohibition"].canonical_digest,
         network_isolation_result_digest=call["network_isolation"].canonical_digest,
+        verification_suite_digest=root_verification_suite_digest(
+            call["root_confinement"],
+            call["link_reparse"],
+            call["permission"],
+            call["write_prohibition"],
+            call["network_isolation"],
+        ),
     )
     call["root_attestation"] = attestation
     call["target_selection"] = replace(
@@ -205,6 +213,7 @@ def test_consistently_rebound_forged_root_identity_still_fails_against_descripto
     )
     request = replace(
         call["approval_request"],
+        root_identity_digest=forged_identity.canonical_digest,
         root_attestation_digest=attestation.canonical_digest,
         target_selection_digest=call["target_selection"].canonical_digest,
     )

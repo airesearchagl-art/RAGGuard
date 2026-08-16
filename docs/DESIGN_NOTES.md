@@ -16,7 +16,7 @@ Approved records are immutable, generation/predecessor bound, and one-way lifecy
 The pure readiness result stops at explicit execution review. No actual file is opened or read,
 no root capability is created, and no real-data, storage, network, credential, registry, or
 runtime authority is granted. See the authoritative
-[v0.28 Explicit One-Shot Real-Data Trial Approval Boundary](ONE_SHOT_REAL_DATA_TRIAL_APPROVAL_BOUNDARY_DESIGN_V0.28.md).
+[v0.28 Explicit One-Shot Real-Data Trial Approval Boundary](ONE_SHOT_REAL_DATA_TRIAL_APPROVAL_DESIGN_V0.28.md).
 
 ## RAGGuard v0.27 explicit one-shot real-data trial execution boundary
 

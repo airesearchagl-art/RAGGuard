@@ -46,6 +46,8 @@ from ragguard.real_trial_root import (
     RootProvisioningAttestationState,
     RootProvisioningVerificationState,
     WriteProhibitionVerificationResult,
+    fixed_real_trial_closure_policy_digest,
+    root_verification_suite_digest,
 )
 from ragguard.real_data_access import RealDataAccessRetentionClass
 from ragguard.storage_adapter import canonical_object_valid, digest
@@ -97,8 +99,8 @@ def approval_chain(
         RealTrialPurposeClass.LOCAL_RAG_CONFIDENTIALITY_TRIAL,
         RAGStage.CHUNKING,
         digest("expected-confidentiality-trial-outcome-v028"),
-        RealDataAccessRetentionClass.NONE,
-        True,
+        access.access_policy.retention_policy_digest,
+        fixed_real_trial_closure_policy_digest(),
         NOW + timedelta(minutes=28),
     )
     provisioning_request = RealTrialRootProvisioningRequest(
@@ -106,6 +108,8 @@ def approval_chain(
         access.approved_trial.canonical_digest,
         access.authorization_record.canonical_digest,
         purpose.canonical_digest,
+        TrialRootClass.CONTROLLED_TRIAL_ROOT,
+        access.selector.document_class,
         root_descriptor.canonical_digest,
         target_reference.canonical_digest,
         "root-provisioner-028",
@@ -121,6 +125,7 @@ def approval_chain(
         resolver_policy.canonical_digest,
         "root-provisioner-028",
         NOW + timedelta(minutes=30),
+        NOW + timedelta(minutes=77),
     )
     verification_results = tuple(
         result_type(
@@ -129,8 +134,8 @@ def approval_chain(
             provisioning_request.canonical_digest,
             digest(f"{result_type.__name__}-protocol-v028"),
             digest(f"{result_type.__name__}-observed-v028"),
-            "root-verifier-028",
             NOW + timedelta(minutes=31),
+            "root-verifier-028",
             RootProvisioningVerificationState.PASSED,
         )
         for result_type in RESULT_TYPES
@@ -151,6 +156,7 @@ def approval_chain(
         permission.canonical_digest,
         write_prohibition.canonical_digest,
         network_isolation.canonical_digest,
+        root_verification_suite_digest(*verification_results),
         "root-verifier-028",
         NOW + timedelta(minutes=32),
         NOW + timedelta(minutes=78),
@@ -163,6 +169,7 @@ def approval_chain(
         target_reference.canonical_digest,
         access.selector.canonical_digest,
         target_reference.expected_content_identity_digest,
+        access.classification_policy.canonical_digest,
         access.selector.data_class,
         access.selector.document_class,
         1,
@@ -179,6 +186,7 @@ def approval_chain(
         True,
         True,
         True,
+        True,
         False,
         False,
         False,
@@ -188,6 +196,7 @@ def approval_chain(
     approval_request = RealTrialApprovalRequest(
         "one-shot-trial-approval-request-028",
         purpose.canonical_digest,
+        root_identity.canonical_digest,
         provisioning_request.canonical_digest,
         root_attestation.canonical_digest,
         target_selection.canonical_digest,
@@ -207,6 +216,7 @@ def approval_chain(
         "trial-security-review-028",
         approval_request.canonical_digest,
         root_attestation.canonical_digest,
+        target_selection.canonical_digest,
         resolver_policy.canonical_digest,
         "trial-security-reviewer-028",
         NOW + timedelta(minutes=36),
@@ -219,6 +229,10 @@ def approval_chain(
         purpose.canonical_digest,
         target_selection.canonical_digest,
         closure_requirement.canonical_digest,
+        access.classification_policy.canonical_digest,
+        access.access_policy.retention_policy_digest,
+        access.access_policy.logging_policy_digest,
+        access.access_policy.persistence_policy_digest,
         "trial-governance-reviewer-028",
         NOW + timedelta(minutes=37),
         TrialAuthorizationReviewResult.APPROVED,

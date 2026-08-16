@@ -134,7 +134,7 @@ def test_target_selection_is_one_opaque_internal_low_document_only():
     assert target.maximum_document_count == 1
     assert canonical_object_valid(target)
     with pytest.raises(RealTrialRootError, match="real_trial_target_selection_invalid"):
-        replace(target, maximum_document_count=2)
+        replace(target, max_documents=2)
 
 
 def test_root_identity_and_public_contracts_have_no_locator_surface():
@@ -166,7 +166,7 @@ def test_root_descriptor_and_identity_are_exactly_bound():
     _, _, call = approval_chain(approve=False)
     validation = root_validation_call(call)
     validation["root_identity"] = replace(
-        validation["root_identity"], opaque_identity_digest=digest("different-root")
+        validation["root_identity"], root_identity_digest=digest("different-root")
     )
     assert "root_provisioning_binding_mismatch" in validate_real_trial_root_chain(
         **validation
@@ -223,9 +223,9 @@ def test_purpose_cannot_widen_retention_or_skip_closure():
     _, _, call = approval_chain(approve=False)
     purpose = call["purpose"]
     with pytest.raises(RealTrialRootError, match="real_trial_purpose_invalid"):
-        replace(purpose, retention_class=RealDataAccessRetentionClass.RAW_EPHEMERAL)
+        replace(purpose, retention_policy_digest=digest("raw-retention-policy"))
     with pytest.raises(RealTrialRootError, match="real_trial_purpose_invalid"):
-        replace(purpose, closure_required=False)
+        replace(purpose, closure_policy_digest=digest("closure-not-required"))
 
 
 def test_root_temporal_order_cannot_be_reversed():
