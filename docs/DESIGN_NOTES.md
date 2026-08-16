@@ -1,5 +1,18 @@
 # Design Notes
 
+## RAGGuard v0.29 one-shot trial execution preparation
+
+v0.29 is a thin review-packet layer over the existing boundaries. The packet contains only
+canonical object digests, one opaque operator ID, fixed enums/counts/deny flags, and explicit issue
+and expiry times. The evaluator re-runs the v0.25 access-source and v0.28 root validators, checks
+the complete approved-trial chain and all eight roles, and exact-binds the result to the packet.
+
+The test-only registry consumes packet and request replay identities only for a ready dry-run.
+Denial leaves its immutable state unchanged. The safe summary is metadata-only, and the maximum
+result is `ready_for_explicit_execution_approval`. No resolver, adapter, filesystem, database,
+vector, transport, credential, production registry, or runtime capability is reachable. See the
+authoritative [v0.29 design](ONE_SHOT_REAL_DATA_TRIAL_PREPARATION_V0.29.md).
+
 ## RAGGuard v0.28 explicit one-shot trial approval and root provisioning
 
 v0.28 adds the missing approval stage before an explicit one-shot trial. The source context holds
