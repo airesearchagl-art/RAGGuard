@@ -1,5 +1,23 @@
 # Design Notes
 
+## RAGGuard v0.28 explicit one-shot trial approval and root provisioning
+
+v0.28 adds the missing approval stage before an explicit one-shot trial. The source context holds
+the actual v0.25 authorization/operator/usage chain and actual v0.27 root descriptor, resolver
+policy, and opaque target reference. Root provisioning is metadata-only: an opaque identity is
+verified by five independent object types for confinement, link/reparse denial, permission,
+write prohibition, and network isolation. Their exact digests are bound into one short-lived
+attestation; Boolean claims alone are not accepted.
+
+Purpose, one-document selection, closure, independent security/governance reviews, distinct
+execution approval, and all eight roles are canonical-bound. A test-only registry performs one
+candidate-state swap only on success, so denial and injected faults consume no replay identity.
+Approved records are immutable, generation/predecessor bound, and one-way lifecycle controlled.
+The pure readiness result stops at explicit execution review. No actual file is opened or read,
+no root capability is created, and no real-data, storage, network, credential, registry, or
+runtime authority is granted. See the authoritative
+[v0.28 Explicit One-Shot Real-Data Trial Approval Boundary](ONE_SHOT_REAL_DATA_TRIAL_APPROVAL_DESIGN_V0.28.md).
+
 ## RAGGuard v0.27 explicit one-shot real-data trial execution boundary
 
 v0.27 replaces the v0.26 protocol-only future hook with a controlled synthetic-filesystem

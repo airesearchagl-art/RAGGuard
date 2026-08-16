@@ -1,5 +1,15 @@
 # RAGGuard
 
+v0.28 adds an Explicit One-Shot Real-Data Trial Approval / Root Provisioning Boundary. It
+exact-binds the live v0.25 authorization and usage objects to the v0.27 root descriptor, resolver
+policy, opaque target reference, an opaque provisioned-root identity, and five object-backed root
+verification results. Independent security and data-governance reviews precede a distinct
+execution approval, with eight-way role separation and successful-only replay consumption. The
+maximum result is `eligible_for_explicit_one_shot_execution_review`; approval is not an executed
+read, real-data-use authorization, embedding approval, persistence approval, or runtime
+activation. The implementation performs no actual file open/read or real-material access. See
+[the v0.28 design](docs/ONE_SHOT_REAL_DATA_TRIAL_APPROVAL_DESIGN_V0.28.md).
+
 v0.27 adds an Explicit One-Shot Real-Data Trial Execution Boundary for controlled synthetic
 filesystem targets only. An opaque reference is confined to one capability-bound root; traversal,
 absolute/UNC/device paths, symlinks, junctions, reparse points, non-regular files, wrong types, and

@@ -1,5 +1,23 @@
 # Usage
 
+## v0.28 explicit one-shot trial approval contracts
+
+Construct a `RealTrialApprovalSourceContext` from the actual v0.25/v0.24 authorization context
+and the actual v0.27 `TrialRootDescriptor`, `RealTargetResolverPolicy`, and
+`ControlledTargetReference`. Create an opaque `RealTrialPurpose`, root-provisioning request and
+identity, all five concrete verification result objects, their exact-bound attestation, one
+opaque target selection, and the fixed closure requirement. No public object accepts a path,
+filename, directory, drive, UNC share, hostname, wildcard, credential, token, or document body.
+
+After an independent `TrialSecurityReview`, separate `TrialDataGovernanceReview`, and distinct
+`TrialExecutionApproval`, only `TestOnlyRealTrialApprovalRegistry` can issue
+`ApprovedOneShotRealDataTrial`. The registry revalidates root hard gates, one live authorization
+with one remaining use, the internal-low one-document chunking ceiling, deny-by-default storage
+and network policy, exact operator binding, eight-role separation, time, generation,
+predecessor, and replay. The result is eligible only for explicit execution review. It does not
+open/read a file, authorize real-data use, embedding, persistence, export, or runtime activation.
+No new CLI command is added.
+
 ## v0.27 explicit one-shot trial execution contracts
 
 Create a digest-only `TrialRootDescriptor`, fail-closed `RealTargetResolverPolicy`, and opaque

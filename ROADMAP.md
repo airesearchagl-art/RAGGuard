@@ -1,5 +1,16 @@
 # RAGGuard Roadmap
 
+## Delivery candidate: v0.28 explicit one-shot trial approval and root provisioning
+
+- Opaque root identity and five object-backed confinement/link/permission/write/network checks.
+- Exact live v0.25 authorization/usage plus v0.27 root-policy/target object binding.
+- Internal-low-only, one-document, one-read, chunking-candidate ceiling and explicit closure.
+- Independent security/governance reviews and distinct execution approval with eight roles.
+- Test-only atomic approval registry with generation, predecessor, lifecycle, and replay gates.
+- Execution-review eligibility without an actual file open/read or real-material access.
+
+Authoritative design: [v0.28 Explicit One-Shot Real-Data Trial Approval Boundary](docs/ONE_SHOT_REAL_DATA_TRIAL_APPROVAL_DESIGN_V0.28.md).
+
 ## Delivery candidate: v0.27 explicit one-shot real-data trial execution boundary
 
 - Digest-only root descriptor, fail-closed resolver policy, and opaque target reference.
