@@ -1,5 +1,35 @@
 # Design Notes
 
+## RAGGuard v0.30 actual one-shot execution bridge
+
+The bridge promotes execution from a test-only injected-content chain to one production-capable
+interface without adding a general filesystem reader. The v0.29 packet is accepted as the actual
+canonical object and evaluated against every v0.25-v0.29 source object. The distinct Human
+approval binds that packet and its operator and must be live before an executor open is possible.
+
+Root provisioning accepts a single supplied root/relative-target pair. A resolver-issued opaque
+capability pins the root directory, component metadata, target identity, and fixture/actual use;
+downstream code receives no raw path and cannot override its use class. Component-relative
+no-follow semantics and opened-handle identity checks remain the read authority. The pre-read
+target identity is metadata-only; the raw content digest is first derived after the one read.
+
+The classifier, masker, and chunker are deterministic and local. `PositiveInternalLowEvidence`
+exact-binds the actual classification policy, selector, authorization, source trial, approved
+one-shot trial, and target object. Absence of a sensitive-pattern match is not approval: without valid
+positive evidence the result is unknown. Sensitive, unknown wording, numeric-only, opaque, and
+ambiguous inputs fail closed. Masking replaces every token with a one-way digest token and applies
+a non-authorizing residue inspection to the transformed value. Only digests and counts survive
+into chunking evidence. A
+candidate-state/single-swap process ledger commits the exhausted authorization, zero remaining
+usage, receipt, evidence, closure, and replay identities together. Pre-read failure mutates
+nothing. Post-read failure or commit fault leaves usage unchanged but records the Human approval
+as spent, making automatic retry impossible.
+
+PR coverage uses the same executor against controlled synthetic temporary roots. The actual
+Local RAG trial remains a separate Human action after merge. `implementation merged != actual
+trial passed`, and `actual trial passed != unrestricted real-data processing`. See the
+authoritative [v0.30 design](ACTUAL_ONE_SHOT_EXECUTION_DESIGN_V0.30.md).
+
 ## RAGGuard v0.29 one-shot trial execution preparation
 
 v0.29 is a thin review-packet layer over the existing boundaries. The packet contains only

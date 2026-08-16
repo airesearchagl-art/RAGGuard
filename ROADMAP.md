@@ -1,5 +1,19 @@
 # RAGGuard Roadmap
 
+## Delivery candidate: v0.30 actual one-shot execution bridge and trial gate
+
+- Exact object-backed execution binding to the complete v0.29 preparation packet.
+- Separate expiring Human approval exact-bound to the packet and assigned operator.
+- One Human-selected target under an opaque, no-scan, handle-backed root capability.
+- Raw-derived local classification requires exact positive internal-low source evidence; a
+  no-match result alone fails closed as unknown.
+- Verified classification and masking are followed by digest-only chunking evidence.
+- Process-local atomic success commit; post-read failure spends approval but not usage.
+- PR validation uses only controlled synthetic roots; actual trial is a separate post-merge gate.
+- v0.30.0 tag and Release remain blocked until the Human-approved actual trial passes.
+
+Authoritative design: [v0.30 Actual One-Shot Execution Bridge](docs/ACTUAL_ONE_SHOT_EXECUTION_DESIGN_V0.30.md).
+
 ## Delivery candidate: v0.29 one-shot real-data trial execution preparation
 
 - One immutable metadata-only packet over the exact v0.25-v0.28 source objects.

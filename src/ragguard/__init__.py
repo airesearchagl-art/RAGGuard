@@ -150,6 +150,30 @@ from ragguard.one_shot_trial_preparation import (
     OneShotTrialExecutionPacket, OneShotTrialPreparationError,
     TestOnlyExecutionPreparationRegistry, prepare_one_shot_trial,
 )
+from ragguard.actual_content_classification import (
+    ActualContentClassification, ActualContentClassificationError,
+    ActualObservedDataClass, PositiveInternalLowEvidence,
+    classify_actual_content,
+)
+from ragguard.actual_content_masking import (
+    ActualContentMasking, ActualContentMaskingError, mask_actual_content,
+)
+from ragguard.actual_trial_root import (
+    ActualRootProvisioning, ActualTrialRootCapability, ActualTrialRootError,
+    ActualTrialRootUse, HumanSelectedOpaqueTarget,
+    provision_human_selected_actual_root,
+)
+from ragguard.actual_trial_execution import (
+    ActualChunkingCandidate, ActualExecutionObjectChain,
+    ActualOneShotTrialExecutor, ActualOneShotTrialReceipt,
+    ActualPostReadEvidence, ActualTrialClosureRecord,
+    ActualTrialExecutionError, ActualTrialExecutionLedger,
+    ActualTrialExecutionResult, ActualTrialExecutionState,
+    ActualTrialFailureReason, ActualTrialGateDecision,
+    ActualTrialSideEffects, HumanExecutionApproval,
+    HumanExecutionApprovalResult, create_actual_chunking_candidate,
+    evaluate_actual_trial_gate,
+)
 
 from ragguard.equivalence_attestation import (
     EquivalenceApproval,
@@ -436,6 +460,22 @@ from ragguard.replacement_admission import (
 __version__ = "0.1.0"
 
 __all__ = [
+    "ActualContentClassification", "ActualContentClassificationError",
+    "ActualObservedDataClass", "PositiveInternalLowEvidence",
+    "classify_actual_content",
+    "ActualContentMasking", "ActualContentMaskingError", "mask_actual_content",
+    "ActualRootProvisioning", "ActualTrialRootCapability", "ActualTrialRootError",
+    "ActualTrialRootUse", "HumanSelectedOpaqueTarget",
+    "provision_human_selected_actual_root",
+    "ActualChunkingCandidate", "ActualExecutionObjectChain",
+    "ActualOneShotTrialExecutor", "ActualOneShotTrialReceipt",
+    "ActualPostReadEvidence", "ActualTrialClosureRecord",
+    "ActualTrialExecutionError", "ActualTrialExecutionLedger",
+    "ActualTrialExecutionResult", "ActualTrialExecutionState",
+    "ActualTrialFailureReason", "ActualTrialGateDecision",
+    "ActualTrialSideEffects", "HumanExecutionApproval",
+    "HumanExecutionApprovalResult", "create_actual_chunking_candidate",
+    "evaluate_actual_trial_gate",
     "ApprovedChunk", "BoundaryResult", "ChunkLifecycle",
     "ConfidentialityTransformationRecord", "DataFlowStageContract",
     "ExternalIOClass", "ExternalIOCounters", "IntegrationApproval",
