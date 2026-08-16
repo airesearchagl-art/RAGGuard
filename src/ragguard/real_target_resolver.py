@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import errno
 import os
 import re
 import stat
@@ -537,6 +538,10 @@ def _open_component_chain(
         _close_fd(current_fd)
         if isinstance(exc, RealTargetResolverError):
             raise
+        if exc.errno == errno.ELOOP:
+            raise RealTargetResolverError(
+                "link_or_reparse_target_rejected"
+            ) from exc
         raise RealTargetResolverError("target_component_open_failed") from exc
 
 

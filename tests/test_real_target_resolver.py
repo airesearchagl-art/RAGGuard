@@ -1,10 +1,12 @@
 from dataclasses import replace
 from datetime import timedelta
+import errno
 import os
 import stat
 
 import pytest
 
+import ragguard.real_target_resolver as resolver_module
 from ragguard.real_target_resolver import (
     RealTargetResolverError,
     _SMALL_DOCUMENT_MAX_BYTES,
@@ -115,6 +117,27 @@ def test_symlink_target_is_rejected_when_platform_allows_fixture_symlink(tmp_pat
     with pytest.raises(RealTargetResolverError) as error:
         call["resolver"].resolve(
             reference, observed_at=NOW + timedelta(minutes=31)
+        )
+    assert error.value.category == "link_or_reparse_target_rejected"
+
+
+def test_posix_nofollow_eloop_preserves_link_rejection_category(
+    tmp_path, monkeypatch
+):
+    _, call, _ = one_shot_call(tmp_path)
+
+    def reject_link(*_args, **_kwargs):
+        raise OSError(errno.ELOOP, "synthetic no-follow link rejection")
+
+    monkeypatch.setattr(
+        resolver_module,
+        "_open_relative_component_fd",
+        reject_link,
+    )
+    with pytest.raises(RealTargetResolverError) as error:
+        call["resolver"].resolve(
+            call["target_reference"],
+            observed_at=NOW + timedelta(minutes=31),
         )
     assert error.value.category == "link_or_reparse_target_rejected"
 
