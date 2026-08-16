@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.29.0 - Unreleased
+
+### Added
+
+- Immutable metadata-only one-shot execution packet and preparation request/decision contracts.
+- Exact object-backed revalidation across v0.25 authorization/operator/usage, v0.27
+  root/resolver/target, and v0.28 purpose/provisioning/approval/closure objects.
+- Safe summary with opaque IDs, digests, fixed policy metadata, expiry, readiness, and reason codes.
+- Test-only successful-only packet/request replay protection with denial-state immutability.
+
+### Security boundary
+
+- Preparation stops at `ready_for_explicit_execution_approval`; it never grants execution
+  authorization and never opens or reads a file.
+- Forgery, exhaustion, widening, missing closure evidence, expiry, role conflict, and replay fail
+  closed with every real-data and external side-effect count at zero.
+- No raw root/target locator, payload, real identity, credential, or token enters the packet,
+  summary, report, or repository.
+
 ## v0.28.0 - Unreleased
 
 ### Added

@@ -143,6 +143,13 @@ from ragguard.real_trial_approval import (
     evaluate_one_shot_trial_approval_readiness,
     validate_real_trial_approval_source,
 )
+from ragguard.one_shot_trial_preparation import (
+    ExecutionPreparationDecision, ExecutionPreparationReason,
+    ExecutionPreparationRequest, ExecutionPreparationSafeSummary,
+    ExecutionPreparationSideEffectAccounting, ExecutionPreparationState,
+    OneShotTrialExecutionPacket, OneShotTrialPreparationError,
+    TestOnlyExecutionPreparationRegistry, prepare_one_shot_trial,
+)
 
 from ragguard.equivalence_attestation import (
     EquivalenceApproval,
@@ -543,6 +550,11 @@ __all__ = [
     "TrialExecutionApprovalResult", "OneShotTrialSecurityReview",
     "evaluate_one_shot_trial_approval_readiness",
     "validate_real_trial_approval_source",
+    "ExecutionPreparationDecision", "ExecutionPreparationReason",
+    "ExecutionPreparationRequest", "ExecutionPreparationSafeSummary",
+    "ExecutionPreparationSideEffectAccounting", "ExecutionPreparationState",
+    "OneShotTrialExecutionPacket", "OneShotTrialPreparationError",
+    "TestOnlyExecutionPreparationRegistry", "prepare_one_shot_trial",
     "CANONICAL_STORAGE_ADAPTER_DIGEST_ALGORITHM",
     "MAX_ADAPTER_EVIDENCE_AGE",
     "AdapterApprovalResult", "AdapterCapabilityName", "AdapterCapabilityTestResult",

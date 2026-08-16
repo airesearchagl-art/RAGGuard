@@ -1,5 +1,19 @@
 # Usage
 
+## v0.29 one-shot trial execution preparation contracts
+
+Construct `OneShotTrialExecutionPacket` only from the canonical digests of the actual v0.25-v0.28
+objects. Bind one live authorization and usage, one opaque root and target, the v0.28 approval,
+operator, purpose, resolver/reader policy, and complete closure requirement. The packet fixes the
+read count at one, caps processing at the chunking candidate, and denies raw retention/log/cache,
+persistence, export, and network.
+
+Create an `ExecutionPreparationRequest` with an explicit evaluation time and call
+`prepare_one_shot_trial()` with an explicit `TestOnlyExecutionPreparationRegistry` plus the actual
+source objects. A ready decision provides a metadata-only `ExecutionPreparationSafeSummary` and
+then stops. It is not execution authorization and performs no file open/read. There is no new CLI
+command, target resolver invocation, automatic approval, or execution entrypoint.
+
 ## v0.28 explicit one-shot trial approval contracts
 
 Construct a `RealTrialApprovalSourceContext` from the actual v0.25/v0.24 authorization context

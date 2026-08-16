@@ -1,5 +1,13 @@
 # RAGGuard
 
+v0.29 adds a One-Shot Real-Data Trial Execution Preparation Boundary. It bundles the actual
+v0.25 authorization/operator/usage objects, v0.27 root/resolver/opaque-target objects, and v0.28
+purpose, provisioning, attestation, approval, and closure objects into one immutable metadata-only
+packet. A dry-run revalidates every object and stops at
+`ready_for_explicit_execution_approval`. Packet preparation is not execution authorization and
+does not open or read a file. See
+[the v0.29 design](docs/ONE_SHOT_REAL_DATA_TRIAL_PREPARATION_V0.29.md).
+
 v0.28 adds an Explicit One-Shot Real-Data Trial Approval / Root Provisioning Boundary. It
 exact-binds the live v0.25 authorization and usage objects to the v0.27 root descriptor, resolver
 policy, opaque target reference, an opaque provisioned-root identity, and five object-backed root

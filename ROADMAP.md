@@ -1,5 +1,16 @@
 # RAGGuard Roadmap
 
+## Delivery candidate: v0.29 one-shot real-data trial execution preparation
+
+- One immutable metadata-only packet over the exact v0.25-v0.28 source objects.
+- Dry-run revalidation of authorization, root, target, operator, purpose, expiry, and closure.
+- Internal-low, one-document, one-read, chunking ceiling, and deny-by-default policy gates.
+- Lightweight test-only successful-only packet/request replay protection.
+- Safe review summary and mandatory stop at explicit human execution approval.
+- No actual file open/read, real-data access, production write, external service, or activation.
+
+Authoritative design: [v0.29 One-Shot Real-Data Trial Execution Preparation](docs/ONE_SHOT_REAL_DATA_TRIAL_PREPARATION_V0.29.md).
+
 ## Delivery candidate: v0.28 explicit one-shot trial approval and root provisioning
 
 - Opaque root identity and five object-backed confinement/link/permission/write/network checks.
